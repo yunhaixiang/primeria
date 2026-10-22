@@ -255,12 +255,9 @@ main { padding-top: 16px; }
 
 /* Board tools share one quiet row; repository credit stays in the footer. */
 .board-actions { display: flex; align-items: center; gap: 18px; }
-.board-actions #sound-button span { margin-left: 0; }
 .site-footer { justify-content: flex-start; flex-wrap: wrap; column-gap: 18px; }
 
 /* Sound and resignation stay with the actions they affect. */
-.board-actions #sound-button { display: inline-flex; align-items: center; gap: 7px; }
-.sound-icon { width: 17px; height: 17px; flex: none; }
 .action-tabs { grid-template-columns: repeat(4,minmax(0,1fr)); }
 .resign-option { background: #f3e9e3; border-color: #dcc5b8; color: #8d6251; }
 
@@ -271,3 +268,8 @@ main { padding-top: 16px; }
 /* Keep move choices simple, with two-line placement labels. */
 .action-tab { justify-content: center; }
 .action-tab strong { text-align: center; line-height: 1.25; white-space: normal; }
+
+/* Give both toolbar actions identical icon boxes and text baselines. */
+.board-actions .text-button { display: inline-flex; align-items: center; gap: 7px; height: 20px; font-size: 11px; line-height: 1; }
+.board-actions .text-button span { display: block; margin: 0; font-size: inherit; line-height: 1; }
+.board-actions .text-button svg { display: block; width: 17px; height: 17px; flex: none; }
