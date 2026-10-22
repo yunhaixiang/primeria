@@ -273,3 +273,16 @@ main { padding-top: 16px; }
 .board-actions .text-button { display: inline-flex; align-items: center; gap: 7px; height: 20px; font-size: 11px; line-height: 1; }
 .board-actions .text-button span { display: block; margin: 0; font-size: inherit; line-height: 1; }
 .board-actions .text-button svg { display: block; width: 17px; height: 17px; flex: none; }
+
+/* Session actions belong to the same quiet toolbar as sound and rotation. */
+.board-toolbar { flex-wrap: wrap; }
+.board-actions { flex-shrink: 0; margin-left: auto; }
+.board-actions .text-button { white-space: nowrap; }
+.board-actions #new-button { min-height: 20px; height: 20px; padding: 0; gap: 7px; border: 0; border-radius: 0; font-size: 11px; }
+.board-actions #new-button .new-game-label { display: block; margin: 0; font-size: inherit; line-height: 1; }
+.board-actions #start-button.paused { color: inherit; }
+@media (max-width: 520px) {
+ .board-toolbar { flex-wrap: wrap; gap: 12px; }
+ .board-toolbar .live-label { flex-basis: 100%; }
+ .board-actions { width: 100%; justify-content: space-between; gap: 10px; }
+}

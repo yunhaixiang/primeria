@@ -64,7 +64,7 @@ function renderControls(){
  const ready=action==='challenge'?ends.length===2&&$('#factor').value.trim().length>0:pending.length===(action==='double'?2:1);
  const button=$('#commit-button');button.innerHTML=`${action==='challenge'?'Submit challenge':action==='double'?'Place two tiles':'Place tile'} <span>↗</span>`;
  button.disabled=!allowed()||!ready;
- $('#start-button').textContent=state.ended?'Game Over':!state.started?'Start Game':state.paused?'Resume Game':'Pause Game';$('#start-button').classList.toggle('paused',state.paused);
+ $('#start-button .start-label').textContent=state.ended?'Game Over':!state.started?'Start':state.paused?'Resume':'Pause';$('#start-icon').innerHTML=state.ended?'<rect x="5" y="5" width="14" height="14" rx="1"/>':state.started&&!state.paused?'<path d="M8 4v16M16 4v16"/>':'<path d="m8 4 12 8-12 8Z"/>';$('#start-button').classList.toggle('paused',state.paused);
  $('#start-button').disabled=!!state.ended||!!verdict||(role!==null&&(!connection?.open||(!state.started&&role!==0)));
  $('#resign-button').disabled=!state.started||!!state.ended||(role!==null&&!connection?.open);
  $('#new-button').disabled=false;
@@ -179,7 +179,7 @@ $('#setup-form').addEventListener('submit',async e=>{
  }
  if(!online&&role!==null)leaveRoom();
  if(online&&role===null){connectRoom(code,next);return;}
- state=next;shownEnd=false;verdict=null;action='single';resetDraft();$('#result-dialog').close();$('#setup-dialog').close();save();sendState({fresh:true});render();sound('turn');toast(`${state.names[state.turn]} has the first move. Press Start Game when ready.`);
+ state=next;shownEnd=false;verdict=null;action='single';resetDraft();$('#result-dialog').close();$('#setup-dialog').close();save();sendState({fresh:true});render();sound('turn');toast(`${state.names[state.turn]} has the first move. Press Start when ready.`);
 });
 $$('[data-close]').forEach(b=>b.addEventListener('click',()=>b.closest('dialog').close()));
 $('#player-cards').addEventListener('click',e=>{const card=e.target.closest('[data-player]');if(!card)return;expanded=expanded===Number(card.dataset.player)?null:Number(card.dataset.player);renderPlayers();});
