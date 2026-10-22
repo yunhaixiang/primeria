@@ -521,3 +521,126 @@ main { padding-top: 16px; }
 @media(min-width:761px){
  .split-history ol { max-height: max(80px,calc(100dvh - 650px)); }
 }
+
+/* Phone controls expand only when needed, keeping the shared board in view. */
+.split-phone-clock, .split-panel-toggle, .phone-board-tools { display: none; }
+.phone-layout main { padding: max(10px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left)); }
+.phone-layout .board-toolbar { gap: 8px; }
+.phone-layout .board-toolbar .live-label { flex-basis: 100%; min-height: 18px; }
+.phone-layout .board-actions { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); width: 100%; margin: 0; gap: 4px 8px; }
+.phone-layout .board-actions .text-button, .phone-layout .board-actions #new-button { min-height: 44px; height: auto; justify-content: center; padding: 8px 4px; font-size: 12px; border-radius: 6px; }
+.phone-layout .board-actions .text-button svg { width: 17px; height: 17px; }
+.phone-layout .board-actions .text-button span { font-size: 12px; }
+.phone-layout .board-actions #split-button { box-shadow: none; }
+.phone-layout.split-view #split-button { background: #e5ecdc; }
+.phone-layout.split-view .game-layout { grid-template-columns: minmax(0,1fr); grid-template-areas: 'toolbar' 'opponent' 'board' 'boardtools' 'player'; gap: 10px; max-width: none; }
+.phone-layout.split-view .board-surround { max-width: 600px; }
+.phone-layout.split-view .split-player-panel { max-height: none; max-width: 600px; padding: 10px 12px; overflow: visible; }
+.phone-layout .split-seat-heading { display: grid; grid-template-columns: minmax(0,1fr) auto auto; grid-template-rows: auto auto; column-gap: 12px; min-height: 44px; }
+.phone-layout .split-seat-heading > div { grid-column: 1; grid-row: 1; min-width: 0; }
+.phone-layout .split-seat-label { display: none; }
+.phone-layout .split-seat-heading h2 { margin: 0; font-size: 16px; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+.phone-layout .split-turn-status { grid-column: 1; grid-row: 2; font-size: 11px; justify-self: start; white-space: normal; }
+.phone-layout .split-turn-status.active { padding: 0; background: transparent; font-weight: 600; }
+.phone-layout .split-phone-clock { display: block; grid-column: 2; grid-row: 1/3; font-size: 25px; margin: 0; }
+.phone-layout .split-panel-toggle { display: flex; align-items: center; justify-content: center; gap: 8px; grid-column: 3; grid-row: 1/3; min-width: 76px; min-height: 44px; padding: 10px; font-size: 12px; font-weight: 600; border: 1px solid #c9d2be; border-radius: 7px; background: #edf0e4; }
+.phone-layout .split-panel-toggle > span { font-size: 17px; font-weight: 400; }
+.phone-layout .split-panel-body[data-phone-open=false] { display: none; }
+.phone-layout .split-panel-body[data-phone-open=true] { display: flex; flex-direction: column; max-height: 390px; overflow-y: auto; overscroll-behavior-y: contain; padding: 4px 3px 0; margin: 8px -3px 0; scrollbar-width: thin; border-top: 1px solid var(--line); }
+.phone-layout .split-panel-body .split-mode-label, .phone-layout .split-panel-body .split-clocks { display: none; }
+.phone-layout .split-controls { order: 0; clear: none; }
+.phone-layout .split-move-heading { margin-top: 12px; }
+.phone-layout .split-move-heading h3 { font-size: 14px; }
+.phone-layout .split-move-heading > span { font-size: 11px; }
+.phone-layout .split-player-panel .action-tabs { margin: 12px 0 16px; gap: 6px; }
+.phone-layout .split-player-panel .action-tab { min-height: 48px; padding: 8px 3px; }
+.phone-layout .split-player-panel .action-tab strong { font-size: 11px; }
+.phone-layout .split-player-panel .rack-heading { font-size: 10px; margin: 12px 0 10px; letter-spacing: .7px; }
+.phone-layout .split-player-panel .rack-heading span:last-child { font-size: 11px; }
+.phone-layout .split-player-panel .tile-rack { grid-template-columns: repeat(5,minmax(0,1fr)); gap: 9px; margin: 0 0 14px; }
+.phone-layout .split-player-panel .rack-button { min-width: 44px; min-height: 58px; padding: 0 0 12px; display: grid; justify-items: center; }
+.phone-layout .split-player-panel .rack-button .tile { width: 44px; height: 44px; }
+.phone-layout .split-player-panel .rack-button .tile-number { font-size: 11px; }
+.phone-layout .split-player-panel .tile-count { min-width: 19px; height: 19px; font-size: 11px; bottom: 6px; right: max(0px,calc(50% - 28px)); }
+.phone-layout .split-player-panel .move-buttons { position: sticky; bottom: 0; z-index: 5; background: var(--panel); padding: 8px 0; margin-top: 0; }
+.phone-layout .split-player-panel .move-buttons button { min-height: 44px; font-size: 13px; }
+.phone-layout .split-player-panel .move-buttons .outline-button { min-width: 44px; font-size: 22px; }
+.phone-layout .split-player-panel .factor-keypad { grid-template-columns: repeat(5,minmax(0,1fr)); gap: 8px; }
+.phone-layout .split-player-panel .factor-digit { min-height: 44px; min-width: 44px; font-size: 18px; }
+.phone-layout .split-player-panel .factor-display { font-size: 22px; }
+.phone-layout .split-player-panel .factor-display-row .outline-button { min-width: 44px; min-height: 44px; padding: 8px; font-size: 20px; }
+.phone-layout .split-player-panel .reading-fixed small, .phone-layout .split-attempts { font-size: 11px; }
+.phone-layout .split-attempts button { min-height: 44px; font-size: 11px; }
+.phone-layout .split-player-panel .challenge-line { min-height: 44px; font-size: 12px; }
+.phone-layout .split-player-panel details { order: 1; margin-top: 12px; padding-top: 0; flex-shrink: 0; }
+.phone-layout .split-player-panel summary { min-height: 44px; line-height: 44px; font-size: 12px; }
+.phone-layout .split-player-panel summary > span { font-size: 11px; }
+.phone-layout .split-history ol { max-height: 180px; }
+.phone-layout .split-history .history-entry { font-size: 12px; min-height: 44px; }
+.phone-layout .split-history .history-entry small { font-size: 11px; }
+.phone-layout .split-session-tools { order: 2; margin: 10px 0; gap: 6px; flex-shrink: 0; }
+.phone-layout .split-session-tools .outline-button { min-height: 44px; font-size: 12px; padding: 8px 4px; }
+.phone-layout .split-turn-note { order: 3; margin: 4px 0 8px; font-size: 11px; }
+.phone-layout .split-message { min-height: 150px; padding: 16px 0; }
+.phone-layout .split-message p { font-size: 12px; }
+.phone-layout .split-message .outline-button, .phone-layout .split-review-nav button { min-height: 44px; font-size: 12px; }
+.phone-layout .phone-board-tools { display: flex; align-items: center; justify-content: space-between; min-height: 44px; max-width: 600px; width: 100%; margin: auto; padding: 0 4px; }
+.phone-layout.split-view .phone-board-tools { grid-area: boardtools; }
+.phone-layout .phone-board-tools > span { color: var(--muted); font-size: 11px; letter-spacing: 1px; }
+.phone-layout #board-zoom-button { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; font-size: 12px; padding: 8px; }
+.phone-layout #board-zoom-button svg { width: 17px; height: 17px; }
+.phone-layout #board-zoom-button span { margin: 0; }
+.phone-layout .board-surround.board-zoomed { aspect-ratio: 1; overflow: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.phone-layout .board-zoomed .board-grid { min-width: calc(var(--board-size) * 46px + 40px); }
+.phone-layout .board-zoomed .cell .tile-number { font-size: 11px; }
+.phone-layout .board-zoomed::after { display: none; }
+.phone-layout .board-surround { touch-action: pan-x pan-y pinch-zoom; }
+.phone-layout dialog { padding: 20px; max-height: calc(100dvh - 24px); }
+.phone-layout dialog input:not([type=radio]):not([type=checkbox]), .phone-layout dialog select { font-size: 16px; min-height: 44px; }
+.phone-layout dialog .close-button { width: 44px; height: 44px; }
+.phone-layout dialog .location-options label, .phone-layout dialog .board-size-options label, .phone-layout dialog .time-options label { min-height: 48px; }
+.phone-layout .play-panel .tile-rack { grid-template-columns: repeat(5,minmax(0,1fr)); }
+.phone-layout .play-panel .action-tab strong { font-size: 12px; }
+.phone-layout .play-panel .action-tab, .phone-layout .play-panel .move-buttons button { min-height: 44px; }
+.phone-layout .site-footer { margin-top: 16px; font-size: 10px; }
+@media(max-width:1000px) and (max-height:500px) and (orientation:landscape){
+ .phone-layout .board-toolbar .live-label { flex-basis: auto; }
+ .phone-layout .board-actions { display: flex; flex-wrap: wrap; width: auto; gap: 10px; margin-left: auto; }
+ .phone-layout .board-actions .text-button, .phone-layout .board-actions #new-button { padding: 6px 2px; }
+ .phone-layout.split-view .game-layout { grid-template-columns: minmax(190px,1fr) minmax(0,1.3fr) minmax(190px,1fr); grid-template-areas: 'toolbar toolbar toolbar' 'opponent board player' '. boardtools .'; align-items: center; }
+ .phone-layout.split-view .board-surround { max-width: calc(100dvh - 110px); }
+ .phone-layout.split-view .split-player-panel { padding: 8px; }
+ .phone-layout .split-seat-heading { column-gap: 7px; }
+ .phone-layout .split-phone-clock { font-size: 20px; }
+ .phone-layout .split-panel-toggle { min-width: 58px; gap: 4px; padding: 8px 5px; font-size: 11px; }
+ .phone-layout .split-seat-heading h2 { font-size: 13px; }
+ .phone-layout .split-turn-status { font-size: 10px; }
+ .phone-layout .split-panel-body[data-phone-open=true] { max-height: calc(100dvh - 160px); }
+ .phone-layout .split-player-panel .tile-rack, .phone-layout .split-player-panel .factor-keypad { grid-template-columns: repeat(3,minmax(44px,1fr)); }
+ .phone-layout .split-player-panel .action-tabs { grid-template-columns: repeat(2,minmax(0,1fr)); }
+ .phone-layout .split-session-tools { grid-template-columns: 1fr; }
+}
+#phone-commit-button { display: none; }
+.phone-layout #phone-commit-button { display: flex; width: auto; min-height: 44px; padding: 10px 14px; justify-content: center; font-size: 12px; }
+.phone-layout .phone-board-tools { gap: 8px; }
+.phone-layout .phone-board-tools:has(#phone-commit-button:not([hidden])) #phone-board-size { display: none; }
+@media(max-width:350px){
+ .phone-layout .board-actions .text-button, .phone-layout .board-actions #new-button, .phone-layout .board-actions .text-button span { font-size: 11px; }
+ .phone-layout .board-actions .text-button { gap: 5px; padding: 8px 2px; }
+ .phone-layout .board-actions .text-button svg { width: 16px; height: 16px; }
+ .phone-layout .split-seat-heading { column-gap: 8px; }
+ .phone-layout .split-panel-toggle { min-width: 66px; gap: 5px; }
+}
+@media(max-width:600px) and (orientation:portrait){
+ .phone-layout.split-view #split-panel-1 { position: sticky; top: max(6px,env(safe-area-inset-top)); z-index: 9; }
+ .phone-layout.split-view #split-panel-0 { position: sticky; bottom: max(6px,env(safe-area-inset-bottom)); z-index: 10; }
+ .phone-layout.split-view .split-player-panel { box-shadow: 0 3px 14px #173c2920; }
+ .phone-layout .split-panel-body[data-phone-open=true] { max-height: min(390px,calc(100dvh - 180px)); }
+}
+@media(min-width:741px) and (max-width:1000px) and (max-height:500px) and (orientation:landscape){
+ .phone-layout .split-player-panel .action-tabs { grid-template-columns: repeat(4,minmax(0,1fr)); }
+ .phone-layout .split-player-panel .action-tab strong { font-size: 10px; }
+ .phone-layout .split-player-panel .tile-rack, .phone-layout .split-player-panel .factor-keypad { grid-template-columns: repeat(4,minmax(44px,1fr)); }
+}
+.phone-layout .play-panel .factor-digit { min-height: 44px; font-size: 18px; }
+.phone-layout .play-panel .factor-backspace { width: 44px; min-height: 44px; }

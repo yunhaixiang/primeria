@@ -35,7 +35,8 @@ test('each panel keeps its own inventory, escapes names, and has no duplicate ID
  const first=splitPanelHTML(s,{...options(0),pending:[{index:0,digit:3}]});
  const second=splitPanelHTML(s,{...options(1),pending:[{index:0,digit:3}]});
  assert.match(first,/Digit 3, 1 remaining/);assert.match(second,/Digit 3, 4 remaining/);
- assert.match(first,/&lt;one&gt;/);assert.doesNotMatch(first+second,/\sid=/);
+ assert.match(first,/&lt;one&gt;/);
+ const ids=[...(first+second).matchAll(/\sid="([^"]+)"/g)].map(m=>m[1]);assert.equal(ids.length,new Set(ids).size);
  assert.match(second,/data-split-command="digit" data-value="3"[^>]*disabled/);
 });
 test('second seat challenges read from the same fixed challenger perspective',()=>{
@@ -54,4 +55,14 @@ test('rendering both seats never changes the game, draft, or player perspectives
  const before=structuredClone(s),pending=[{index:2,digit:3}];
  for(const seat of [0,1])splitPanelHTML(s,{...options(seat),pending,action:'challenge',ends:[0,1]});
  assert.deepEqual(s,before);assert.deepEqual(pending,[{index:2,digit:3}]);
+});
+
+test('phone panel toggles control their own accessible body without changing permission',()=>{
+ const s=active();for(const seat of [0,1])for(const panelOpen of [false,true]){
+  const html=splitPanelHTML(s,{...options(seat),panelOpen});
+  assert.match(html,new RegExp('aria-expanded="'+panelOpen+'" aria-controls="split-body-'+seat+'"'));
+  assert.match(html,new RegExp('id="split-body-'+seat+'" class="split-panel-body" data-phone-open="'+panelOpen+'"'));
+  assert.match(html,new RegExp('split-phone-clock" data-player="'+seat+'"'));
+ }
+ assert.equal(splitPermissions(s,1).canMove,false);
 });

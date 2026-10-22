@@ -1,10 +1,10 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#f6f3eb"><meta name="description" content="Primeria is a two-player number tile game. Play on one device or online.">
   <title>Primeria</title>
-  <link rel="icon" href="./favicon.svg?v=02199c7e1a" type="image/svg+xml"><link rel="stylesheet" href="./styles.css?v=0737687aa8">
+  <link rel="icon" href="./favicon.svg?v=02199c7e1a" type="image/svg+xml"><link rel="stylesheet" href="./styles.css?v=30a6a9fe99">
 </head>
 <body>
 <main>
@@ -13,6 +13,7 @@
     <section class="board-panel" aria-label="Game board">
       <div class="board-toolbar"><span class="live-label" id="connection-status"><i></i> LOCAL GAME</span><div class="board-actions"><button id="new-button" class="text-button" aria-label="New game"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg><span class="new-game-label">New Game</span></button><button id="start-button" class="text-button" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><g id="start-icon"><path d="m8 4 12 8-12 8Z"/></g></svg><span class="start-label">Pause</span></button><button id="sound-button" class="text-button" aria-label="Mute" title="Mute sound"><svg class="sound-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4 6 8H3v8h3l5 4Z"/><g id="sound-icon-detail"><path d="M15 8a6 6 0 0 1 0 8M18 5a10 10 0 0 1 0 14"/></g></svg><span class="sound-label">Mute</span></button><button id="rotate-button" class="text-button" title="Rotate board 90 degrees"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 3v5h-5M21 8l-2.64-2.36A9 9 0 1 0 21 12"/></svg><span>Rotate</span></button><button id="split-button" class="text-button" aria-pressed="false" title="Two players facing each other"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 3v18M6 8l2-2 2 2M14 16l2 2 2-2"/></svg><span>Split View</span></button><button id="rules-button" class="text-button" aria-haspopup="dialog" aria-controls="rules-dialog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 .5c0 1.5-2.5 1.5-2.5 3M12 16h.01"/></svg><span>How to Play</span></button></div></div>
       <div class="board-surround"><div id="board" class="board-grid" role="group" aria-label="Primeria board, columns A through K, rows 1 through 11"></div><div id="game-end" class="game-end" role="region" aria-labelledby="game-end-title" hidden><div class="split-facing"><h2 data-split-result-title></h2><div class="end-actions"><button class="primary-button" data-split-global="new">New Game</button><button class="outline-button" data-split-global="review">Review Game</button></div></div><div><h2 id="game-end-title" aria-live="polite"></h2><div class="end-actions"><button id="end-new-game" class="primary-button">New Game</button><button id="end-review" class="outline-button">Review Game</button></div></div></div><div id="start-countdown" class="start-countdown" hidden><p id="split-start-countdown-text" class="split-facing" aria-hidden="true"></p><p id="start-countdown-text" role="status" aria-live="polite" aria-atomic="true"></p></div></div>
+      <div class="phone-board-tools"><span id="phone-board-size">11 × 11</span><button id="phone-commit-button" class="primary-button" hidden>Place tile</button><button id="board-zoom-button" class="text-button" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="10" cy="10" r="6"/><path d="m15 15 6 6M7 10h6M10 7v6"/></svg><span id="board-zoom-label">Zoom board</span></button></div>
       <div class="board-footer"><span id="board-note" aria-live="polite">Create a new game to begin.</span><span id="turn-count">TURN 01</span></div>
     </section>
     <aside id="split-panel-1" class="split-player-panel split-opponent" data-seat="1" aria-label="Player two controls" hidden></aside>
@@ -100,5 +101,5 @@
  </ol>
 </dialog>
 <dialog id="confirm-dialog"><div class="dialog-heading"><span class="eyebrow">CONFIRM</span></div><h2 id="confirm-title">Start a new game?</h2><p id="confirm-detail"></p><div class="confirm-actions"><button id="confirm-no" class="outline-button">Keep playing</button><button id="confirm-yes" class="primary-button">Continue <span>↗</span></button></div></dialog>
-<script src="./vendor/peerjs.min.js" defer></script><script type="module" src="./app.js?v=0ca9c71659"></script>
+<script src="./vendor/peerjs.min.js" defer></script><script type="module" src="./app.js?v=742e182451"></script>
 </body></html>
