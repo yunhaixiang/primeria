@@ -7,7 +7,7 @@ export function getBoardSize(board){
  return size;
 }
 export function isSupportedBoardState(state){return !!state&&state.rulesVersion===RULES_VERSION&&validChallengeAttempt(state)&&BOARD_SIZES.includes(state.boardSize)&&Array.isArray(state.board)&&state.board.length===state.boardSize**2&&Array.isArray(state.taxed)&&state.taxed.length===10&&state.taxed.every(n=>Number.isSafeInteger(n)&&n>=0);}
-export const RULES_VERSION = 7;
+export const RULES_VERSION = 8;
 export const MODES = {blitz:[600,10],rapid:[1200,20],standard:[1800,30],classical:[2700,60],casual:[null,0]};
 export const PILE = [2,5,3,5,3,2,3,5,3,5];
 export const total = pile => pile.reduce((a,b)=>a+b,0);
@@ -78,6 +78,22 @@ export function challengeLines(board,index){
   }
   return lines.length?lines:[{axis:'isolated',cells:[index]}];
 }
+// Remove newly exposed special tiles together, repeating for any resulting exposures.
+function removeExposedTiles(s){
+  const removed=[];
+  while(true){
+    const exposed=[];
+    for(let index=0;index<s.board.length;index++){
+      const digit=s.board[index];
+      if(digit===0){
+        const lines=challengeLines(s.board,index);
+        if(lines.some(line=>line.axis==='isolated'||line.cells[0]===index||line.cells.at(-1)===index))exposed.push({index,digit});
+      }else if(digit===5&&!adjacent(s.board,index))exposed.push({index,digit});
+    }
+    if(!exposed.length)return removed;
+    for(const tile of exposed){s.board[tile.index]=null;s.taxed[tile.digit]++;removed.push(tile);}
+  }
+}
 export function challengeNumber(s,a,b){
   const cells=segment(s.board,a,b),reverse=s.turn===1,readingCells=reverse?cells.slice().reverse():cells.slice();
   return {cells,readingCells,digits:readingCells.map(i=>s.board[i]).join(''),perspective:s.turn,reverse,attemptLimit:Math.ceil(cells.length/3)};
@@ -117,7 +133,7 @@ export function complete(s,command,now=Date.now()){
     if(c.success){
       const taxedCell=c.readingCells.at(-1),taxedDigit=s.board[taxedCell];
       for(const i of c.cells){if(i===taxedCell)s.taxed[s.board[i]]++;else s.piles[1-actor][s.board[i]]++;s.board[i]=null;}
-      Object.assign(entry,{taxedCell,taxedDigit,transferredCount:c.cells.length-1});
+      Object.assign(entry,{taxedCell,taxedDigit,transferredCount:c.cells.length-1,cleanup:removeExposedTiles(s)});
     }
     s.challengeAttempt=null;
   }else{

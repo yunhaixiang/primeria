@@ -85,7 +85,7 @@ test('pending attempts survive serialization and are validated in online states'
  const s=target();complete(s,move('2'),0);const saved=JSON.parse(JSON.stringify(s));assert.ok(isSupportedBoardState(saved));
  assert.equal(complete(saved,move('3'),1000).success,true);
  for(const patch of [{player:1},{digits:'9999'},{attemptLimit:9},{cells:[25]},{attempts:[]},{attempts:[{factor:'0',success:false,remainder:'0'}]}])assert.equal(isSupportedBoardState({...s,challengeAttempt:{...s.challengeAttempt,...patch}}),false);
- assert.equal(isSupportedBoardState({...s,rulesVersion:6}),false);
+ assert.equal(isSupportedBoardState({...s,rulesVersion:7}),false);
 });
 test('a pending challenge can still lose on time without receiving an increment',()=>{
  const s=target();s.clocks[0]=1;complete(s,move('2'),0);assert.throws(()=>complete(s,move('3'),1001),/over/);assert.equal(s.ended.winner,1);assert.equal(s.clocks[0],0);assert.equal(s.history.length,0);
