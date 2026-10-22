@@ -4,7 +4,7 @@ A two-player board game of prime numbers, invented by [Yunhai Xiang](https://yun
 
 ## Play
 
-Choose **New game**, enter both names, select a clock, and choose who moves first (or flip a coin). Press **Start game** when both players are ready.
+Choose **New Game** at the top of the side panel, enter both names, select a clock, and choose who moves first (or flip a coin). Press **Start Game** when both players are ready. The same button changes to **Pause Game** during play and **Resume Game** while paused. Resign and online room controls sit beside it; How to Play, GitHub, and Sound on/off are directly underneath.
 
 - **Single Drop:** select a digit and any vacant square. Zero must share an edge with an existing tile.
 - **Double Down:** select and place two tiles in order. Each must share an edge with an existing tile, including the tile just placed.

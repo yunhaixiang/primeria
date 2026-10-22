@@ -4,10 +4,9 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f6f3eb"><meta name="description" content="A beautiful battle of prime numbers. Play Primeria together, at one table or across the world.">
   <title>Primeria — A little arithmetic. A lot of possibility.</title>
-  <link rel="icon" href="./favicon.svg?v=02199c7e1a" type="image/svg+xml"><link rel="stylesheet" href="./styles.css?v=3a8eed074b">
+  <link rel="icon" href="./favicon.svg?v=02199c7e1a" type="image/svg+xml"><link rel="stylesheet" href="./styles.css?v=b3b3202561">
 </head>
 <body>
-<header class="site-header"><a class="wordmark" href="./" aria-label="Come Play Primeria with a Friend — home">Come Play Primeria with a Friend</a><nav><button id="new-button" class="outline-button" aria-label="New game"><span class="new-game-label">New game</span><span class="new-game-icon" aria-hidden="true">＋</span></button><button id="rules-button" class="text-button">How to play <span>↗</span></button><button id="sound-button" class="icon-button" aria-label="Mute sound" title="Toggle sound">♫</button><a class="repo-button outline-button" href="https://github.com/yunhaixiang/primeria" target="_blank" rel="noopener noreferrer" aria-label="View Primeria on GitHub (opens in a new tab)">GitHub <span aria-hidden="true">↗</span></a></nav></header>
 <main>
   <div class="page-heading"><div><h1>Make your next move<span>.</span></h1></div></div>
   <div class="game-layout">
@@ -18,12 +17,24 @@
       <div class="table-note"><span class="mini-line"></span> A little arithmetic. A lot of possibility. <span class="mini-line"></span></div>
     </section>
     <aside class="play-panel">
+      <section class="session-controls" aria-label="Game controls">
+        <div class="game-controls">
+          <button id="new-button" class="outline-button" aria-label="New game"><span class="new-game-label">New Game</span><span class="new-game-icon" aria-hidden="true">＋</span></button>
+          <button id="start-button" class="control-button control-primary">Start Game</button>
+          <button id="resign-button" class="control-button resign-control">Resign</button>
+          <button id="online-button" class="control-button">Play Online ↗</button>
+        </div>
+        <nav class="panel-utilities" aria-label="Help and preferences">
+          <button id="rules-button" class="utility-button">How to Play ↗</button>
+          <a class="repo-button utility-button" href="https://github.com/yunhaixiang/primeria" target="_blank" rel="noopener noreferrer" aria-label="View Primeria on GitHub (opens in a new tab)">GitHub ↗</a>
+          <button id="sound-button" class="utility-button" aria-label="Mute sound" title="Mute sound">Sound on</button>
+        </nav>
+      </section>
       <section class="players" aria-label="Players and clocks"><div class="panel-label"><span>AT THE TABLE</span><span id="mode-label">RAPID · 20 + 20</span></div><div id="player-cards"></div><div class="opponent-supply"><div class="panel-label"><span id="opponent-name">PLAYER TWO’S PILE</span><span>OPEN INFORMATION</span></div><div id="opponent-rack"></div></div></section>
       <section class="move-panel"><div class="section-heading"><h2>Your move</h2><span id="move-owner">PLAYER ONE</span></div><div class="action-tabs" role="group" aria-label="Choose move"><button data-action="single" class="action-tab selected"><span class="action-icon">▣</span><strong>Single Drop</strong><small>One tile, anywhere</small></button><button data-action="double" class="action-tab"><span class="action-icon">▣▣</span><strong>Double Down</strong><small>Two tiles, connected</small></button><button data-action="challenge" class="action-tab"><span class="action-icon">⌕</span><strong>Challenge</strong><small>Find a factor</small></button></div>
       <div id="placement-controls"><div class="rack-heading"><span>YOUR TILES</span><span id="rack-count">37 remaining</span></div><div id="rack" class="tile-rack"></div></div>
       <div id="challenge-controls" hidden><p class="challenge-instruction">Select the first and last tile of a number. For one digit, select it twice.</p><div class="reading-options" id="reading-options"></div><label class="factor-label" for="factor">YOUR PROPOSED FACTOR</label><input id="factor" inputmode="numeric" autocomplete="off" placeholder="e.g. 7"><small class="factor-note">Your clock runs until you submit your factor.</small></div>
       <div id="move-hint" class="move-hint" aria-live="polite">Choose a digit, then a square on the board.</div><div class="move-buttons"><button id="undo-button" class="undo-button" title="Clear unsubmitted move" aria-label="Clear unsubmitted move">↶</button><button id="commit-button" class="primary-button">Place tile <span>↗</span></button></div></section>
-      <div class="game-tools"><button id="start-button" class="text-button">▶ Start game</button><button id="resign-button" class="text-button">Resign ↗</button><button id="online-button" class="text-button">Play online ↗</button></div>
       <section class="history-panel"><div class="section-heading"><h2>The story so far</h2><span id="history-count">0 MOVES</span></div><ol id="history"><li class="history-empty">Every great game starts with a single tile.</li></ol></section>
     </aside>
   </div>
@@ -35,5 +46,5 @@
 <dialog id="online-dialog"><div class="dialog-heading"><button class="close-button" data-close aria-label="Close">×</button></div><h2>Bring a friend<span>.</span></h2><p>Create a room, then share its invitation link. Keep the host’s tab open while you play.</p><button id="host-button" class="primary-button">Create a private room <span>↗</span></button><div class="join-row"><input id="room-code" placeholder="Paste a room code or invitation link" aria-label="Room code or invitation link"><button id="join-button" class="outline-button">Join</button></div><div id="room-info" aria-live="polite"></div><p class="muted">Online rooms use PeerJS’s public signaling service to connect your browsers. Play is peer to peer; restrictive networks may prevent a connection. Shared-device play works offline.</p><button id="leave-button" class="text-button" hidden>Leave online room</button></dialog>
 <dialog id="result-dialog"><div class="dialog-heading"><span class="eyebrow" id="result-eyebrow">THE VERDICT</span></div><div class="result-symbol" id="result-symbol">✳</div><h2 id="result-title"></h2><p id="result-detail"></p><button id="result-continue" class="primary-button">Continue <span>↗</span></button></dialog>
 <dialog id="confirm-dialog"><div class="dialog-heading"><span class="eyebrow">ONE MOMENT</span></div><h2 id="confirm-title">Start fresh?</h2><p id="confirm-detail"></p><div class="confirm-actions"><button id="confirm-no" class="outline-button">Keep playing</button><button id="confirm-yes" class="primary-button">Continue <span>↗</span></button></div></dialog>
-<script src="./vendor/peerjs.min.js" defer></script><script type="module" src="./app.js?v=acf50e652b"></script>
+<script src="./vendor/peerjs.min.js" defer></script><script type="module" src="./app.js?v=4e04d59423"></script>
 </body></html>

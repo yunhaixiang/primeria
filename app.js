@@ -62,12 +62,12 @@ function renderControls(){
  let hint=!state.started?'Start the game when both players are ready.':state.ended?`${state.names[state.ended.winner]} wins ${state.ended.reason}.`:state.paused?'The table is paused. Resume when you’re both ready.':role!==null&&!connection?.open?'Waiting for your friend to connect.':role!==null&&state.turn!==role?`${state.names[state.turn]} is thinking. Your turn is next.`:action==='challenge'?(ends.length===2?'Choose a reading direction and propose a factor.':ends.length===1?'Now select the last tile. Select the same tile for one digit.':'Select the first tile of the number you want to challenge.'):pending.length?`${pending.length} of ${action==='double'?2:1} tiles placed. ${action==='double'&&pending.length===1?'Choose your second tile.':'Ready to commit your move.'}`:'Choose a digit, then a square on the board.';
  $('#move-hint').textContent=hint;
  const ready=action==='challenge'?ends.length===2&&$('#factor').value.trim().length>0:pending.length===(action==='double'?2:1);
- const button=$('#commit-button');button.innerHTML=`${!state.started?'Start game':action==='challenge'?'Submit challenge':action==='double'?'Place two tiles':'Place tile'} <span>↗</span>`;
- button.disabled=state.started?(!allowed()||!ready):!!state.ended||(role!==null&&(role!==0||!connection?.open));
- $('#start-button').textContent=!state.started?'▶ Start game':state.paused?'▶ Resume game':'Ⅱ Pause game';$('#start-button').classList.toggle('paused',state.paused);
- $('#start-button').disabled=!!state.ended||!!verdict||(role!==null&&!connection?.open);
+ const button=$('#commit-button');button.innerHTML=`${action==='challenge'?'Submit challenge':action==='double'?'Place two tiles':'Place tile'} <span>↗</span>`;
+ button.disabled=!allowed()||!ready;
+ $('#start-button').textContent=state.ended?'Game Over':!state.started?'Start Game':state.paused?'Resume Game':'Pause Game';$('#start-button').classList.toggle('paused',state.paused);
+ $('#start-button').disabled=!!state.ended||!!verdict||(role!==null&&(!connection?.open||(!state.started&&role!==0)));
  $('#resign-button').disabled=!state.started||!!state.ended||(role!==null&&!connection?.open);
- $('#new-button').disabled=role===1;$('#online-button').textContent=role===null?'Play online ↗':'Room details ↗';
+ $('#new-button').disabled=role===1;$('#online-button').textContent=role===null?'Play Online ↗':'Room Details ↗';
  $('#board-note').textContent=state.ended?`${state.names[state.ended.winner]} wins. Well played.`:state.started?`${state.names[state.turn]} to play${state.paused?' · paused':''}. ${state.timeOutRule&&state.elapsed>=state.timeOutSeconds?`Time Out streak: ${state.streak}/${state.timeOutMoves}.`:'Make it count.'}`:'A blank board. A world of possibilities.';
  $('#turn-count').textContent=`TURN ${String(state.history.length+1).padStart(2,'0')}`;
 }
@@ -75,7 +75,7 @@ function renderHistory(){
  $('#history-count').textContent=`${state.history.length} MOVES`;
  $('#history').innerHTML=state.history.length?state.history.slice().reverse().slice(0,80).map((e,i)=>`<li class="history-entry"><span class="history-index">${String(state.history.length-i).padStart(2,'0')}</span><div class="history-text"><b>${escape(state.names[e.player])}</b> ${e.action==='challenge'?`challenged ${e.digits}`:e.action==='double'?'doubled down':'dropped a tile'}<small>${e.action==='challenge'?`${e.digits} ÷ ${e.factor} · ${e.success?'tiles transferred':'not a factor'}`:e.moves.map(m=>`${m.digit} at ${coords(m.index)}`).join(' · ')}</small></div><span class="history-badge">${e.action==='challenge'?(e.success?'✓':'×'):e.action==='double'?'+2':'+1'}</span></li>`).join(''):'<li class="history-empty">Every great game starts with a single tile.</li>';
 }
-function render(){$('#time-out-summary').textContent=state.timeOutRule?`This game: Time Out Rule begins after ${state.timeOutSeconds/60} minutes and requires ${state.timeOutMoves} consecutive moves.`:'Time Out Rule is off for this game.';renderBoard();renderPlayers();renderControls();renderHistory();$('#sound-button').textContent=muted?'♪̸':'♫';$('#sound-button').setAttribute('aria-label',muted?'Enable sound':'Mute sound');if(state.ended&&!shownEnd)showEnd();}
+function render(){$('#time-out-summary').textContent=state.timeOutRule?`This game: Time Out Rule begins after ${state.timeOutSeconds/60} minutes and requires ${state.timeOutMoves} consecutive moves.`:'Time Out Rule is off for this game.';renderBoard();renderPlayers();renderControls();renderHistory();$('#sound-button').textContent=muted?'Sound off':'Sound on';$('#sound-button').setAttribute('aria-label',muted?'Unmute sound':'Mute sound');$('#sound-button').setAttribute('title',muted?'Unmute sound':'Mute sound');$('#sound-button').setAttribute('aria-pressed',String(!muted));if(state.ended&&!shownEnd)showEnd();}
 function showEnd(){shownEnd=true;sound('win');$('#result-eyebrow').textContent='A GAME WELL PLAYED';$('#result-symbol').textContent='✳';$('#result-title').textContent=`${state.names[state.ended.winner]} wins.`;$('#result-detail').textContent=`Victory ${state.ended.reason}. ${state.history.length} moves, and a few new possibilities discovered.`;$('#result-continue').textContent='Back to the board';if(!$('#result-dialog').open)$('#result-dialog').showModal();}
 function showVerdict(entry){
  verdict=entry;$('#result-eyebrow').textContent='BOTH CLOCKS ARE PAUSED';$('#result-symbol').textContent=entry.success?'✓':'×';$('#result-title').textContent=entry.success?'Factor found.':'Not this time.';
@@ -134,7 +134,7 @@ $('#sound-button').addEventListener('click',()=>{muted=!muted;try{localStorage.s
 $('#start-button').addEventListener('click',()=>dispatch({type:'start'}));
 $('#result-continue').addEventListener('click',()=>{if(state.ended){$('#result-dialog').close();return;}dispatch({type:'continue'});});
 $('#result-dialog').addEventListener('cancel',e=>{if(verdict)e.preventDefault();});
-$('#resign-button').addEventListener('click',async()=>{if(!allowed()&&role===null&&state.paused)return toast('Resume the game before resigning.');
+$('#resign-button').addEventListener('click',async()=>{
  const who=role??state.turn;if(await ask('Leave this game?',`Resign as ${state.names[who]}? ${state.names[1-who]} will win.`))dispatch({type:'resign'});
 });
 function updateTimeOutOptions(){const enabled=$('#time-out-rule').checked;$('#time-out-options').hidden=!enabled;$('#time-out-options').disabled=!enabled;$('#time-out-rule').setAttribute('aria-expanded',String(enabled));}
