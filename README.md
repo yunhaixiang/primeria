@@ -1,6 +1,6 @@
 # Primeria
 
-A two-player board game of prime numbers, invented by [Yunhai Xiang](https://yunhaimath.com/posts/c219c1f/). A responsive, static website designed for GitHub Pages.
+A two-player board game of prime numbers on a 12 × 12 board, invented by [Yunhai Xiang](https://yunhaimath.com/posts/c219c1f/). A responsive, static website designed for GitHub Pages.
 
 ## Play
 
@@ -10,7 +10,7 @@ Choose **New Game** in the toolbar above the board, choose **On one device** or 
 - **Double Down:** select and place two tiles in order. Each must share an edge with an existing tile, including the tile just placed.
 - **Challenge:** select the first and last tiles of a continuous horizontal or vertical sequence. Select the same tile twice for a one-digit challenge. Choose the reading direction, build a nontrivial factor with the colored 0–9 keypad, and submit. Use backspace to correct a digit; number keys also work. Correct challenges transfer the selected tiles to the opponent’s pile. Incorrect challenges consume the turn. Both clocks pause for the result; press Continue to start the opponent’s clock.
 
-Placements are previews until committed. Clear a draft with the undo button or Escape. Digit keys select rack tiles. The rotation button turns the board 90 degrees while keeping coordinates attached to their original squares. Counts for every digit are visible in the active rack and the opponent’s supply strip; player cards also expand to show inventories.
+Placements are previews until committed. Clear a draft with the undo button or Escape. Digit keys select rack tiles. The rotation button turns the board 90 degrees while keeping coordinates attached to their original squares. Both axes run from 0 to 11. Counts for every digit are visible in the active rack and the opponent’s supply strip; player cards also expand to show inventories.
 
 The first player to play every tile wins. Resignation and running out of time also end the game. The optional **Time Out Rule** requires the same player to have fewer tiles for a configurable number of consecutive completed moves after a configurable duration of active play. Enable it in New game to set **Time out after** (in minutes, default 60 = 1 hour) and **Consecutive moves** (default 10). A tie resets the streak; a new leader starts a new streak. Settings are preserved in saved games and online rooms.
 
@@ -24,7 +24,7 @@ The first player to play every tile wins. Resignation and running out of time al
 | Classical | 45 minutes | 60 seconds |
 | Casual | Unlimited | None |
 
-Clocks run while choosing a move or finding a factor. Modal dialogs do not pause active play. Use Pause explicitly when both players agree. Shared-device games save in local browser storage and restore paused after a reload. Closing a tab does not preserve a live online session.
+Clocks run while choosing a move or finding a factor. Modal dialogs do not pause active play. Use Pause explicitly when both players agree. Shared-device games save in local browser storage and restore paused after a reload. Saved 10 × 10 games expand to 12 × 12 with tile coordinates, history, supplies, and clocks preserved. Closing a tab does not preserve a live online session.
 
 ### Online play
 

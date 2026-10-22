@@ -1,4 +1,4 @@
-import {MODES,PILE,total,newGame,timeOutSettings,tick,placement,adjacent,segment,challenge,complete} from './engine.js?v=0f2071dea8';
+import {BOARD_SIZE,BOARD_CELLS,upgradeGameBoard,MODES,PILE,total,newGame,timeOutSettings,tick,placement,adjacent,segment,challenge,complete} from './engine.js?v=ee9f1f17d6';
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -6,8 +6,8 @@ const modeName=s=>s[0].toUpperCase()+s.slice(1);
 const colors=Array.from({length:10},(_,i)=>`var(--digit-${i})`);
 const key='primeria.game.v1';let state=newGame(),action='single',digit=3,pending=[],ends=[],reverse=false,rotation=0,muted=false,expanded=null,factor='';
 let peer=null,connection=null,role=null,room=null,networkPaused=false,verdict=null,shownEnd=false,toastTimer,audio,saveAt=0,syncAt=0;
-try{const saved=JSON.parse(localStorage.getItem(key));if(saved?.version===1&&saved.state?.board?.length===100&&MODES[saved.state.mode]&&saved.state.piles?.length===2){Object.assign(saved.state,timeOutSettings(saved.state));state=saved.state;state.paused=state.started&&!state.ended;state.lastTick=Date.now();}muted=localStorage.getItem('primeria.muted')==='true';}catch{}
-function save(){if(role!==null)return;try{localStorage.setItem(key,JSON.stringify({version:1,state}));}catch{}}
+try{const saved=JSON.parse(localStorage.getItem(key));if([1,2].includes(saved?.version)&&[100,BOARD_CELLS].includes(saved.state?.board?.length)&&MODES[saved.state.mode]&&saved.state.piles?.length===2){Object.assign(saved.state,timeOutSettings(saved.state));state=upgradeGameBoard(saved.state);state.paused=state.started&&!state.ended;state.lastTick=Date.now();}muted=localStorage.getItem('primeria.muted')==='true';}catch{}
+function save(){if(role!==null)return;try{localStorage.setItem(key,JSON.stringify({version:2,state}));}catch{}}
 function sound(kind='click'){
  if(muted)return;try{audio??=new (window.AudioContext||window.webkitAudioContext)();if(audio.state==='suspended')audio.resume();const now=audio.currentTime;
  const notes={click:[520],select:[650],place:[440,660],turn:[392,523],challenge:[330,440,660],fail:[260,196],win:[392,494,587,784]};
@@ -16,22 +16,22 @@ function sound(kind='click'){
 function toast(message){$('#toast').textContent=message;$('#toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').hidden=true,4000);}
 function ask(title,message,confirmLabel='Continue'){return new Promise(resolve=>{const d=$('#confirm-dialog');$('#confirm-title').textContent=title;$('#confirm-detail').textContent=message;$('#confirm-yes').innerHTML=`${escape(confirmLabel)} <span>↗</span>`;const finish=value=>{d.close();$('#confirm-yes').onclick=null;$('#confirm-no').onclick=null;d.oncancel=null;resolve(value);};$('#confirm-yes').onclick=()=>finish(true);$('#confirm-no').onclick=()=>finish(false);d.oncancel=e=>{e.preventDefault();finish(false);};d.showModal();});}
 function tile(n){return `<span class="tile" style="--tile-color:${colors[n]}" aria-hidden="true"><span class="tile-number north">${n}</span><span class="tile-number east">${n}</span><span class="tile-number south">${n}</span><span class="tile-number west">${n}</span><span class="tile-center"></span></span>`;}
-function coords(index){return `(${index%10}, ${Math.floor(index/10)})`;}
+function coords(index){return `(${index%BOARD_SIZE}, ${Math.floor(index/BOARD_SIZE)})`;}
 function allowed(){return !state.ended&&!state.paused&&state.started&&(role===null||(connection?.open&&state.turn===role));}
 function resetDraft(){pending=[];ends=[];reverse=false;factor='';}
-function boardIndex(row,col){let x=col,y=row;for(let i=0;i<rotation;i++)[x,y]=[y,9-x];return y*10+x;}
-function screenPosition(index){let x=index%10,y=Math.floor(index/10);for(let i=0;i<rotation;i++)[x,y]=[9-y,x];return [x,y];}
+function boardIndex(row,col){let x=col,y=row;for(let i=0;i<rotation;i++)[x,y]=[y,BOARD_SIZE-1-x];return y*BOARD_SIZE+x;}
+function screenPosition(index){let x=index%BOARD_SIZE,y=Math.floor(index/BOARD_SIZE);for(let i=0;i<rotation;i++)[x,y]=[BOARD_SIZE-1-y,x];return [x,y];}
 function renderBoard(){
  const preview=state.board.slice();pending.forEach(m=>preview[m.index]=m.digit);let selection=[];
  if(ends.length===2)try{selection=segment(state.board,...ends);}catch{}else selection=ends;
  let html='';
- for(let row=-1;row<=10;row++)for(let col=-1;col<=10;col++){
-  if(row<0||row>9||col<0||col>9){let label='';if((row<0||row>9)&&(col<0||col>9))label='✦';else if(row<0||row>9){const i=boardIndex(row<0?0:9,col);label=rotation%2?Math.floor(i/10):i%10;}else {const i=boardIndex(row,col<0?0:9);label=rotation%2?i%10:Math.floor(i/10);}
+ for(let row=-1;row<=BOARD_SIZE;row++)for(let col=-1;col<=BOARD_SIZE;col++){
+  if(row<0||row>=BOARD_SIZE||col<0||col>=BOARD_SIZE){let label='';if((row<0||row>=BOARD_SIZE)&&(col<0||col>=BOARD_SIZE))label='✦';else if(row<0||row>=BOARD_SIZE){const i=boardIndex(row<0?0:BOARD_SIZE-1,col);label=rotation%2?Math.floor(i/BOARD_SIZE):i%BOARD_SIZE;}else {const i=boardIndex(row,col<0?0:BOARD_SIZE-1);label=rotation%2?i%BOARD_SIZE:Math.floor(i/BOARD_SIZE);}
    html+=`<span class="axis ${label==='✦'?'corner':''}" aria-hidden="true">${label}</span>`;continue;
   }
   const index=boardIndex(row,col),n=preview[index],draft=pending.some(m=>m.index===index),selected=selection.includes(index),last=state.lastCells.includes(index);
   const legal=allowed()&&action!=='challenge'&&n===null&&(action==='single'&&digit!==0||adjacent(preview,index));
-  html+=`<button class="cell ${n===null?'empty':'occupied'} ${(row+col)%2?'alt':''} ${draft?'pending':''} ${selected?'challenge-selected':''} ${last?'last':''} ${legal?'legal':''}" data-index="${index}" aria-label="x ${index%10}, y ${Math.floor(index/10)}, ${n===null?'empty':`digit ${n}`}${draft?', pending placement':''}${selected?', selected for challenge':''}" ${state.ended?'disabled':''}>${n===null?'':tile(n)}</button>`;
+  html+=`<button class="cell ${n===null?'empty':'occupied'} ${(row+col)%2?'alt':''} ${draft?'pending':''} ${selected?'challenge-selected':''} ${last?'last':''} ${legal?'legal':''}" data-index="${index}" aria-label="x ${index%BOARD_SIZE}, y ${Math.floor(index/BOARD_SIZE)}, ${n===null?'empty':`digit ${n}`}${draft?', pending placement':''}${selected?', selected for challenge':''}" ${state.ended?'disabled':''}>${n===null?'':tile(n)}</button>`;
  }
  $('#board').innerHTML=html;$('.board-surround').classList.toggle('finished',!!state.ended);
 }
@@ -117,6 +117,7 @@ $('#board').addEventListener('click',e=>{
  }
  renderBoard();renderControls();
 });
+$('#board').style.setProperty('--board-size',BOARD_SIZE);
 $('#rack').addEventListener('click',e=>{const b=e.target.closest('[data-digit]');if(!b)return;digit=Number(b.dataset.digit);sound('select');renderControls();renderBoard();});
 $$('.action-tab[data-action]').forEach(b=>b.addEventListener('click',()=>{action=b.dataset.action;resetDraft();sound();renderBoard();renderControls();}));
 $('#reading-options').addEventListener('click',e=>{const b=e.target.closest('[data-reverse]');if(!b)return;reverse=b.dataset.reverse==='true';sound('select');renderControls();});
@@ -208,10 +209,11 @@ function bindConnection(conn){
  });
  conn.on('data',data=>{
   if(conn!==connection||!data||typeof data!=='object')return;
+  if(data.type==='state'&&data.state?.board?.length!==BOARD_CELLS){roomStatus('This room uses a different board size. Both players should reload Primeria and create a new room.');toast('Board sizes differ. Both players need the latest Primeria.');return;}
   if(role===0&&data.type==='command'){
    if(data.revision!==state.revision){sendState();return;}
    try{if(!['move','continue','start','resign'].includes(data.command?.type))return;applyCommand(data.command,1);}catch(err){conn.send({type:'error',message:err.message});sendState();}
-  }else if(role===1&&data.type==='state'&&data.state?.board?.length===100){
+  }else if(role===1&&data.type==='state'&&data.state?.board?.length===BOARD_CELLS){
    const oldRevision=state.revision,wasEnded=state.ended,oldVerdict=verdict;
    Object.assign(data.state,timeOutSettings(data.state));state=data.state;state.lastTick=Date.now();
    if(data.verdict&&!oldVerdict)showVerdict(data.verdict);else if(!data.verdict&&oldVerdict){verdict=null;$('#result-dialog').close();}
@@ -229,7 +231,7 @@ function connectRoom(code=null,next=null){
  activePeer.on('open',()=>{
   clearTimeout(timeout);if(peer!==activePeer)return;
   if(code){
-   roomStatus('Joining your friend’s table…');bindConnection(activePeer.connect(code,{reliable:true}));
+   roomStatus('Joining your friend’s table…');bindConnection(activePeer.connect(code,{reliable:true,metadata:{boardSize:BOARD_SIZE}}));
    setTimeout(()=>{if(peer===activePeer&&!connection?.open)roomStatus('The host has not connected yet. Check that their tab is open, or try another network.');},15000);
   }else{
    const url=new URL(location.href);url.searchParams.set('room',room);history.replaceState(null,'',url);
@@ -238,7 +240,7 @@ function connectRoom(code=null,next=null){
    $('#connection-status').innerHTML='<i></i> ONLINE · WAITING';
   }
  });
- activePeer.on('connection',incoming=>{if(peer!==activePeer||role!==0||connection){incoming.on('open',()=>incoming.close());return;}bindConnection(incoming);});
+ activePeer.on('connection',incoming=>{if(peer!==activePeer||role!==0||connection){incoming.on('open',()=>incoming.close());return;}if(incoming.metadata?.boardSize!==BOARD_SIZE){incoming.on('open',()=>{incoming.send({type:'error',message:'This room uses a 12 × 12 board. Reload Primeria, then join again.'});incoming.close();});return;}bindConnection(incoming);});
  activePeer.on('error',err=>{clearTimeout(timeout);if(peer!==activePeer)return;roomStatus(`Could not connect (${err.type||'network error'}). Leave this room and try again, or play on one device.`);if(connection?.open)disconnected();});
  activePeer.on('disconnected',()=>{if(peer===activePeer&&!connection?.open)disconnected();});
 }
