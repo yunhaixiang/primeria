@@ -213,10 +213,6 @@ main { padding-top: 16px; }
 .game-controls .control-primary:hover:not(:disabled) { background: #336450; }
 .game-controls #start-button.paused { background: #e7e9dc; border-color: #afbaa4; color: var(--green); }
 .game-controls .resign-control { color: #8d6657; }
-.panel-utilities { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 7px; padding: 0 2px 7px; border-bottom: 1px solid var(--line); }
-.utility-button { display: inline-flex; align-items: center; justify-content: center; min-height: 25px; padding: 3px 0; font-size: 10px; color: #7b8571; white-space: nowrap; }
-.utility-button:hover { color: var(--green); }
-#sound-button[aria-pressed="false"] { color: #a17d52; }
 @media (min-width: 781px) {
   :root { --table-size: min(900px,calc(100dvh - 84px)); }
   main { padding-top: 16px; }
@@ -224,8 +220,7 @@ main { padding-top: 16px; }
 @media (max-width: 780px) {
   .page-heading { margin-bottom: 20px; }
   .game-controls .control-button, .game-controls #new-button { height: 39px; min-height: 39px; font-size: 12px; }
-  .utility-button { font-size: 11px; min-height: 30px; }
-}
+  }
 
 /* A single entry point for shared-device games and internet rooms. */
 .game-controls { grid-template-columns: 1.15fr 1.2fr .75fr; }
@@ -258,3 +253,8 @@ main { padding-top: 16px; }
  .location-options input { left: 8px; }
  .location-options strong { font-size: 11px; }
 }
+
+/* Board tools share one quiet row; repository credit stays in the footer. */
+.board-actions { display: flex; align-items: center; gap: 18px; }
+.board-actions #sound-button span { margin-left: 0; }
+.site-footer { justify-content: flex-start; flex-wrap: wrap; column-gap: 18px; }
