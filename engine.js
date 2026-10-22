@@ -7,7 +7,7 @@ export function getBoardSize(board){
  return size;
 }
 export function isSupportedBoardState(state){return !!state&&state.rulesVersion===RULES_VERSION&&validChallengeAttempt(state)&&BOARD_SIZES.includes(state.boardSize)&&Array.isArray(state.board)&&state.board.length===state.boardSize**2&&Array.isArray(state.taxed)&&state.taxed.length===10&&state.taxed.every(n=>Number.isSafeInteger(n)&&n>=0);}
-export const RULES_VERSION = 8;
+export const RULES_VERSION = 9;
 export const MODES = {blitz:[600,10],rapid:[1200,20],standard:[1800,30],classical:[2700,60],casual:[null,0]};
 export const PILE = [2,5,3,5,3,2,3,5,3,5];
 export const total = pile => pile.reduce((a,b)=>a+b,0);
@@ -38,7 +38,7 @@ export function placement(s,action,moves,partial=false){
     if(!Number.isInteger(m.index)||m.index<0||m.index>=boardCells||!Number.isInteger(m.digit)||m.digit<0||m.digit>9)throw Error('Choose a board square and digit.');
     if(board[m.index]!==null)throw Error('That square is occupied.');
     if(!pile[m.digit])throw Error('No tiles of that digit remain.');
-    if((action==='double'||m.digit===0||m.digit===5)&&!adjacent(board,m.index))throw Error(m.digit===0?'Zero must touch another tile.':m.digit===5?'Five must touch another tile.':'Each Double Down tile must touch an existing tile.');
+    if((action==='double'||m.digit===0)&&!adjacent(board,m.index))throw Error(m.digit===0?'Zero must touch another tile.':'Each Double Down tile must touch an existing tile.');
     board[m.index]=m.digit;pile[m.digit]--;
   }
   if(moves.length===count){
@@ -78,7 +78,7 @@ export function challengeLines(board,index){
   }
   return lines.length?lines:[{axis:'isolated',cells:[index]}];
 }
-// Remove newly exposed special tiles together, repeating for any resulting exposures.
+// Remove newly exposed zero tiles together, repeating for any resulting exposures.
 function removeExposedTiles(s){
   const removed=[];
   while(true){
@@ -88,7 +88,7 @@ function removeExposedTiles(s){
       if(digit===0){
         const lines=challengeLines(s.board,index);
         if(lines.some(line=>line.axis==='isolated'||line.cells[0]===index||line.cells.at(-1)===index))exposed.push({index,digit});
-      }else if(digit===5&&!adjacent(s.board,index))exposed.push({index,digit});
+      }
     }
     if(!exposed.length)return removed;
     for(const tile of exposed){s.board[tile.index]=null;s.taxed[tile.digit]++;removed.push(tile);}

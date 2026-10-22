@@ -10,8 +10,8 @@ test('each player has two zeros, two fives, and 36 independent tiles',()=>{
 });
 for(const size of BOARD_SIZES){
  const square=(x,y)=>y*size+x;
- test(`${size}: neither zero nor five can be placed in isolation`,()=>{
-  for(const digit of [0,5]){const s=active(size);assert.throws(()=>placement(s,'single',[{index:square(3,3),digit}]),/touch/);}
+ test(`${size}: zero cannot be placed in isolation`,()=>{
+  const empty=active(size);assert.throws(()=>placement(empty,'single',[{index:square(3,3),digit:0}]),/touch/);
   const s=active(size);s.board[square(2,3)]=1;assert.doesNotThrow(()=>placement(s,'single',[{index:square(3,3),digit:5}]));
  });
  for(const vertical of [false,true])test(`${size}: zero must be interior in a completed ${vertical?'vertical':'horizontal'} number`,()=>{
@@ -85,7 +85,7 @@ test('pending attempts survive serialization and are validated in online states'
  const s=target();complete(s,move('2'),0);const saved=JSON.parse(JSON.stringify(s));assert.ok(isSupportedBoardState(saved));
  assert.equal(complete(saved,move('3'),1000).success,true);
  for(const patch of [{player:1},{digits:'9999'},{attemptLimit:9},{cells:[25]},{attempts:[]},{attempts:[{factor:'0',success:false,remainder:'0'}]}])assert.equal(isSupportedBoardState({...s,challengeAttempt:{...s.challengeAttempt,...patch}}),false);
- assert.equal(isSupportedBoardState({...s,rulesVersion:7}),false);
+ assert.equal(isSupportedBoardState({...s,rulesVersion:8}),false);
 });
 test('a pending challenge can still lose on time without receiving an increment',()=>{
  const s=target();s.clocks[0]=1;complete(s,move('2'),0);assert.throws(()=>complete(s,move('3'),1001),/over/);assert.equal(s.ended.winner,1);assert.equal(s.clocks[0],0);assert.equal(s.history.length,0);

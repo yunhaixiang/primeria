@@ -1,16 +1,16 @@
-import {BOARD_SIZES,isSupportedBoardState,RULES_VERSION,upgradeGameBoard,MODES,PILE,total,newGame,timeOutSettings,tick,placement,adjacent,segment,challengeLines,challengeNumber,challenge,complete,beginChallengeReview,finishChallengeReview,challengeReviewSeconds} from './engine.js?v=c7ce821bef';
+import {BOARD_SIZES,isSupportedBoardState,RULES_VERSION,upgradeGameBoard,MODES,PILE,total,newGame,timeOutSettings,tick,placement,adjacent,segment,challengeLines,challengeNumber,challenge,complete,beginChallengeReview,finishChallengeReview,challengeReviewSeconds} from './engine.js?v=8f4f757756';
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const modeName=s=>s[0].toUpperCase()+s.slice(1);
 const colors=Array.from({length:10},(_,i)=>`var(--digit-${i})`);
-const key='primeria.game.rules8.v1';let state=newGame(),action='single',digit=3,pending=[],ends=[],lineChoices=[],challengeAxis='row',rotation=0,muted=false,expanded=null,factor='';
+const key='primeria.game.rules9.v1';let state=newGame(),action='single',digit=3,pending=[],ends=[],lineChoices=[],challengeAxis='row',rotation=0,muted=false,expanded=null,factor='';
 let peer=null,connection=null,role=null,room=null,networkPaused=false,verdict=null,shownEnd=false,resigning=null,toastTimer,audio,saveAt=0,syncAt=0;
 try{
  for(const slot of [key]){
   try{
    const saved=JSON.parse(localStorage.getItem(slot));
-   if(saved?.version!==8||!MODES[saved.state?.mode]||saved.state.piles?.length!==2||!isSupportedBoardState(saved.state))continue;
+   if(saved?.version!==9||!MODES[saved.state?.mode]||saved.state.piles?.length!==2||!isSupportedBoardState(saved.state))continue;
    const restored=upgradeGameBoard(saved.state);Object.assign(restored,timeOutSettings(restored));
    state=restored;state.paused=state.started&&!state.ended;state.lastTick=Date.now();break;
   }catch{}
@@ -19,7 +19,7 @@ try{
 }catch{}
 function boardSize(){return state.boardSize;}
 
-function save(){if(role!==null)return;try{localStorage.setItem(key,JSON.stringify({version:8,state}));}catch{}}
+function save(){if(role!==null)return;try{localStorage.setItem(key,JSON.stringify({version:9,state}));}catch{}}
 function sound(kind='click'){
  if(muted)return;try{audio??=new (window.AudioContext||window.webkitAudioContext)();if(audio.state==='suspended')audio.resume();const now=audio.currentTime;
  const notes={click:[520],select:[650],place:[440,660],turn:[392,523],challenge:[330,440,660],fail:[260,196],win:[392,494,587,784]};
