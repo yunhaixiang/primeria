@@ -1,4 +1,4 @@
-import {BOARD_SIZE,BOARD_CELLS,upgradeGameBoard,MODES,PILE,total,newGame,timeOutSettings,tick,placement,adjacent,segment,challenge,complete} from './engine.js?v=ee9f1f17d6';
+import {BOARD_SIZE,BOARD_CELLS,RULES_VERSION,upgradeGameBoard,MODES,PILE,total,newGame,timeOutSettings,tick,placement,adjacent,segment,challenge,complete} from './engine.js?v=401326f2da';
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -82,7 +82,7 @@ function showVerdict(entry){
  $('#result-detail').textContent=entry.success?`${entry.digits} ÷ ${entry.factor} = ${entry.quotient}. ${entry.cells.length} ${entry.cells.length===1?'tile moves':'tiles move'} to ${state.names[1-entry.player]}’s pile.`:`${entry.digits} ÷ ${entry.factor} leaves remainder ${entry.remainder}. No tiles move. The turn passes to ${state.names[state.turn]}.`;
  $('#result-continue').textContent='Continue to the next turn';if(!$('#result-dialog').open)$('#result-dialog').showModal();sound(entry.success?'challenge':'fail');
 }
-function sendState(extra={}){if(role===0&&connection?.open)connection.send({type:'state',state,verdict,...extra});}
+function sendState(extra={}){if(role===0&&connection?.open)connection.send({type:'state',rulesVersion:RULES_VERSION,state,verdict,...extra});}
 function applyCommand(command,actor=role===null?state.turn:role){
  tick(state);
  if(command.type==='start'){
@@ -210,7 +210,11 @@ function bindConnection(conn){
  });
  conn.on('data',data=>{
   if(conn!==connection||!data||typeof data!=='object')return;
-  if(data.type==='state'&&data.state?.board?.length!==BOARD_CELLS){roomStatus('This room uses a different board size. Both players should reload Primeria and create a new room.');toast('Board sizes differ. Both players need the latest Primeria.');return;}
+  if(role===1&&data.type==='state'&&(data.rulesVersion!==RULES_VERSION||data.state?.board?.length!==BOARD_CELLS)){
+   connection=null;conn.close();networkPaused=true;state.paused=state.started&&!state.ended;state.lastTick=Date.now();
+   $('#connection-status').innerHTML='<i></i> UPDATE REQUIRED';
+   roomStatus('This room uses different rules. Both players should reload Primeria and create a new room.');toast('Both players need the latest Primeria rules.');render();return;
+  }
   if(role===0&&data.type==='command'){
    if(data.revision!==state.revision){sendState();return;}
    try{if(!['move','continue','start','resign'].includes(data.command?.type))return;applyCommand(data.command,1);}catch(err){conn.send({type:'error',message:err.message});sendState();}
@@ -232,7 +236,7 @@ function connectRoom(code=null,next=null){
  activePeer.on('open',()=>{
   clearTimeout(timeout);if(peer!==activePeer)return;
   if(code){
-   roomStatus('Joining your friend’s table…');bindConnection(activePeer.connect(code,{reliable:true,metadata:{boardSize:BOARD_SIZE}}));
+   roomStatus('Joining your friend’s table…');bindConnection(activePeer.connect(code,{reliable:true,metadata:{boardSize:BOARD_SIZE,rulesVersion:RULES_VERSION}}));
    setTimeout(()=>{if(peer===activePeer&&!connection?.open)roomStatus('The host has not connected yet. Check that their tab is open, or try another network.');},15000);
   }else{
    const url=new URL(location.href);url.searchParams.set('room',room);history.replaceState(null,'',url);
@@ -241,7 +245,7 @@ function connectRoom(code=null,next=null){
    $('#connection-status').innerHTML='<i></i> ONLINE · WAITING';
   }
  });
- activePeer.on('connection',incoming=>{if(peer!==activePeer||role!==0||connection){incoming.on('open',()=>incoming.close());return;}if(incoming.metadata?.boardSize!==BOARD_SIZE){incoming.on('open',()=>{incoming.send({type:'error',message:'This room uses a 12 × 12 board. Reload Primeria, then join again.'});incoming.close();});return;}bindConnection(incoming);});
+ activePeer.on('connection',incoming=>{if(peer!==activePeer||role!==0||connection){incoming.on('open',()=>incoming.close());return;}if(incoming.metadata?.boardSize!==BOARD_SIZE||incoming.metadata?.rulesVersion!==RULES_VERSION){incoming.on('open',()=>{incoming.send({type:'error',message:'This room uses updated challenge rules. Reload Primeria, then join again.'});incoming.close();});return;}bindConnection(incoming);});
  activePeer.on('error',err=>{clearTimeout(timeout);if(peer!==activePeer)return;roomStatus(`Could not connect (${err.type||'network error'}). Leave this room and try again, or play on one device.`);if(connection?.open)disconnected();});
  activePeer.on('disconnected',()=>{if(peer===activePeer&&!connection?.open)disconnected();});
 }

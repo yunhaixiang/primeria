@@ -1,5 +1,6 @@
 export const BOARD_SIZE = 12;
 export const BOARD_CELLS = BOARD_SIZE * BOARD_SIZE;
+export const RULES_VERSION = 2;
 export const MODES = {blitz:[600,10],rapid:[1200,20],standard:[1800,30],classical:[2700,60],casual:[null,0]};
 export const PILE = [2,5,3,5,3,3,3,5,3,5];
 export const total = pile => pile.reduce((a,b)=>a+b,0);
@@ -36,7 +37,15 @@ export function segment(board,a,b){
   if(!Number.isInteger(a)||!Number.isInteger(b)||a<0||b<0||a>=BOARD_CELLS||b>=BOARD_CELLS)throw Error('Select the first and last tile of a number.');
   if(Math.floor(a/BOARD_SIZE)!==Math.floor(b/BOARD_SIZE)&&a%BOARD_SIZE!==b%BOARD_SIZE)throw Error('Choose a straight horizontal or vertical number.');
   const step=a===b?1:Math.floor(a/BOARD_SIZE)===Math.floor(b/BOARD_SIZE)?1:BOARD_SIZE,lo=Math.min(a,b),hi=Math.max(a,b),cells=[];
-  for(let i=lo;i<=hi;i+=step){if(board[i]===null)throw Error('A challenged number cannot contain empty squares.');cells.push(i);}return cells;
+  for(let i=lo;i<=hi;i+=step){if(board[i]===null)throw Error('A challenged number cannot contain empty squares.');cells.push(i);}
+  if(a===b){
+    if(adjacent(board,a))throw Error('Single-digit challenges require an isolated tile with no edge-adjacent tiles.');
+  }else{
+    const before=step===1?(lo%BOARD_SIZE>0?lo-1:null):(lo>=BOARD_SIZE?lo-BOARD_SIZE:null);
+    const after=step===1?(hi%BOARD_SIZE<BOARD_SIZE-1?hi+1:null):(hi+BOARD_SIZE<BOARD_CELLS?hi+BOARD_SIZE:null);
+    if((before!==null&&board[before]!==null)||(after!==null&&board[after]!==null))throw Error('Select both ends of the whole uninterrupted number.');
+  }
+  return cells;
 }
 export function challenge(s,a,b,reverse,factor){
   const cells=segment(s.board,a,b),digits=(reverse?cells.slice().reverse():cells).map(i=>s.board[i]).join('');

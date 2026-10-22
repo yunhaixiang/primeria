@@ -100,3 +100,63 @@ test('legacy games expand without changing coordinates, clocks, supplies or hist
  for(let y=0;y<12;y++)for(let x=0;x<12;x++)if(x>=10||y>=10)assert.equal(expanded.board[y*12+x],null);
  assert.equal(JSON.stringify(legacy),before);assert.equal(upgradeGameBoard(expanded),expanded);
 });
+
+const square=(x,y)=>y*BOARD_SIZE+x;
+test('horizontal challenges must include the full run in either reading direction',()=>{
+ const s=active(),a=square(3,5);[1,4,3,7].forEach((digit,i)=>s.board[a+i]=digit);
+ for(const [start,end] of [[a,a+2],[a+1,a+3],[a+1,a+2]])for(const reverse of [false,true]){
+  assert.throws(()=>challenge(s,start,end,reverse,'3'),/whole uninterrupted/);
+  assert.throws(()=>challenge(s,end,start,reverse,'3'),/whole uninterrupted/);
+ }
+ assert.equal(challenge(s,a,a+3,false,'3').digits,'1437');
+ assert.equal(challenge(s,a+3,a,true,'3').digits,'7341');
+});
+test('vertical challenges must include the full run in either reading direction',()=>{
+ const s=active(),cells=[3,4,5,6].map(y=>square(6,y));[1,4,3,7].forEach((digit,i)=>s.board[cells[i]]=digit);
+ for(const [start,end] of [[cells[0],cells[2]],[cells[1],cells[3]],[cells[1],cells[2]]])for(const reverse of [false,true])assert.throws(()=>challenge(s,start,end,reverse,'3'),/whole uninterrupted/);
+ assert.equal(challenge(s,cells[0],cells[3],false,'3').digits,'1437');
+ assert.equal(challenge(s,cells[3],cells[0],true,'3').digits,'7341');
+});
+test('a single-digit challenge is rejected for every edge-adjacent neighbor',()=>{
+ const a=square(5,5);
+ for(const neighbor of [square(4,5),square(6,5),square(5,4),square(5,6)]){
+  const s=active();s.board[a]=4;s.board[neighbor]=1;
+  assert.throws(()=>challenge(s,a,a,false,'2'),/isolated tile/);
+ }
+});
+test('isolated composite digits remain challengeable and diagonal neighbors are allowed',()=>{
+ const s=active();s.board[square(0,0)]=4;s.board[square(1,1)]=7;
+ assert.equal(challenge(s,square(0,0),square(0,0),false,'2').success,true);
+ const before=total(s.piles[1]);complete(s,{action:'challenge',a:0,b:0,reverse:false,factor:'2'},0);
+ assert.equal(s.board[0],null);assert.equal(total(s.piles[1]),before+1);
+});
+test('perpendicular crossings do not extend a multi-digit challenge',()=>{
+ const s=active();s.board[square(4,4)]=1;s.board[square(5,4)]=4;s.board[square(6,4)]=7;
+ s.board[square(5,3)]=2;s.board[square(5,5)]=6;
+ assert.equal(challenge(s,square(4,4),square(6,4),false,'3').digits,'147');
+ assert.equal(challenge(s,square(5,3),square(5,5),false,'2').digits,'246');
+});
+test('row-edge isolation and full-number boundaries never wrap into another row',()=>{
+ const left=active();left.board[square(11,4)]=3;left.board[square(0,5)]=1;left.board[square(1,5)]=4;
+ assert.equal(challenge(left,square(0,5),square(1,5),false,'2').digits,'14');
+ const right=active();right.board[square(10,5)]=1;right.board[square(11,5)]=4;right.board[square(0,6)]=3;
+ assert.equal(challenge(right,square(10,5),square(11,5),false,'2').digits,'14');
+ const isolated=active();isolated.board[square(11,4)]=3;isolated.board[square(0,5)]=4;
+ assert.equal(challenge(isolated,square(0,5),square(0,5),false,'2').success,true);
+});
+test('zero tiles at either end cannot be omitted from a challenge',()=>{
+ const s=active();s.board[0]=1;s.board[1]=4;s.board[2]=0;
+ assert.throws(()=>challenge(s,0,1,false,'2'),/whole uninterrupted/);
+ assert.equal(challenge(s,0,2,false,'2').digits,'140');
+ s.board[0]=0;s.board[1]=1;s.board[2]=4;
+ assert.throws(()=>challenge(s,1,2,false,'2'),/whole uninterrupted/);
+ assert.equal(challenge(s,0,2,false,'2').digits,'014');
+});
+test('invalid partial and connected-single challenges do not consume a move or transfer tiles',()=>{
+ const s=active(),a=square(4,4);s.board[a]=1;s.board[a+1]=4;s.board[a+2]=7;
+ const before=JSON.parse(JSON.stringify(s));
+ assert.throws(()=>complete(s,{action:'challenge',a,b:a+1,reverse:false,factor:'2'},0),/whole uninterrupted/);
+ assert.deepEqual(s,before);
+ assert.throws(()=>complete(s,{action:'challenge',a:a+1,b:a+1,reverse:false,factor:'2'},0),/isolated tile/);
+ assert.deepEqual(s,before);
+});
