@@ -69,5 +69,88 @@
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 .opponent-supply{margin-top:14px}.opponent-supply .panel-label{margin-bottom:8px;font-size:7px;letter-spacing:.6px}.opponent-supply .panel-label>span:first-child{max-width:65%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.opponent-supply .panel-label>span:last-child{font-size:7px}.opponent-supply #opponent-rack{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:4px}.supply-chip{background:var(--tile-color);display:flex;flex-direction:column;align-items:center;padding:6px 2px 5px;border-radius:4px;gap:3px}.supply-chip b{font-size:11px;font-weight:650}.supply-chip small{font-size:8px;opacity:.7}.confirm-actions{display:flex;gap:12px}.confirm-actions>.primary-button{width:auto;flex:1}.confirm-actions>.outline-button{flex:1}#confirm-dialog{max-width:420px}
 .cell{container-type:inline-size}.cell .tile-number{font-size:clamp(8px,25cqw,14px)}
-@media(min-width:781px){:root{--table-size:clamp(420px,calc(100dvh - 300px),740px)}main{max-width:calc(var(--table-size) + 463px)}.game-layout{grid-template-columns:minmax(0,var(--table-size)) 363px;gap:36px}.board-panel{position:sticky;top:24px}}
-@media(min-width:781px) and (max-width:1050px){main{max-width:calc(var(--table-size) + 393px)}.game-layout{grid-template-columns:minmax(0,var(--table-size)) 320px;gap:23px}}
+/* Give the board the available screen height; keep play controls alongside it. */
+@media (min-width: 781px) {
+  :root { --table-size: min(900px, calc(100dvh - 144px)); }
+  .site-header { height: 60px; max-width: 1520px; padding: 0 28px; gap: 28px; }
+  .wordmark { font-size: 26px; }
+  .brand-icon { width: 30px; height: 33px; font-size: 27px; }
+  .site-header nav { gap: 22px; }
+  .site-header .outline-button { padding: 8px 13px; font-size: 11px; }
+  .site-header .outline-button span { margin-left: 15px; }
+  main { max-width: calc(var(--table-size) + 414px); padding: 16px 24px 0; }
+  .page-heading { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .game-layout { grid-template-columns: minmax(0, var(--table-size)) 342px; gap: 24px; }
+  .board-panel { position: sticky; top: 16px; }
+  .board-toolbar { margin-bottom: 10px; min-height: 16px; }
+  .board-meta { display: none; }
+  .board-surround { padding: 10px; }
+  .board-grid { gap: 3px; grid-template-columns: 18px repeat(10,minmax(0,1fr)) 18px; grid-template-rows: 18px repeat(10,minmax(0,1fr)) 18px; }
+  .board-footer { padding-top: 10px; }
+  .table-note { display: none; }
+  .play-panel { gap: 12px; }
+  .panel-label { margin-bottom: 8px; }
+  #player-cards { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+  .player-card { display: block; padding: 10px 12px; }
+  .player-card + .player-card { margin-top: 0; }
+  .player-avatar { display: none; }
+  .player-name { font-size: 11px; max-width: 100%; }
+  .player-desc { margin-top: 3px; font-size: 9px; }
+  .player-time { display: block; margin: 6px 0 0; font-size: 27px; line-height: 1.05; }
+  .player-card.active:before { top: 12px; bottom: 12px; }
+  .opponent-supply { margin-top: 10px; }
+  .opponent-supply .panel-label { margin-bottom: 6px; }
+  .supply-chip { padding: 4px 2px; gap: 2px; }
+  .move-panel { padding: 14px; }
+  .action-tabs { margin: 12px 0 14px; gap: 5px; }
+  .action-tab { padding: 9px 3px; }
+  .action-icon { display: none; }
+  .action-tab strong { font-size: 10px; margin-top: 0; }
+  .action-tab small { margin-top: 4px; font-size: 7px; }
+  .rack-heading { margin-bottom: 9px; }
+  .tile-rack { gap: 8px 10px; }
+  .rack-button { padding-bottom: 10px; }
+  .rack-button .tile-number { font-size: 12px; }
+  .tile-count { bottom: 4px; }
+  .move-hint { margin: 10px 0; min-height: 28px; }
+  .move-buttons .primary-button { min-height: 40px; padding: 10px 14px; }
+  .game-tools { margin-top: -7px; padding-bottom: 6px; }
+  .history-panel { padding-top: 0; }
+  .history-panel ol { max-height: 75px; margin-top: 7px; }
+  .history-entry { padding: 6px 0; }
+  .history-empty { padding: 2px 0 4px; }
+  .site-footer { margin-top: 18px; padding: 12px 0 16px; }
+  .challenge-instruction { margin-bottom: 9px; font-size: 10px; }
+  .reading-options { margin-bottom: 12px; }
+  .reading-option { padding: 9px 7px; }
+  .factor-label { margin-bottom: 7px; }
+}
+@media (min-width: 781px) and (max-width: 1050px) {
+  main { padding-left: 18px; padding-right: 18px; }
+  .game-layout { grid-template-columns: minmax(0,var(--table-size)) 306px; gap: 18px; }
+  .player-card { padding: 9px 10px; }
+  .move-panel { padding: 12px; }
+  .tile-rack { gap: 7px 9px; }
+}
+@media (min-width: 781px) and (max-height: 690px) {
+  .history-panel { display: none; }
+  .play-panel { gap: 9px; }
+  .player-card { padding-top: 8px; padding-bottom: 8px; }
+  .player-time { font-size: 24px; }
+  .action-tabs { margin-top: 10px; margin-bottom: 12px; }
+  .move-hint { margin-top: 7px; margin-bottom: 7px; }
+}
+@media (max-width: 780px) {
+  .site-header { gap: 12px; padding: 0 18px; }
+  .site-header nav { gap: 12px; }
+  .site-header .outline-button { padding: 7px 10px; font-size: 10px; }
+  .site-header .outline-button span { margin-left: 5px; }
+}
+@media (max-width: 480px) {
+  .site-header { padding: 0 14px; }
+  .site-header nav { gap: 10px; }
+  .site-header .outline-button { font-size: 0; padding: 0; border: 0; width: 30px; height: 32px; }
+  .site-header .outline-button span { font-size: 22px; margin: 0; }
+  .site-header .icon-button { width: 30px; height: 30px; }
+  .site-header .text-button span { display: none; }
+}
