@@ -4,7 +4,7 @@ import {BOARD_SIZES,PILE,total,newGame,complete,upgradeGameBoard,isSupportedBoar
 const active=size=>({...newGame({boardSize:size,mode:'casual'},0),started:true});
 for(const size of BOARD_SIZES)for(const vertical of [false,true])for(const reverse of [false,true])for(const swap of [false,true]){
  test(`${size}: taxation follows ${reverse?'reverse':'forward'} ${vertical?'vertical':'horizontal'} reading, endpoints ${swap?'swapped':'ordered'}`,()=>{
-  const s=active(size);s.turn=reverse?0:1;const actor=s.turn,opponent=1-actor,cells=[0,1,2,3].map(i=>vertical?i*size:i);[1,4,3,7].forEach((d,i)=>s.board[cells[i]]=d);
+  const s=active(size);s.turn=reverse?1:0;const actor=s.turn,opponent=1-actor,cells=[0,1,2,3].map(i=>vertical?i*size:i);[1,4,3,7].forEach((d,i)=>s.board[cells[i]]=d);
   const before=s.piles[opponent].slice(),taxedCell=reverse?cells[0]:cells.at(-1),taxedDigit=reverse?1:7;
   const e=complete(s,{action:'challenge',a:swap?cells.at(-1):cells[0],b:swap?cells[0]:cells.at(-1),reverse,factor:'3'},0);
   assert.equal(e.digits,reverse?'7341':'1437');assert.equal(e.taxedCell,taxedCell);assert.equal(e.taxedDigit,taxedDigit);assert.equal(e.transferredCount,3);
@@ -19,9 +19,9 @@ for(const digit of [0,4,6,8,9])test(`isolated ${digit} is entirely taxed`,()=>{
  assert.equal(e.transferredCount,0);assert.equal(s.taxed[digit],1);assert.equal(s.board[0],null);assert.deepEqual(s.piles,piles);
 });
 for(const reverse of [false,true])test(`zeros are taxed as physical digits in ${reverse?'reverse':'forward'} reading`,()=>{
- const s=active(11);[0,1,4,0].forEach((d,i)=>s.board[i]=d);
+ const s=active(11);s.turn=reverse?1:0;const opponent=1-s.turn;[0,1,4,0].forEach((d,i)=>s.board[i]=d);
  const e=complete(s,{action:'challenge',a:0,b:3,reverse,factor:'2'},0);
- assert.equal(e.taxedDigit,0);assert.equal(s.taxed[0],1);assert.equal(s.piles[1][0],PILE[0]+1);
+ assert.equal(e.taxedDigit,0);assert.equal(s.taxed[0],1);assert.equal(s.piles[opponent][0],PILE[0]+1);
 });
 test('failed and invalid challenges leave taxation and inventories untouched',()=>{
  const s=active(11);[1,3].forEach((d,i)=>s.board[i]=d);s.taxed[7]=2;
@@ -32,7 +32,7 @@ test('failed and invalid challenges leave taxation and inventories untouched',()
 test('taxes accumulate, conserve each digit, and survive saving and online serialization',()=>{
  let s=active(11);
  for(let n=0;n<2;n++){
-  const reverse=s.turn===0;
+  const reverse=s.turn===1;
   complete(s,{action:'single',moves:[{index:0,digit:reverse?4:1}]},0);
   complete(s,{action:'single',moves:[{index:1,digit:reverse?1:4}]},0);
   complete(s,{action:'challenge',a:0,b:1,reverse:false,factor:'2'},0);

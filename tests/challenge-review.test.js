@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {newGame,complete,tick,beginChallengeReview,finishChallengeReview,challengeReviewSeconds} from '../engine.js';
 function challenged(success=true){
- const s=newGame({},0);s.started=true;s.board[0]=success?4:1;s.board[1]=success?1:3;
+ const s=newGame({},0);s.started=true;s.board[0]=1;s.board[1]=success?4:3;
  const entry=complete(s,{action:'challenge',a:0,b:1,reverse:false,factor:'2'},1000);
  const review=beginChallengeReview(s,entry,1000);return {s,review};
 }

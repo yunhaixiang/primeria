@@ -33,18 +33,21 @@ for(const size of BOARD_SIZES){
   const s=active(size);s.board[size-1]=1;s.board[size+1]=3;
   assert.throws(()=>placement(s,'single',[{index:size,digit:0}]),/begin or end/);
  });
- for(const vertical of [false,true])test(`${size}: a challenge always uses the other player's fixed ${vertical?'vertical':'horizontal'} reading`,()=>{
+ for(const vertical of [false,true])test(`${size}: a challenge always uses the challenging player's own fixed ${vertical?'vertical':'horizontal'} reading`,()=>{
   const s=active(size),cells=[0,1].map(i=>vertical?square(3,i+2):square(i+2,3));s.board[cells[0]]=4;s.board[cells[1]]=1;
-  s.turn=0;assert.equal(challengeNumber(s,...cells).digits,'14');assert.equal(challenge(s,...cells,'2').success,true);
-  s.turn=1;assert.equal(challengeNumber(s,...cells).digits,'41');assert.equal(challenge(s,...cells,'2').success,false);
+  s.turn=0;assert.equal(challengeNumber(s,...cells).digits,'41');assert.equal(challengeNumber(s,...cells).perspective,0);assert.equal(challenge(s,...cells,'2').success,false);
+  s.turn=1;assert.equal(challengeNumber(s,...cells).digits,'14');assert.equal(challengeNumber(s,...cells).perspective,1);assert.equal(challenge(s,...cells,'2').success,true);
  });
 }
 for(let digits=1;digits<=13;digits++)test(`${digits} digits allow ${Math.ceil(digits/3)} attempts`,()=>{
  const s=target('1'.repeat(digits));assert.equal(challengeNumber(s,0,digits-1).attemptLimit,Math.ceil(digits/3));
 });
-test('the client cannot override the opponent reading with reverse or rotation flags',()=>{
- const s=target('41');const result=complete(s,{action:'challenge',a:0,b:1,factor:'2',reverse:false,rotation:2},0);
- assert.equal(result.digits,'14');assert.equal(result.taxedDigit,4);
+for(const player of [0,1])test(`player ${player+1} cannot override its own reading with endpoint order, reverse or rotation flags`,()=>{
+ for(const rotation of [0,1,2,3])for(const reverse of [false,true])for(const swap of [false,true]){
+  const s=target(player===0?'14':'41',player);
+  const result=complete(s,{action:'challenge',a:swap?1:0,b:swap?0:1,factor:'2',reverse,rotation},0);
+  assert.equal(result.digits,'14');assert.equal(result.perspective,player);assert.equal(result.success,true);assert.equal(result.taxedDigit,4);
+ }
 });
 test('a failed first attempt locks the number, spends no increment, and resumes the same player after review',()=>{
  const s=target(),entry=complete(s,move('2'),1000);
@@ -52,7 +55,7 @@ test('a failed first attempt locks the number, spends no increment, and resumes 
  const review=beginChallengeReview(s,entry,1000);tick(s,3999);assert.equal(s.clocks[0],1199);
  assert.equal(finishChallengeReview(s,review,4000),true);assert.equal(s.turn,0);assert.equal(s.clocks[0],1199);
  const success=complete(s,move('3'),5000);
- assert.equal(success.success,true);assert.equal(success.attemptNumber,2);assert.equal(success.taxedDigit,1);assert.equal(s.clocks[0],1218);assert.equal(s.turn,1);assert.equal(s.history.length,1);assert.equal(s.history[0].attempts.length,2);assert.equal(s.challengeAttempt,null);
+ assert.equal(success.success,true);assert.equal(success.attemptNumber,2);assert.equal(success.taxedDigit,7);assert.equal(s.clocks[0],1218);assert.equal(s.turn,1);assert.equal(s.history.length,1);assert.equal(s.history[0].attempts.length,2);assert.equal(s.challengeAttempt,null);
 });
 test('exhausting all attempts fails once, with a single increment and history entry',()=>{
  const s=target();complete(s,move('2'),1000);const result=complete(s,move('5'),2000);
@@ -73,7 +76,7 @@ test('a pending challenge forbids placements or a different target',()=>{
  assert.throws(()=>complete(s,{action:'challenge',a:30,b:30,factor:'2'},0),/Finish or quit/);
  assert.equal(s.challengeAttempt.attempts.length,1);
 });
-test('invalid factors do not spend a attempt',()=>{
+test('invalid factors do not spend an attempt',()=>{
  const s=target();complete(s,move('2'),0);
  for(const factor of ['0','1','7341','x','2.5'])assert.throws(()=>complete(s,move(factor),0));
  assert.equal(s.challengeAttempt.attempts.length,1);assert.equal(s.history.length,0);
@@ -82,7 +85,7 @@ test('pending attempts survive serialization and are validated in online states'
  const s=target();complete(s,move('2'),0);const saved=JSON.parse(JSON.stringify(s));assert.ok(isSupportedBoardState(saved));
  assert.equal(complete(saved,move('3'),1000).success,true);
  for(const patch of [{player:1},{digits:'9999'},{attemptLimit:9},{cells:[25]},{attempts:[]},{attempts:[{factor:'0',success:false,remainder:'0'}]}])assert.equal(isSupportedBoardState({...s,challengeAttempt:{...s.challengeAttempt,...patch}}),false);
- assert.equal(isSupportedBoardState({...s,rulesVersion:5}),false);
+ assert.equal(isSupportedBoardState({...s,rulesVersion:6}),false);
 });
 test('a pending challenge can still lose on time without receiving an increment',()=>{
  const s=target();s.clocks[0]=1;complete(s,move('2'),0);assert.throws(()=>complete(s,move('3'),1001),/over/);assert.equal(s.ended.winner,1);assert.equal(s.clocks[0],0);assert.equal(s.history.length,0);

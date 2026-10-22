@@ -7,7 +7,7 @@ export function getBoardSize(board){
  return size;
 }
 export function isSupportedBoardState(state){return !!state&&state.rulesVersion===RULES_VERSION&&validChallengeAttempt(state)&&BOARD_SIZES.includes(state.boardSize)&&Array.isArray(state.board)&&state.board.length===state.boardSize**2&&Array.isArray(state.taxed)&&state.taxed.length===10&&state.taxed.every(n=>Number.isSafeInteger(n)&&n>=0);}
-export const RULES_VERSION = 6;
+export const RULES_VERSION = 7;
 export const MODES = {blitz:[600,10],rapid:[1200,20],standard:[1800,30],classical:[2700,60],casual:[null,0]};
 export const PILE = [2,5,3,5,3,2,3,5,3,5];
 export const total = pile => pile.reduce((a,b)=>a+b,0);
@@ -79,8 +79,8 @@ export function challengeLines(board,index){
   return lines.length?lines:[{axis:'isolated',cells:[index]}];
 }
 export function challengeNumber(s,a,b){
-  const cells=segment(s.board,a,b),reverse=s.turn===0,readingCells=reverse?cells.slice().reverse():cells.slice();
-  return {cells,readingCells,digits:readingCells.map(i=>s.board[i]).join(''),perspective:1-s.turn,reverse,attemptLimit:Math.ceil(cells.length/3)};
+  const cells=segment(s.board,a,b),reverse=s.turn===1,readingCells=reverse?cells.slice().reverse():cells.slice();
+  return {cells,readingCells,digits:readingCells.map(i=>s.board[i]).join(''),perspective:s.turn,reverse,attemptLimit:Math.ceil(cells.length/3)};
 }
 export function challenge(s,a,b,factor){
   const reading=challengeNumber(s,a,b);

@@ -25,7 +25,7 @@ for(const size of BOARD_SIZES){
   for(const index of [-1,size*size,1.5])assert.throws(()=>challengeLines(s.board,index),/tile/);
  });
  test(`${size}: one-click selection still supports reverse reading, taxation and isolated challenges`,()=>{
-  const s=newGame({boardSize:size},0);s.started=true;[1,4,3,7].forEach((d,i)=>s.board[i]=d);
+  const s=newGame({boardSize:size},0);s.started=true;s.turn=1;[1,4,3,7].forEach((d,i)=>s.board[i]=d);
   const line=challengeLines(s.board,2)[0];const e=complete(s,{action:'challenge',a:line.cells[0],b:line.cells.at(-1),reverse:true,factor:'3'},0);
   assert.equal(e.digits,'7341');assert.equal(e.taxedDigit,1);assert.equal(e.transferredCount,3);
   s.board[0]=8;const single=challengeLines(s.board,0)[0];assert.deepEqual(single.cells,[0]);
