@@ -330,3 +330,5 @@ main { padding-top: 16px; }
 @media (max-width: 520px) {
  .board-actions { flex-wrap: wrap; justify-content: flex-start; column-gap: 18px; row-gap: 12px; }
 }
+
+#rules-dialog .dialog-heading { justify-content: flex-end; }
