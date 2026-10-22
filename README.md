@@ -1,77 +1,67 @@
-# Primeria
+# Primeria: How to Play
 
-A two-player board game of prime numbers on a choice of 9 × 9, 11 × 11, 13 × 13, or 15 × 15 boards, invented by [Yunhai Xiang](https://yunhaimath.com/posts/c219c1f/). A responsive, static website designed for GitHub Pages.
+Primeria is a two person board game invented by [Yunhai Xiang](https://yunhaimath.com/) which combines clever strategies with quick mental arithmetic skills. The name of the game is a reference to [prime numbers](https://en.wikipedia.org/wiki/Prime_number), which are natural numbers greater than 1 that cannot be factored into the product of two smaller natural numbers: for example 2, 3, 5, and 7.
 
-## Play
+## Set-up
 
-Choose **New Game** in the toolbar above the board, choose **On one device** or **Over the internet**, enter both names, choose the board size, select a clock, and choose who moves first (or choose randomly). Creating a game darkens the board and shows a three-second countdown, then starts the first player’s clock automatically. Online games wait for both players to connect before counting down. Bot thinking also waits until the countdown finishes. The toolbar offers **Pause** during play and **Resume** while paused. While paused, the move panel displays **Game is Paused**, with **Resume** and **New Game** buttons. The three-second challenge result keeps its result display until play resumes automatically. Finished games show the winner and win condition over the darkened board, with **New Game** and **Review Game** buttons. Review Game lets you select any move in the full history, or step through positions with the navigation buttons or arrow keys. Board rotation, tile piles, and removed tiles follow the selected position. Reviewing is local to your screen and does not change the finished game or your online opponent’s view. Historical clocks are shown when recorded; older saves show a dash when those times are unavailable.
+The game is played on a square board with 9 × 9, 11 × 11, 13 × 13, or 15 × 15 squares. Each player starts with a pile of 36 tiles labelled with digits 0 ~ 9. Each player gets 2 copies of 0 and 5 each, 3 copies of 2, 4, 6, and 8 each, and 5 copies of 1, 3, 7, and 9 each.
 
-Resign is the fourth option in the move panel and asks for confirmation inside the same panel before ending your game. Keep playing or Escape returns to your prepared move. Mute/Unmute (with a changing speaker icon) and Rotate are above the board; How to Play follows Rotate and opens the rules; GitHub is beside the creator’s attribution in the footer.
+## Moves
 
+Two players take turns to place tiles on the squares. Flip a coin to decide which player plays first. At each turn, the player chooses from one of three kinds of moves.
 
-Choose **New Game → With a Bot** to play locally against a bot. You are Player one and the bot is Player two; either can move first. **Beginner**, **Intermediate** (default), and **Advanced** adjust arithmetic knowledge, the number of moves considered, planning depth, and mistakes. All board sizes and time controls are supported. The bot’s thinking time runs on its clock, adapts when time is low, and stops while paused. Saved bot games reload paused, ready to resume. New games and resignation cancel any queued bot action.
+1. **Single Drop**: the player places one of their tiles on any empty square.
 
-The bot models bounded mental calculation: endings for 2, 4, 5, 6, 8 and 10; digit sums for 3 and 9; alternating sums for 11 at Intermediate and Advanced; then a limited set of smaller prime tests (through 13 at Intermediate and 31 at Advanced). It checks whole numbers from the acting player’s fixed perspective, weighs its remaining tiles, avoids obvious challenge threats, and considers a limited set of replies and follow-ups. Longer calculations cost more thinking time. Difficult factors can be missed, and occasional long-number arithmetic slips may use an attempt before retrying or quitting. Strengths are gameplay approximations, not calibrated human ratings. No general factorization or primality oracle is used. The bot runs entirely in the browser, using a local worker and a local fallback if workers are unavailable; it needs no account, AI service, or server.
+2. **Double Down**: the player places one of their tiles on an empty square adjacent to an existing tile on the board, and then places another one of their tiles on an empty square adjacent to an existing tile on the board (which could be the one just placed).
 
-- **Single Drop:** select a digit and any vacant square. Five may be placed in isolation. Zero must share an edge with an existing tile. At the end of a placement, zero must lie inside every row or column number it belongs to, never at either end.
-- **Double Down:** select and place two tiles in order. Each must share an edge with an existing tile, including the tile just placed. A zero may be the first tile while the move is being drafted, but the complete two-tile move must enclose it inside its number; zero cannot be at the end of any affected horizontal or vertical number.
-- **Challenge:** click any tile once to select its entire uninterrupted horizontal or vertical number. Hover to preview the whole number. At crossings, moving toward a horizontal or vertical tile edge previews that row or column; after clicking, the Row and Column buttons also let you choose, including on touch screens. Rotation keeps selection attached to the same board coordinates. A single-digit challenge is allowed only for an isolated tile with no edge-adjacent neighbors; click it once. Read the number from your own fixed perspective, build a nontrivial factor with the colored 0–9 keypad, and submit. Use backspace to correct a digit; number keys also work. Correct challenges transfer all but the final digit in the challenger’s reading direction to the opponent’s pile; that final tile is taxed and removed from play. The attempt limit is the number of digits divided by three, rounded up: 1 ~ 3 digits allow one attempt, 4 ~ 6 allow two, 7 ~ 9 allow three, 10 ~ 12 allow four, and 13 ~ 15 allow five. After a wrong factor with attempts left, both clocks pause for a three-second Attempt Fails message, then the challenger’s clock resumes for another factor on the same locked number. Quit Challenge is available between attempts and during that review, and ends the challenge as a failure. A success or exhausted attempt budget ends the turn; Challenge Success or Challenge Failed appears for three seconds before the next player’s clock starts. The whole challenge receives only one increment and one completed-move history entry, with all its factor attempts recorded.
+3. **Challenge**: the player points to a whole connected row or column of digits, and declares to *challenge* the number formed by this row or column (viewed left to right and top to bottom, from the player/challenger’s perspective). An attempt at a challenge is to write down a factor of the number, other than 1 or itself, and then verify it with a calculator. The longer the number, the more attempts the challenger gets: 1 ~ 3 digits get 1 attempt, 4 ~ 6 digits get 2 attempts, 7 ~ 9 digits get 3 attempts, and so on.
 
-Each player starts with 36 tiles: two each of 0 and 5, three each of 2, 4, 6, 8, and five each of 1, 3, 7, 9. Player one reads left-to-right and top-to-bottom on the default board; player two sits opposite and reads right-to-left and bottom-to-top. A challenge always uses the challenger’s own perspective. Rotating either browser changes the view only.
+    - If an attempt succeeds: the number is removed from the board, and all but its ones digit is put into the opponent’s pile. The ones digit is put away, in neither player’s pile.
 
-Placements are previews until committed. Clear a draft with the undo button or Escape. Digit keys select rack tiles. The rotation button turns the board 90 degrees while keeping coordinates attached to their original squares. Columns are labeled A–I, A–K, A–M, or A–O, and rows 1–9, 1–11, 1–13, or 1–15, according to the selected size. These labels rotate with the board; move history uses coordinates such as A1 and K11. Counts for every digit are visible in the active rack and the opponent’s supply strip; player cards also expand to show inventories.
+    - If all attempts fail: the number remains on the board, no tile is placed this turn, and the game moves on to the next turn.
 
-The first player to play every tile wins. Resignation and running out of time also end the game. The optional **Tie-breaker** requires the same player to have fewer tiles for exactly 10 consecutive completed moves after a configurable duration of active play. Enable it in New game to set **Tie-breaker after** (in minutes, default 60 = 1 hour). A tie resets the streak; a new leader starts a new streak. The duration is preserved in saved games and online rooms. The move count is always 10, including for saved settings that previously used another count.
+The zero tile works slightly differently than others.
 
-### Time controls
+**Special Rule for Zero**: After each turn, no 0-tile can be placed in the first or last square in a connected row or column, nor a square without any adjacent tiles. If, as a result of removing tiles from a challenge, a 0-tile becomes the first or last square in a connected row or column or an isolated tile without any adjacent tiles, then that 0-tile is immediately removed from the board and put away in neither player’s pile.
 
-| Mode | Per player | Increment per completed turn |
+## Winning
+
+There are three ways to win a game (and one optional way).
+
+1. Clear-out: a player wins by playing all the tiles in their pile.
+
+2. Time: a player wins by their opponent running out of time.
+
+3. Resignation: a player wins by their opponent resigning the game.
+
+4. (Optional Rule) Tie-breaker: if the game extends for a long time, for example 1 hour, then the first player to have fewer tiles for 10 consecutive turns wins.
+
+## Time Controls
+
+Players can choose one of the following time controls.
+
+| Mode | Time per player | Increment per turn |
 | --- | --- | --- |
 | Blitz | 10 minutes | 10 seconds |
 | Rapid | 20 minutes | 20 seconds |
 | Standard | 30 minutes | 30 seconds |
 | Classical | 45 minutes | 60 seconds |
-| Casual | Unlimited | None |
+| Casual | Unlimited | — |
 
-Clocks run while choosing a move or finding a factor. Modal dialogs do not pause active play. Use Pause explicitly when both players agree. Shared-device games save in local browser storage and restore paused after a reload. The selected size is saved with the game. These revised rules use a separate save slot and require a fresh game; saves from earlier rule versions remain untouched. A saved retry restores the same locked number and the remaining attempt budget, with the game paused until resumed. Closing a tab does not preserve a live online session.
+## Tips
 
-### Online play
+A good strategy is to make use of the following facts:
 
-Select **New Game → Over the internet → Create a room**, choose the names, time control, and first move, then create the room and share its invitation link. Your friend opens it and selects **Join game**, or chooses **New Game → Over the internet → Join a friend** and pastes the link or room code. Reopen **New Game** to copy the invitation, leave the room, or (as host) start another game in the same room. Choose **On one device** to start a shared-device game. The host is player one, the guest is player two; either may have the first move. Only the host creates new games. Both players can pause, resume, or resign as themselves.
+1. a number is a multiple of 2 if and only if it ends in 0, 2, 4, 6, or 8,
 
-Both browsers must use the same rules version; reload Primeria and create a new room after a rule update. The host chooses the board size, validates moves, and maintains the authoritative clocks. Guests automatically use the host’s selected size, including when the host starts another game in the same room. No account or application backend is required. PeerJS 1.5.5 is vendored; its public PeerServer handles connection signaling, and game data travels over WebRTC between the browsers. Room IDs use cryptographic randomness and are shared through invitation links. Online play depends on that external signaling service and compatible network conditions; there is no hosted TURN relay, reconnection system, or competitive anti-cheat service. A connection loss pauses both clocks; leave the room to continue at a shared device or create a fresh room. Keep the host tab open and active during a game. Shared-device play needs no signaling service.
+2. a number is a multiple of 5 if and only if it ends in 0 or 5,
 
-### Rule interpretations
+3. a number is a multiple of 3 if and only if the sum of its digits is a multiple of 3,
 
-Adjacency is orthogonal. Challenges cover the whole uninterrupted number in the challenger’s reading direction; crossing tiles in the perpendicular direction do not extend it. Single-digit challenges require an isolated tile, while diagonal neighbors do not affect isolation. The value 1 is excluded from challenges. After a successful challenge, remove any remaining zero that is isolated or at either end of any row or column number. Repeat until no further such zeros remain. Fives remain on the board if they become isolated. These additional removals enter neither pile and are included in the out-of-play digit counts; move history records the number removed. For positive numbers, a proposed factor must be greater than 1 and smaller than the number. Verification uses exact integer arithmetic. On a successful challenge, all tiles except the last digit in the challenger’s reading direction go to the opponent’s pile. That last tile is taxed and permanently removed from play, belonging to neither player. A successful isolated single-digit challenge therefore transfers no tiles. Failed challenges tax nothing. Out-of-play digit counts are saved and synchronized with online games; earlier saved games are preserved separately and are not silently converted to a different supply or reading rule.
+4. a number is a multiple of 7 if and only if subtracting 3 times its last two digits from the number formed by the remaining digits gives a multiple of 7,
 
-## GitHub Pages
+5. a number is a multiple of 11 if and only if the alternating sum of its digits is a multiple of 11,
 
-The site uses relative asset URLs and works at `https://yunhaixiang.github.io/primeria/` or another repository subpath. There is no build step and no application secret to configure.
+6. a number is a multiple of 13 if and only if subtracting 9 times its last digit from the number formed by the remaining digits gives a multiple of 13,
 
-1. In **Settings → Pages → Build and deployment**, choose **GitHub Actions** as the source.
-2. Push to `main`, or run **Actions → Deploy GitHub Pages → Run workflow**.
-3. The workflow runs the rule tests, packages only the website assets, and deploys them to Pages.
-
-Alternatively, because the application files live in the repository root, **Deploy from a branch → main → /(root)** also works. In that case remove or disable the Actions deployment workflow to avoid competing deployments.
-
-## Develop and test
-
-Requires Node.js 20+ for tests and Python 3 for the convenience preview command. No npm install is needed.
-
-```sh
-npm test
-npm start
-```
-
-Open `http://localhost:4173`. JavaScript modules require an HTTP server; opening `index.html` directly as a local file is not supported.
-
-## Files
-
-- `engine.js`: rules, inventories, exact challenge arithmetic, clocks, victory conditions.
-- `app.js`: interface, sound synthesis, local saves, and online room synchronization.
-- `styles.css`: responsive visual design and ten digit color themes.
-- `tests/engine.test.js`: core game-rule and clock tests.
-- `vendor/`: PeerJS and its MIT license.
-
-Sound is synthesized locally with Web Audio and starts only after interaction. The interface respects reduced-motion preferences and includes keyboard-focus states and descriptive labels.
+7. A number is a multiple of 7, 11, or 13 if and only if the alternating sum of its three-digit blocks is a multiple of 7, 11, or 13, respectively.
