@@ -288,3 +288,15 @@ main { padding-top: 16px; }
 }
 
 .move-buttons { margin-top: 14px; }
+
+/* Enter a proposed factor with the same digit palette as the tiles. */
+.factor-display-row { display: grid; grid-template-columns: minmax(0,1fr) 42px; gap: 8px; margin-bottom: 10px; }
+.factor-display { display: block; min-height: 42px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 7px; background: #faf9f4; font-family: 'Manrope',sans-serif; font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.3; overflow-wrap: anywhere; }
+.factor-display.empty { color: #9aa28f; }
+.factor-backspace { display: flex; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 7px; background: #eeeee4; }
+.factor-backspace svg { width: 20px; height: 20px; }
+.factor-backspace:hover:not(:disabled) { background: #e4e6d9; }
+.factor-keypad { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 7px; }
+.factor-digit { min-height: 39px; padding: 7px; border-radius: 6px; background: var(--tile-color); color: #283d36; box-shadow: inset 0 1px 0 #ffffff90,inset 0 -2px 0 #263d2c20; font-family: 'Manrope',sans-serif; font-size: 17px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.factor-digit:hover { box-shadow: inset 0 0 0 2px #68816b; }
+.factor-digit:active { box-shadow: inset 0 2px 3px #263d2c25; }

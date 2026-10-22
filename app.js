@@ -4,7 +4,7 @@ const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const modeName=s=>s[0].toUpperCase()+s.slice(1);
 const colors=Array.from({length:10},(_,i)=>`var(--digit-${i})`);
-const key='primeria.game.v1';let state=newGame(),action='single',digit=3,pending=[],ends=[],reverse=false,rotation=0,muted=false,expanded=null;
+const key='primeria.game.v1';let state=newGame(),action='single',digit=3,pending=[],ends=[],reverse=false,rotation=0,muted=false,expanded=null,factor='';
 let peer=null,connection=null,role=null,room=null,networkPaused=false,verdict=null,shownEnd=false,toastTimer,audio,saveAt=0,syncAt=0;
 try{const saved=JSON.parse(localStorage.getItem(key));if(saved?.version===1&&saved.state?.board?.length===100&&MODES[saved.state.mode]&&saved.state.piles?.length===2){Object.assign(saved.state,timeOutSettings(saved.state));state=saved.state;state.paused=state.started&&!state.ended;state.lastTick=Date.now();}muted=localStorage.getItem('primeria.muted')==='true';}catch{}
 function save(){if(role!==null)return;try{localStorage.setItem(key,JSON.stringify({version:1,state}));}catch{}}
@@ -18,7 +18,7 @@ function ask(title,message,confirmLabel='Continue'){return new Promise(resolve=>
 function tile(n){return `<span class="tile" style="--tile-color:${colors[n]}" aria-hidden="true"><span class="tile-number north">${n}</span><span class="tile-number east">${n}</span><span class="tile-number south">${n}</span><span class="tile-number west">${n}</span><span class="tile-center"></span></span>`;}
 function coords(index){return `(${index%10}, ${Math.floor(index/10)})`;}
 function allowed(){return !state.ended&&!state.paused&&state.started&&(role===null||(connection?.open&&state.turn===role));}
-function resetDraft(){pending=[];ends=[];reverse=false;$('#factor').value='';}
+function resetDraft(){pending=[];ends=[];reverse=false;factor='';}
 function boardIndex(row,col){let x=col,y=row;for(let i=0;i<rotation;i++)[x,y]=[y,9-x];return y*10+x;}
 function screenPosition(index){let x=index%10,y=Math.floor(index/10);for(let i=0;i<rotation;i++)[x,y]=[9-y,x];return [x,y];}
 function renderBoard(){
@@ -51,7 +51,8 @@ function renderControls(){
  $('#rack-count').textContent=`${total(pile)} remaining`;
  $$('.action-tab[data-action]').forEach(b=>{b.classList.toggle('selected',b.dataset.action===action);b.setAttribute('aria-pressed',b.dataset.action===action);});
  $('#placement-controls').hidden=action==='challenge';$('#challenge-controls').hidden=action!=='challenge';
- $('#undo-button').disabled=!(pending.length||ends.length);
+ $('#undo-button').disabled=!(pending.length||ends.length||factor.length);
+ $('#factor').textContent=factor||'—';$('#factor').classList.toggle('empty',!factor);$('#factor-backspace').disabled=!factor;
  if(action==='challenge'){
   let html='';if(ends.length===2)try{const cells=segment(state.board,...ends),forward=cells.map(i=>state.board[i]).join(''),backward=cells.slice().reverse().map(i=>state.board[i]).join('');
   const [ax,ay]=screenPosition(cells[0]),[bx,by]=screenPosition(cells.at(-1));
@@ -59,7 +60,7 @@ function renderControls(){
   html=`<button class="reading-option ${!reverse?'selected':''}" data-reverse="false" aria-pressed="${!reverse}">${forward}<small>${labels[0]}</small></button><button class="reading-option ${reverse?'selected':''}" data-reverse="true" aria-pressed="${reverse}">${backward}<small>${labels[1]}</small></button>`;}catch{}
   $('#reading-options').innerHTML=html;
  }
- const ready=action==='challenge'?ends.length===2&&$('#factor').value.trim().length>0:pending.length===(action==='double'?2:1);
+ const ready=action==='challenge'?ends.length===2&&factor.length>0:pending.length===(action==='double'?2:1);
  const button=$('#commit-button');button.innerHTML=`${action==='challenge'?'Submit challenge':action==='double'?'Place two tiles':'Place tile'} <span>↗</span>`;
  button.disabled=!allowed()||!ready;
  $('#start-button .start-label').textContent=state.ended?'Game Over':!state.started?'Start':state.paused?'Resume':'Pause';$('#start-icon').innerHTML=state.ended?'<rect x="5" y="5" width="14" height="14" rx="1"/>':state.started&&!state.paused?'<path d="M8 4v16M16 4v16"/>':'<path d="m8 4 12 8-12 8Z"/>';$('#start-button').classList.toggle('paused',state.paused);
@@ -119,13 +120,16 @@ $('#board').addEventListener('click',e=>{
 $('#rack').addEventListener('click',e=>{const b=e.target.closest('[data-digit]');if(!b)return;digit=Number(b.dataset.digit);sound('select');renderControls();renderBoard();});
 $$('.action-tab[data-action]').forEach(b=>b.addEventListener('click',()=>{action=b.dataset.action;resetDraft();sound();renderBoard();renderControls();}));
 $('#reading-options').addEventListener('click',e=>{const b=e.target.closest('[data-reverse]');if(!b)return;reverse=b.dataset.reverse==='true';sound('select');renderControls();});
-$('#factor').addEventListener('input',renderControls);
-$('#factor').addEventListener('keydown',e=>{if(e.key==='Enter'&&!$('#commit-button').disabled)$('#commit-button').click();});
+function appendFactor(value){if(factor.length>=20)return toast('A factor can have up to 20 digits.');factor+=value;sound('select');renderControls();}
+function deleteFactorDigit(){factor=factor.slice(0,-1);sound();renderControls();}
+$('#factor-keypad').innerHTML=colors.map((color,d)=>`<button class="factor-digit" data-factor-digit="${d}" style="--tile-color:${color}" aria-label="Factor digit ${d}">${d}</button>`).join('');
+$('#factor-keypad').addEventListener('click',e=>{const button=e.target.closest('[data-factor-digit]');if(button)appendFactor(button.dataset.factorDigit);});
+$('#factor-backspace').addEventListener('click',deleteFactorDigit);
 $('#undo-button').addEventListener('click',()=>{resetDraft();sound();render();});
 $('#commit-button').addEventListener('click',()=>{
  if(!state.started)return dispatch({type:'start'});
- if(action==='challenge'){try{challenge(state,ends[0],ends[1],reverse,$('#factor').value.trim());}catch(err){return toast(err.message);}}
- dispatch({type:'move',move:action==='challenge'?{action,a:ends[0],b:ends[1],reverse,factor:$('#factor').value.trim()}:{action,moves:pending.slice()}});
+ if(action==='challenge'){try{challenge(state,ends[0],ends[1],reverse,factor);}catch(err){return toast(err.message);}}
+ dispatch({type:'move',move:action==='challenge'?{action,a:ends[0],b:ends[1],reverse,factor:factor}:{action,moves:pending.slice()}});
 });
 $('#rotate-button').addEventListener('click',()=>{rotation=(rotation+1)%4;sound();renderBoard();renderControls();toast(`Board rotated ${rotation*90}°. Coordinates stay with their squares.`);});
 $('#sound-button').addEventListener('click',()=>{muted=!muted;try{localStorage.setItem('primeria.muted',muted);}catch{}sound();render();});
@@ -182,7 +186,7 @@ $('#setup-form').addEventListener('submit',async e=>{
 $$('[data-close]').forEach(b=>b.addEventListener('click',()=>b.closest('dialog').close()));
 $('#player-cards').addEventListener('click',e=>{const card=e.target.closest('[data-player]');if(!card)return;expanded=expanded===Number(card.dataset.player)?null:Number(card.dataset.player);renderPlayers();});
 $('#player-cards').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.target.closest('[data-player]')?.click();}});
-document.addEventListener('keydown',e=>{if(e.target.matches('input,select')||$('dialog[open]'))return;if(/^\d$/.test(e.key)){digit=Number(e.key);renderControls();sound('select');}if(e.key==='Escape'){resetDraft();render();}});
+document.addEventListener('keydown',e=>{if(e.target.matches('input,select')||$('dialog[open]'))return;if(/^\d$/.test(e.key)){e.preventDefault();if(action==='challenge')appendFactor(e.key);else{digit=Number(e.key);renderControls();sound('select');}}if(action==='challenge'&&e.key==='Backspace'){e.preventDefault();deleteFactorDigit();}if(e.key==='Escape'){resetDraft();render();}});
 
 function roomStatus(message){$('#room-info').textContent=message;}
 function leaveRoom(){
