@@ -12,7 +12,7 @@ Choose **New game**, enter both names, select a clock, and choose who moves firs
 
 Placements are previews until committed. Clear a draft with the undo button or Escape. Digit keys select rack tiles. The rotation button turns the board 90 degrees while keeping coordinates attached to their original squares. Counts for every digit are visible in the active rack and the opponent’s supply strip; player cards also expand to show inventories.
 
-The first player to play every tile wins. Resignation and running out of time also end the game. The optional one-hour rule requires the same player to have fewer tiles for ten consecutive completed turns after one hour of active play.
+The first player to play every tile wins. Resignation and running out of time also end the game. The optional **Time Out Rule** requires the same player to have fewer tiles for a configurable number of consecutive completed moves after a configurable duration of active play. Enable it in New game to set **Time out after** (in minutes, default 60 = 1 hour) and **Consecutive moves** (default 10). A tie resets the streak; a new leader starts a new streak. Settings are preserved in saved games and online rooms.
 
 ### Time controls
 

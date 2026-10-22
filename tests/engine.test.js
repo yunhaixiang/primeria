@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {MODES,PILE,total,newGame,tick,placement,segment,challenge,complete} from '../engine.js';
+import {MODES,PILE,total,newGame,timeOutSettings,tick,placement,segment,challenge,complete} from '../engine.js';
 const active=(options={})=>{const s=newGame(options,0);s.started=true;return s;};
 test('starting supply is exactly 37 tiles per player',()=>{assert.equal(total(PILE),37);const s=newGame();assert.equal(total(s.piles[0]),37);assert.equal(s.board.length,100);s.piles[0][0]--;assert.equal(s.piles[1][0],2);});
 for(const [mode,[seconds,increment]] of Object.entries(MODES))test(`${mode} clock and increment`,()=>{const s=active({mode});tick(s,2000);assert.equal(s.clocks[0],seconds===null?null:seconds-2);complete(s,{action:'single',moves:[{index:44,digit:3}]},4000);assert.equal(s.clocks[0],seconds===null?null:seconds-4+increment);assert.equal(s.clocks[1],seconds);});
@@ -18,5 +18,43 @@ test('single-digit one and trivial factors cannot be challenged',()=>{const s=ac
 test('zero, leading zeros and ten-digit numbers are handled exactly',()=>{const s=active();s.board[0]=0;assert.equal(challenge(s,0,0,false,'2').success,true);s.board[1]=4;assert.equal(challenge(s,0,1,false,'2').digits,'04');s.board=Array(100).fill(null);'9876543210'.split('').forEach((n,i)=>s.board[i]=Number(n));assert.equal(challenge(s,0,9,false,'9').success,true);});
 test('emptying a pile wins',()=>{const s=active();s.piles[0]=Array(10).fill(0);s.piles[0][7]=1;complete(s,{action:'single',moves:[{index:44,digit:7}]},0);assert.deepEqual(s.ended,{winner:0,reason:'by playing every tile'});});
 test('timeout prevents late placement',()=>{const s=active({mode:'blitz'});assert.throws(()=>complete(s,{action:'single',moves:[{index:44,digit:7}]},600001),/over/);assert.equal(s.ended.winner,1);assert.equal(s.board[44],null);});
-test('one-hour rule tracks ten completed turns with a continuous leader',()=>{const s=active({mode:'casual',hourRule:true});s.elapsed=3601;s.piles[1][1]+=20;for(let i=0;i<10;i++){complete(s,{action:'single',moves:[{index:i,digit:7}]},0);if(i<9)assert.equal(s.ended,null);}assert.equal(s.streak,10);assert.equal(s.ended.winner,0);});
+test('Time Out Rule defaults track ten completed moves with a continuous leader',()=>{const s=active({mode:'casual',timeOutRule:true});s.elapsed=3601;s.piles[1][1]+=20;for(let i=0;i<10;i++){complete(s,{action:'single',moves:[{index:i,digit:7}]},0);if(i<9)assert.equal(s.ended,null);}assert.equal(s.streak,10);assert.equal(s.ended.winner,0);});
 test('tiles are conserved through moves and successful challenges',()=>{const s=active();complete(s,{action:'single',moves:[{index:44,digit:1}]},0);complete(s,{action:'single',moves:[{index:45,digit:4}]},0);complete(s,{action:'challenge',a:44,b:45,reverse:false,factor:'2'},0);assert.equal(total(s.piles[0])+total(s.piles[1])+s.board.filter(n=>n!==null).length,74);});
+
+test('custom Time Out Rule starts exactly at the configured duration',()=>{
+ const s=active({mode:'casual',timeOutRule:true,timeOutSeconds:1200,timeOutMoves:3});s.piles[1][1]+=20;
+ s.elapsed=1199;complete(s,{action:'single',moves:[{index:0,digit:7}]},0);assert.equal(s.streak,0);
+ s.elapsed=1200;for(let i=1;i<=3;i++){complete(s,{action:'single',moves:[{index:i,digit:7}]},0);assert.equal(s.streak,i);if(i<3)assert.equal(s.ended,null);}
+ assert.deepEqual(s.ended,{winner:0,reason:'by the Time Out Rule'});
+});
+test('a tie resets the Time Out streak and a new leader starts at one',()=>{
+ const s=active({mode:'casual',timeOutRule:true,timeOutSeconds:60,timeOutMoves:4});s.elapsed=60;s.leader=0;s.streak=2;
+ s.piles=[Array(10).fill(0),Array(10).fill(0)];s.piles[0][7]=4;s.piles[1][7]=3;
+ complete(s,{action:'single',moves:[{index:0,digit:7}]},0);assert.equal(s.streak,0);assert.equal(s.leader,null);
+ complete(s,{action:'single',moves:[{index:1,digit:7}]},0);assert.equal(s.streak,1);assert.equal(s.leader,1);assert.equal(s.ended,null);
+ s.leader=0;s.streak=3;complete(s,{action:'single',moves:[{index:2,digit:7}]},0);assert.equal(s.streak,0);assert.equal(s.ended,null);
+});
+test('changing leaders resets a nonzero streak',()=>{
+ const s=active({mode:'casual',timeOutRule:true,timeOutSeconds:60,timeOutMoves:4});s.elapsed=60;s.turn=1;s.leader=0;s.streak=3;
+ s.piles=[Array(10).fill(0),Array(10).fill(0)];s.piles[0][7]=3;s.piles[1][7]=3;
+ complete(s,{action:'single',moves:[{index:0,digit:7}]},0);assert.equal(s.leader,1);assert.equal(s.streak,1);assert.equal(s.ended,null);
+});
+test('the disabled Time Out Rule never counts a streak',()=>{
+ const s=active({mode:'casual',timeOutRule:false,timeOutSeconds:60,timeOutMoves:1});s.elapsed=7200;
+ complete(s,{action:'single',moves:[{index:0,digit:7}]},0);assert.equal(s.streak,0);assert.equal(s.ended,null);
+});
+test('Time Out settings survive serialization and starting an online game',()=>{
+ const s=newGame({timeOutRule:true,timeOutSeconds:2700,timeOutMoves:6});const saved=JSON.parse(JSON.stringify(s));
+ const online=newGame({...timeOutSettings(saved)});assert.equal(online.timeOutRule,true);assert.equal(online.timeOutSeconds,2700);assert.equal(online.timeOutMoves,6);
+});
+test('legacy saved games keep the former one-hour defaults',()=>{
+ assert.deepEqual(timeOutSettings({hourRule:true}),{timeOutRule:true,timeOutSeconds:3600,timeOutMoves:10});
+ assert.equal(timeOutSettings({hourRule:true,timeOutRule:false}).timeOutRule,false);
+});
+test('invalid Time Out settings cannot start a game',()=>{
+ for(const n of [0,-1,1.5,NaN,Infinity,Number.MAX_SAFE_INTEGER+1]){assert.throws(()=>newGame({timeOutSeconds:n}),/duration/);assert.throws(()=>newGame({timeOutMoves:n}),/consecutive/);}
+});
+test('playing every tile retains priority over the Time Out Rule',()=>{
+ const s=active({mode:'casual',timeOutRule:true,timeOutSeconds:1,timeOutMoves:1});s.elapsed=2;s.piles[0]=Array(10).fill(0);s.piles[0][7]=1;
+ complete(s,{action:'single',moves:[{index:0,digit:7}]},0);assert.equal(s.ended.reason,'by playing every tile');
+});

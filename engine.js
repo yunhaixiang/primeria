@@ -1,9 +1,15 @@
 export const MODES = {blitz:[600,10],rapid:[1200,20],standard:[1800,30],classical:[2700,60],casual:[null,0]};
 export const PILE = [2,5,3,5,3,3,3,5,3,5];
 export const total = pile => pile.reduce((a,b)=>a+b,0);
-export function newGame({mode='rapid',names=['Player one','Player two'],first=0,hourRule=false}={},now=Date.now()) {
+export function timeOutSettings({timeOutRule,hourRule=false,timeOutSeconds=3600,timeOutMoves=10}={}) {
+  if(!Number.isSafeInteger(timeOutSeconds)||timeOutSeconds<1)throw Error('Choose a positive whole-number time out duration.');
+  if(!Number.isSafeInteger(timeOutMoves)||timeOutMoves<1)throw Error('Choose a positive whole number of consecutive moves.');
+  return {timeOutRule:timeOutRule??hourRule,timeOutSeconds,timeOutMoves};
+}
+export function newGame(options={},now=Date.now()) {
+  const {mode='rapid',names=['Player one','Player two'],first=0}=options;
   if (!MODES[mode]) throw Error('Choose a valid time control.');
-  return {board:Array(100).fill(null),piles:[PILE.slice(),PILE.slice()],names:names.map((n,i)=>String(n).trim().slice(0,24)||`Player ${i+1}`),mode,turn:first===1?1:0,clocks:[MODES[mode][0],MODES[mode][0]],increment:MODES[mode][1],started:false,paused:false,ended:null,lastTick:now,elapsed:0,hourRule,leader:null,streak:0,history:[],lastCells:[],revision:0};
+  return {board:Array(100).fill(null),piles:[PILE.slice(),PILE.slice()],names:names.map((n,i)=>String(n).trim().slice(0,24)||`Player ${i+1}`),mode,turn:first===1?1:0,clocks:[MODES[mode][0],MODES[mode][0]],increment:MODES[mode][1],started:false,paused:false,ended:null,lastTick:now,elapsed:0,...timeOutSettings(options),leader:null,streak:0,history:[],lastCells:[],revision:0};
 }
 export function tick(s,now=Date.now()) {
   const seconds=Math.max(0,now-s.lastTick)/1000;s.lastTick=now;
@@ -52,6 +58,7 @@ export function complete(s,command,now=Date.now()){
   if(s.clocks[actor]!==null)s.clocks[actor]+=s.increment;
   s.history.push(entry);s.revision++;
   if(total(s.piles[actor])===0)s.ended={winner:actor,reason:'by playing every tile'};
-  if(s.hourRule&&s.elapsed>=3600){const a=total(s.piles[0]),b=total(s.piles[1]),leader=a===b?null:a<b?0:1;s.streak=leader!==null&&leader===s.leader?s.streak+1:leader===null?0:1;s.leader=leader;if(s.streak>=10)s.ended={winner:leader,reason:'by the one-hour rule'};}
+  const rule=timeOutSettings(s);
+  if(rule.timeOutRule&&s.elapsed>=rule.timeOutSeconds){const a=total(s.piles[0]),b=total(s.piles[1]),leader=a===b?null:a<b?0:1;s.streak=leader!==null&&leader===s.leader?s.streak+1:leader===null?0:1;s.leader=leader;if(!s.ended&&s.streak>=rule.timeOutMoves)s.ended={winner:leader,reason:'by the Time Out Rule'};}
   s.turn=1-actor;s.lastTick=now;return entry;
 }
