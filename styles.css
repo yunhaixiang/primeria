@@ -395,3 +395,9 @@ main { padding-top: 16px; }
 .board-grid .cell:disabled { opacity: 1; cursor: default; }
 
 @media (max-width: 520px) { .board-size-options { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+
+#rules-dialog ul, #rules-dialog ol { margin: -8px 0 20px; padding-left: 22px; color: #7b8571; font-size: 12px; line-height: 1.8; }
+#rules-dialog li { padding-left: 3px; }
+#rules-dialog li + li { margin-top: 8px; }
+#rules-dialog strong { color: #3f5946; font-weight: 650; }
+#rules-dialog p a { color: var(--green); text-decoration: underline; text-underline-offset: 3px; }
