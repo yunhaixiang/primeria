@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {BOARD_SIZES,getBoardSize,isSupportedBoardState,newGame,placement,segment,challenge,complete,total,upgradeGameBoard} from '../engine.js';
+import {BOARD_SIZES,getBoardSize,isSupportedBoardState,newGame,placement,segment,challenge as checkChallenge,complete,total,upgradeGameBoard} from '../engine.js';
+// Exercise both fixed player perspectives without an arbitrary reading-direction option.
+const challenge=(s,a,b,reverse,factor)=>checkChallenge({...s,turn:reverse?0:1},a,b,factor);
 
 for(const size of BOARD_SIZES){
  const square=(x,y)=>y*size+x;

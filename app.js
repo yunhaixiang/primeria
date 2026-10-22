@@ -1,16 +1,16 @@
-import {BOARD_SIZES,isSupportedBoardState,RULES_VERSION,upgradeGameBoard,MODES,PILE,total,newGame,timeOutSettings,tick,placement,adjacent,segment,challengeLines,challenge,complete,beginChallengeReview,finishChallengeReview,challengeReviewSeconds} from './engine.js?v=c0806176f1';
+import {BOARD_SIZES,isSupportedBoardState,RULES_VERSION,upgradeGameBoard,MODES,PILE,total,newGame,timeOutSettings,tick,placement,adjacent,segment,challengeLines,challengeNumber,challenge,complete,beginChallengeReview,finishChallengeReview,challengeReviewSeconds} from './engine.js?v=3b5eebe43e';
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const modeName=s=>s[0].toUpperCase()+s.slice(1);
 const colors=Array.from({length:10},(_,i)=>`var(--digit-${i})`);
-const key='primeria.game.taxation.v1';let state=newGame(),action='single',digit=3,pending=[],ends=[],lineChoices=[],challengeAxis='row',reverse=false,rotation=0,muted=false,expanded=null,factor='';
+const key='primeria.game.rules6.v1';let state=newGame(),action='single',digit=3,pending=[],ends=[],lineChoices=[],challengeAxis='row',rotation=0,muted=false,expanded=null,factor='';
 let peer=null,connection=null,role=null,room=null,networkPaused=false,verdict=null,shownEnd=false,toastTimer,audio,saveAt=0,syncAt=0;
 try{
- for(const slot of [key,'primeria.game.selectable.v1','primeria.game.11x11.v1','primeria.game.13x13.v1','primeria.game.v1']){
+ for(const slot of [key]){
   try{
    const saved=JSON.parse(localStorage.getItem(slot));
-   if(![1,2,3,4].includes(saved?.version)||!MODES[saved.state?.mode]||saved.state.piles?.length!==2)continue;
+   if(saved?.version!==6||!MODES[saved.state?.mode]||saved.state.piles?.length!==2||!isSupportedBoardState(saved.state))continue;
    const restored=upgradeGameBoard(saved.state);Object.assign(restored,timeOutSettings(restored));
    state=restored;state.paused=state.started&&!state.ended;state.lastTick=Date.now();break;
   }catch{}
@@ -19,7 +19,7 @@ try{
 }catch{}
 function boardSize(){return state.boardSize;}
 
-function save(){if(role!==null)return;try{localStorage.setItem(key,JSON.stringify({version:4,state}));}catch{}}
+function save(){if(role!==null)return;try{localStorage.setItem(key,JSON.stringify({version:6,state}));}catch{}}
 function sound(kind='click'){
  if(muted)return;try{audio??=new (window.AudioContext||window.webkitAudioContext)();if(audio.state==='suspended')audio.resume();const now=audio.currentTime;
  const notes={click:[520],select:[650],place:[440,660],turn:[392,523],challenge:[330,440,660],fail:[260,196],win:[392,494,587,784]};
@@ -31,7 +31,7 @@ function tile(n){return `<span class="tile" style="--tile-color:${colors[n]}" ar
 function columnLabel(x){return String.fromCharCode(65+x);}
 function coords(index){return `${columnLabel(index%boardSize())}${Math.floor(index/boardSize())+1}`;}
 function allowed(){return !state.ended&&!state.paused&&state.started&&(role===null||(connection?.open&&state.turn===role));}
-function resetDraft(){pending=[];ends=[];lineChoices=[];reverse=false;factor='';clearChallengeHover();}
+function resetDraft(){pending=[];ends=[];lineChoices=[];factor='';clearChallengeHover();if(state.challengeAttempt){action='challenge';ends=[state.challengeAttempt.a,state.challengeAttempt.b];}}
 function boardIndex(row,col){let x=col,y=row;for(let i=0;i<rotation;i++)[x,y]=[y,boardSize()-1-x];return y*boardSize()+x;}
 function screenPosition(index){let x=index%boardSize(),y=Math.floor(index/boardSize());for(let i=0;i<rotation;i++)[x,y]=[boardSize()-1-y,x];return [x,y];}
 function lineLabel(line){
@@ -50,14 +50,14 @@ function pointedChallenge(index,event){
 }
 function clearChallengeHover(){ $$('.cell.challenge-hover').forEach(c=>c.classList.remove('challenge-hover')); }
 function previewChallenge(event){
- if(action!=='challenge'||!allowed()||event.pointerType==='touch')return clearChallengeHover();
+ if(action!=='challenge'||state.challengeAttempt||!allowed()||event.pointerType==='touch')return clearChallengeHover();
  const cell=event.target.closest('[data-index]');
  if(!cell)return clearChallengeHover();
  const {line}=pointedChallenge(Number(cell.dataset.index),event.type==='focusin'?null:event),cells=new Set(line?.cells||[]);
  $$('.cell').forEach(c=>c.classList.toggle('challenge-hover',cells.has(Number(c.dataset.index))));
 }
 function chooseChallenge(line,choices){
- ends=[line.cells[0],line.cells.at(-1)];lineChoices=choices;challengeAxis=line.axis;reverse=false;factor='';clearChallengeHover();sound('select');
+ ends=[line.cells[0],line.cells.at(-1)];lineChoices=choices;challengeAxis=line.axis;factor='';clearChallengeHover();sound('select');
 }
 function renderBoard(){
  $('#board').style.setProperty('--board-size',boardSize());
@@ -70,7 +70,7 @@ function renderBoard(){
    html+=`<span class="axis ${label==='✦'?'corner':''}" aria-hidden="true">${label}</span>`;continue;
   }
   const index=boardIndex(row,col),n=preview[index],draft=pending.some(m=>m.index===index),selected=selection.includes(index),last=state.lastCells.includes(index);
-  const legal=allowed()&&action!=='challenge'&&n===null&&(action==='single'&&digit!==0||adjacent(preview,index));
+  let legal=false;if(allowed()&&action!=='challenge'&&n===null&&pending.length<(action==='double'?2:1))try{placement(state,action,[...pending,{index,digit}],true);legal=true;}catch{}
   html+=`<button class="cell ${n===null?'empty':'occupied'} ${(row+col)%2?'alt':''} ${draft?'pending':''} ${selected?'challenge-selected':''} ${last?'last':''} ${legal?'legal':''}" data-index="${index}" aria-label="${coords(index)}, ${n===null?'empty':`digit ${n}`}${draft?', pending placement':''}${selected?', selected for challenge':''}" ${state.ended?'disabled':''}>${n===null?'':tile(n)}</button>`;
  }
  $('#board').innerHTML=html;$('.board-surround').classList.toggle('finished',!!state.ended);
@@ -90,22 +90,28 @@ function renderControls(){
  $('.move-panel h2').textContent=role!==null&&state.turn!==role?'Their move':'Your move';
  $('#rack').innerHTML=pile.map((n,d)=>`<button class="rack-button ${digit===d?'selected':''}" data-digit="${d}" aria-label="Digit ${d}, ${n} remaining" aria-pressed="${digit===d}" ${n===0?'disabled':''}>${tile(d)}<span class="tile-count">${n}</span></button>`).join('');
  $('#rack-count').textContent=`${total(pile)} remaining`;
- $$('.action-tab[data-action]').forEach(b=>{b.classList.toggle('selected',b.dataset.action===action);b.setAttribute('aria-pressed',b.dataset.action===action);});
+ $$('.action-tab[data-action]').forEach(b=>{b.disabled=!!state.challengeAttempt;b.classList.toggle('selected',b.dataset.action===action);b.setAttribute('aria-pressed',b.dataset.action===action);});
  $('#placement-controls').hidden=action==='challenge';$('#challenge-controls').hidden=action!=='challenge';
  $('#undo-button').disabled=!(pending.length||ends.length||factor.length);
  $('#factor').textContent=factor||'—';$('#factor').classList.toggle('empty',!factor);$('#factor-backspace').disabled=!factor;
  if(action==='challenge'){
   $('#challenge-lines').hidden=lineChoices.length<2;
-  $('#challenge-lines').innerHTML=lineChoices.length<2?'':lineChoices.map(line=>`<button class="challenge-line ${line.axis===challengeAxis?'selected':''}" data-challenge-line="${line.axis}" aria-pressed="${line.axis===challengeAxis}" aria-label="Select ${lineLabel(line).toLowerCase()} ${line.cells.map(i=>state.board[i]).join('')}">${lineLabel(line)}<span>${line.cells.map(i=>state.board[i]).join('')}</span></button>`).join('');
-  let html='';$('#tax-preview').hidden=true;if(ends.length===2)try{const cells=segment(state.board,...ends),forward=cells.map(i=>state.board[i]).join(''),backward=cells.slice().reverse().map(i=>state.board[i]).join('');
-  const [ax,ay]=screenPosition(cells[0]),[bx,by]=screenPosition(cells.at(-1));
-  const labels=cells.length===1?['As placed','Reversed']:ax!==bx?(ax<bx?['Left → right','Right → left']:['Right → left','Left → right']):(ay<by?['Top → bottom','Bottom → top']:['Bottom → top','Top → bottom']);
-  const taxedDigit=state.board[reverse?cells[0]:cells.at(-1)];$('#tax-preview').textContent=`If successful: ${cells.length-1} ${cells.length===2?'tile goes':'tiles go'} to your opponent; the final ${taxedDigit} is removed from play.`;$('#tax-preview').hidden=false;
-  html=`<button class="reading-option ${!reverse?'selected':''}" data-reverse="false" aria-pressed="${!reverse}">${forward}<small>${labels[0]}</small></button><button class="reading-option ${reverse?'selected':''}" data-reverse="true" aria-pressed="${reverse}">${backward}<small>${labels[1]}</small></button>`;}catch{}
+  $('#challenge-lines').innerHTML=lineChoices.length<2?'':lineChoices.map(line=>`<button class="challenge-line ${line.axis===challengeAxis?'selected':''}" data-challenge-line="${line.axis}" aria-pressed="${line.axis===challengeAxis}" aria-label="Select ${lineLabel(line).toLowerCase()} ${challengeNumber(state,line.cells[0],line.cells.at(-1)).digits}">${lineLabel(line)}<span>${challengeNumber(state,line.cells[0],line.cells.at(-1)).digits}</span></button>`).join('');
+  let html='';$('#tax-preview').hidden=true;$('#attempt-status').textContent='';
+  if(ends.length===2)try{
+   const reading=challengeNumber(state,...ends),cells=reading.readingCells;
+   const [ax,ay]=screenPosition(cells[0]),[bx,by]=screenPosition(cells.at(-1));
+   const direction=cells.length===1?'Single tile':ax!==bx?(ax<bx?'Left → right':'Right → left'):(ay<by?'Top → bottom':'Bottom → top');
+   const taxedDigit=state.board[cells.at(-1)];$('#tax-preview').textContent=`If successful: ${cells.length-1} ${cells.length===2?'tile goes':'tiles go'} to your opponent; the final ${taxedDigit} is removed from play.`;$('#tax-preview').hidden=false;
+   html=`<div class="reading-fixed"><strong>${reading.digits}</strong><small>${escape(state.names[reading.perspective])}’s reading · ${direction}</small></div>`;
+   const used=state.challengeAttempt?.attempts.length||0;
+   $('#attempt-status').textContent=`Try ${used+1} of ${reading.attemptLimit}${used?' · failed: '+state.challengeAttempt.attempts.map(a=>a.factor).join(', '):''}`;
+  }catch{}
   $('#reading-options').innerHTML=html;
  }
+ $('#challenge-quit').hidden=!state.challengeAttempt;$('#challenge-quit').disabled=!!state.ended||(role!==null&&state.turn!==role);
  const ready=action==='challenge'?ends.length===2&&factor.length>0:pending.length===(action==='double'?2:1);
- const button=$('#commit-button');button.innerHTML=`${action==='challenge'?'Submit challenge':action==='double'?'Place two tiles':'Place tile'} <span>↗</span>`;
+ const button=$('#commit-button');button.innerHTML=`${action==='challenge'?(state.challengeAttempt?'Try factor':'Submit challenge'):action==='double'?'Place two tiles':'Place tile'} <span>↗</span>`;
  button.disabled=!allowed()||!ready;
  $('#start-button .start-label').textContent=state.ended?'Game Over':!state.started?'Start':state.paused?'Resume':'Pause';$('#start-icon').innerHTML=state.ended?'<rect x="5" y="5" width="14" height="14" rx="1"/>':state.started&&!state.paused?'<path d="M8 4v16M16 4v16"/>':'<path d="m8 4 12 8-12 8Z"/>';$('#start-button').classList.toggle('paused',state.paused);
  $('#start-button').disabled=!!state.ended||!!verdict||(role!==null&&(!connection?.open||(!state.started&&role!==0)));
@@ -116,7 +122,7 @@ function renderControls(){
 }
 function renderHistory(){
  $('#history-count').textContent=`${state.history.length} MOVES`;
- $('#history').innerHTML=state.history.length?state.history.slice().reverse().slice(0,80).map((e,i)=>`<li class="history-entry"><span class="history-index">${String(state.history.length-i).padStart(2,'0')}</span><div class="history-text"><b>${escape(state.names[e.player])}</b> ${e.action==='challenge'?`challenged ${e.digits}`:e.action==='double'?'doubled down':'dropped a tile'}<small>${e.action==='challenge'?`${e.digits} ÷ ${e.factor} · ${e.success?(e.taxedDigit===undefined?'tiles transferred':`${e.transferredCount} transferred · ${e.taxedDigit} taxed`):'not a factor'}`:e.moves.map(m=>`${m.digit} at ${coords(m.index)}`).join(' · ')}</small></div><span class="history-badge">${e.action==='challenge'?(e.success?'✓':'×'):e.action==='double'?'+2':'+1'}</span></li>`).join(''):'<li class="history-empty">Every great game starts with a single tile.</li>';
+ $('#history').innerHTML=state.history.length?state.history.slice().reverse().slice(0,80).map((e,i)=>`<li class="history-entry"><span class="history-index">${String(state.history.length-i).padStart(2,'0')}</span><div class="history-text"><b>${escape(state.names[e.player])}</b> ${e.action==='challenge'?`challenged ${e.digits}`:e.action==='double'?'doubled down':'dropped a tile'}<small>${e.action==='challenge'?`${e.digits} ÷ ${e.factor} · ${e.quit?'quit':e.success?(e.taxedDigit===undefined?'tiles transferred':`${e.transferredCount} transferred · ${e.taxedDigit} taxed`):'not a factor'}${e.attempts?.length>1?' · '+e.attempts.length+' tries':''}`:e.moves.map(m=>`${m.digit} at ${coords(m.index)}`).join(' · ')}</small></div><span class="history-badge">${e.action==='challenge'?(e.success?'✓':'×'):e.action==='double'?'+2':'+1'}</span></li>`).join(''):'<li class="history-empty">Every great game starts with a single tile.</li>';
 }
 function render(){const taxed=total(state.taxed);$('#taxed-count').textContent=`${taxed} ${taxed===1?'tile':'tiles'} taxed · out of play`;$('#taxed-count').title=state.taxed.map((n,d)=>`${d}: ${n}`).join(' · ');$('#taxed-count').hidden=taxed===0;$('#time-out-summary').textContent=state.timeOutRule?`This game: Time Out Rule begins after ${state.timeOutSeconds/60} minutes and requires ${state.timeOutMoves} consecutive moves.`:'Time Out Rule is off for this game.';renderBoard();renderPlayers();renderControls();renderHistory();$('#sound-button .sound-label').textContent=muted?'Unmute':'Mute';$('#sound-icon-detail').innerHTML=muted?'<path d="m16 9 6 6m0-6-6 6"/>':'<path d="M15 8a6 6 0 0 1 0 8M18 5a10 10 0 0 1 0 14"/>';$('#sound-button').setAttribute('aria-label',muted?'Unmute':'Mute');$('#sound-button').setAttribute('title',muted?'Unmute sound':'Mute sound');$('#sound-button').setAttribute('aria-pressed',String(muted));if(state.ended&&!shownEnd)showEnd();}
 function showEnd(){shownEnd=true;sound('win');$('#result-eyebrow').textContent='A GAME WELL PLAYED';$('#result-symbol').textContent='✳';$('#result-title').textContent=`${state.names[state.ended.winner]} wins.`;$('#result-detail').textContent=`Victory ${state.ended.reason}. ${state.history.length} moves, and a few new possibilities discovered.`;$('#result-continue').textContent='Back to the board';if(!$('#result-dialog').open)$('#result-dialog').showModal();}
@@ -124,9 +130,10 @@ function renderVerdict(){
  const panel=$('#challenge-review');panel.hidden=!verdict;
  if(!verdict)return;
  panel.classList.toggle('failed',!verdict.success);
- $('#challenge-review-title').textContent=verdict.success?'Challenge Success':'Challenge Failed';
+ $('#challenge-review-title').textContent=verdict.retry?'Try Failed':verdict.success?'Challenge Success':'Challenge Failed';
+ $('#review-quit').hidden=!verdict.retry||(role!==null&&role!==state.turn);
  const seconds=challengeReviewSeconds(verdict);
- const message=`Moving to next turn in ${seconds} ${seconds===1?'second':'seconds'}`;
+ const message=`${verdict.retry?'Next try':'Moving to next turn'} in ${seconds} ${seconds===1?'second':'seconds'}`;
  if($('#challenge-countdown').textContent!==message)$('#challenge-countdown').textContent=message;
 }
 function showVerdict(review){verdict=review;sound(review.success?'challenge':'fail');}
@@ -139,9 +146,9 @@ function applyCommand(command,actor=role===null?state.turn:role){
   if(!state.started){if(role!==null&&actor!==0)throw Error('The host starts the game.');state.started=true;state.paused=false;}else state.paused=!state.paused;
   state.lastTick=Date.now();state.revision++;sound('turn');
  }else if(command.type==='resign'){
-  if(!state.started||state.ended)throw Error('There is no active game to resign.');state.ended={winner:1-actor,reason:'by resignation'};verdict=null;state.revision++;
+  if(!state.started||state.ended)throw Error('There is no active game to resign.');state.ended={winner:1-actor,reason:'by resignation'};state.challengeAttempt=null;verdict=null;state.revision++;
  }else if(command.type==='move'){
-  if(actor!==state.turn)throw Error('Wait for your turn.');if(verdict)throw Error('The next turn begins after the countdown.');
+  if(actor!==state.turn)throw Error('Wait for your turn.');if(verdict&&command.move.action!=='quitChallenge')throw Error('Wait for the countdown.');
   const entry=complete(state,command.move);if(entry.action==='challenge'&&!state.ended)showVerdict(beginChallengeReview(state,entry));else sound('turn');
  }
  resetDraft();save();sendState();render();
@@ -153,6 +160,7 @@ function dispatch(command){
 $('#board').addEventListener('click',e=>{
  const cell=e.target.closest('[data-index]');if(!cell)return;if(!allowed())return toast(state.paused?'Resume the game first.':!state.started?'Start the game when you’re ready.':'Wait for your turn.');const index=Number(cell.dataset.index);
  if(action==='challenge'){
+  if(state.challengeAttempt)return toast('Finish or quit the current challenge before selecting another number.');
   if(state.board[index]===null)return toast('Select a tile on the board.');
   const {line,choices}=pointedChallenge(index,e.detail?e:null);chooseChallenge(line,choices);
  }else{
@@ -167,13 +175,12 @@ $('#board').addEventListener('pointerleave',clearChallengeHover);
 $('#board').addEventListener('focusin',previewChallenge);
 $('#board').addEventListener('focusout',clearChallengeHover);
 $('#challenge-lines').addEventListener('click',e=>{
- const button=e.target.closest('[data-challenge-line]');if(!button||!allowed())return;
+ const button=e.target.closest('[data-challenge-line]');if(!button||state.challengeAttempt||!allowed())return;
  const line=lineChoices.find(c=>c.axis===button.dataset.challengeLine);if(!line||line.axis===challengeAxis)return;
  chooseChallenge(line,lineChoices);renderBoard();renderControls();
 });
 $('#rack').addEventListener('click',e=>{const b=e.target.closest('[data-digit]');if(!b)return;digit=Number(b.dataset.digit);sound('select');renderControls();renderBoard();});
 $$('.action-tab[data-action]').forEach(b=>b.addEventListener('click',()=>{action=b.dataset.action;resetDraft();sound();renderBoard();renderControls();}));
-$('#reading-options').addEventListener('click',e=>{const b=e.target.closest('[data-reverse]');if(!b)return;reverse=b.dataset.reverse==='true';sound('select');renderControls();});
 function appendFactor(value){if(factor.length>=20)return toast('A factor can have up to 20 digits.');factor+=value;sound('select');renderControls();}
 function deleteFactorDigit(){factor=factor.slice(0,-1);sound();renderControls();}
 $('#factor-keypad').innerHTML=colors.map((color,d)=>`<button class="factor-digit" data-factor-digit="${d}" style="--tile-color:${color}" aria-label="Factor digit ${d}">${d}</button>`).join('');
@@ -182,9 +189,10 @@ $('#factor-backspace').addEventListener('click',deleteFactorDigit);
 $('#undo-button').addEventListener('click',()=>{resetDraft();sound();render();});
 $('#commit-button').addEventListener('click',()=>{
  if(!state.started)return dispatch({type:'start'});
- if(action==='challenge'){try{challenge(state,ends[0],ends[1],reverse,factor);}catch(err){return toast(err.message);}}
- dispatch({type:'move',move:action==='challenge'?{action,a:ends[0],b:ends[1],reverse,factor:factor}:{action,moves:pending.slice()}});
+ if(action==='challenge'){try{challenge(state,ends[0],ends[1],factor);}catch(err){return toast(err.message);}}
+ dispatch({type:'move',move:action==='challenge'?{action,a:ends[0],b:ends[1],factor:factor}:{action,moves:pending.slice()}});
 });
+for(const id of ['challenge-quit','review-quit'])$('#'+id).addEventListener('click',()=>dispatch({type:'move',move:{action:'quitChallenge'}}));
 $('#rotate-button').addEventListener('click',()=>{rotation=(rotation+1)%4;sound();renderBoard();renderControls();toast(`Board rotated ${rotation*90}°. Coordinates stay with their squares.`);});
 $('#sound-button').addEventListener('click',()=>{muted=!muted;try{localStorage.setItem('primeria.muted',muted);}catch{}sound();render();});
 $('#start-button').addEventListener('click',()=>dispatch({type:'start'}));
@@ -320,6 +328,6 @@ setInterval(()=>{
  if(role===0&&now-syncAt>1000){sendState();syncAt=now;}
  if(now-saveAt>1000){save();saveAt=now;}
 },100);
-window.addEventListener('pagehide',save);render();
+window.addEventListener('pagehide',save);resetDraft();render();
 const urlRoom=new URL(location.href).searchParams.get('room');
 if(urlRoom){openSetup();$('#setup-form').elements.location.value='online';$('#setup-form').elements.roomAction.value='join';$('#room-code').value=urlRoom;updateSetupOptions();roomStatus('You’ve been invited. Select Join game to take your seat as player two.');}
