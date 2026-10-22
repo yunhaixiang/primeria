@@ -1,13 +1,25 @@
-import {BOARD_SIZE,BOARD_CELLS,RULES_VERSION,upgradeGameBoard,MODES,PILE,total,newGame,timeOutSettings,tick,placement,adjacent,segment,challenge,complete} from './engine.js?v=5d7dda263a';
+import {BOARD_SIZES,isSupportedBoardState,RULES_VERSION,upgradeGameBoard,MODES,PILE,total,newGame,timeOutSettings,tick,placement,adjacent,segment,challenge,complete} from './engine.js?v=7248bec6d5';
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const modeName=s=>s[0].toUpperCase()+s.slice(1);
 const colors=Array.from({length:10},(_,i)=>`var(--digit-${i})`);
-const key='primeria.game.11x11.v1';let state=newGame(),action='single',digit=3,pending=[],ends=[],reverse=false,rotation=0,muted=false,expanded=null,factor='';
+const key='primeria.game.selectable.v1';let state=newGame(),action='single',digit=3,pending=[],ends=[],reverse=false,rotation=0,muted=false,expanded=null,factor='';
 let peer=null,connection=null,role=null,room=null,networkPaused=false,verdict=null,shownEnd=false,toastTimer,audio,saveAt=0,syncAt=0;
-try{const saved=JSON.parse(localStorage.getItem(key)??localStorage.getItem('primeria.game.v1'));if([1,2].includes(saved?.version)&&[100,BOARD_CELLS].includes(saved.state?.board?.length)&&MODES[saved.state.mode]&&saved.state.piles?.length===2){Object.assign(saved.state,timeOutSettings(saved.state));state=upgradeGameBoard(saved.state);state.paused=state.started&&!state.ended;state.lastTick=Date.now();}muted=localStorage.getItem('primeria.muted')==='true';}catch{}
-function save(){if(role!==null)return;try{localStorage.setItem(key,JSON.stringify({version:2,state}));}catch{}}
+try{
+ for(const slot of [key,'primeria.game.11x11.v1','primeria.game.13x13.v1','primeria.game.v1']){
+  try{
+   const saved=JSON.parse(localStorage.getItem(slot));
+   if(![1,2,3].includes(saved?.version)||!MODES[saved.state?.mode]||saved.state.piles?.length!==2)continue;
+   const restored=upgradeGameBoard(saved.state);Object.assign(restored,timeOutSettings(restored));
+   state=restored;state.paused=state.started&&!state.ended;state.lastTick=Date.now();break;
+  }catch{}
+ }
+ muted=localStorage.getItem('primeria.muted')==='true';
+}catch{}
+function boardSize(){return state.boardSize;}
+
+function save(){if(role!==null)return;try{localStorage.setItem(key,JSON.stringify({version:3,state}));}catch{}}
 function sound(kind='click'){
  if(muted)return;try{audio??=new (window.AudioContext||window.webkitAudioContext)();if(audio.state==='suspended')audio.resume();const now=audio.currentTime;
  const notes={click:[520],select:[650],place:[440,660],turn:[392,523],challenge:[330,440,660],fail:[260,196],win:[392,494,587,784]};
@@ -17,17 +29,19 @@ function toast(message){$('#toast').textContent=message;$('#toast').hidden=false
 function ask(title,message,confirmLabel='Continue'){return new Promise(resolve=>{const d=$('#confirm-dialog');$('#confirm-title').textContent=title;$('#confirm-detail').textContent=message;$('#confirm-yes').innerHTML=`${escape(confirmLabel)} <span>↗</span>`;const finish=value=>{d.close();$('#confirm-yes').onclick=null;$('#confirm-no').onclick=null;d.oncancel=null;resolve(value);};$('#confirm-yes').onclick=()=>finish(true);$('#confirm-no').onclick=()=>finish(false);d.oncancel=e=>{e.preventDefault();finish(false);};d.showModal();});}
 function tile(n){return `<span class="tile" style="--tile-color:${colors[n]}" aria-hidden="true"><span class="tile-number north">${n}</span><span class="tile-number east">${n}</span><span class="tile-number south">${n}</span><span class="tile-number west">${n}</span><span class="tile-center"></span></span>`;}
 function columnLabel(x){return String.fromCharCode(65+x);}
-function coords(index){return `${columnLabel(index%BOARD_SIZE)}${Math.floor(index/BOARD_SIZE)+1}`;}
+function coords(index){return `${columnLabel(index%boardSize())}${Math.floor(index/boardSize())+1}`;}
 function allowed(){return !state.ended&&!state.paused&&state.started&&(role===null||(connection?.open&&state.turn===role));}
 function resetDraft(){pending=[];ends=[];reverse=false;factor='';}
-function boardIndex(row,col){let x=col,y=row;for(let i=0;i<rotation;i++)[x,y]=[y,BOARD_SIZE-1-x];return y*BOARD_SIZE+x;}
-function screenPosition(index){let x=index%BOARD_SIZE,y=Math.floor(index/BOARD_SIZE);for(let i=0;i<rotation;i++)[x,y]=[BOARD_SIZE-1-y,x];return [x,y];}
+function boardIndex(row,col){let x=col,y=row;for(let i=0;i<rotation;i++)[x,y]=[y,boardSize()-1-x];return y*boardSize()+x;}
+function screenPosition(index){let x=index%boardSize(),y=Math.floor(index/boardSize());for(let i=0;i<rotation;i++)[x,y]=[boardSize()-1-y,x];return [x,y];}
 function renderBoard(){
+ $('#board').style.setProperty('--board-size',boardSize());
+ $('#board').setAttribute('aria-label',`Primeria board, columns A through ${columnLabel(boardSize()-1)}, rows 1 through ${boardSize()}`);
  const preview=state.board.slice();pending.forEach(m=>preview[m.index]=m.digit);let selection=[];
  if(ends.length===2)try{selection=segment(state.board,...ends);}catch{}else selection=ends;
  let html='';
- for(let row=-1;row<=BOARD_SIZE;row++)for(let col=-1;col<=BOARD_SIZE;col++){
-  if(row<0||row>=BOARD_SIZE||col<0||col>=BOARD_SIZE){let label='';if((row<0||row>=BOARD_SIZE)&&(col<0||col>=BOARD_SIZE))label='✦';else if(row<0||row>=BOARD_SIZE){const i=boardIndex(row<0?0:BOARD_SIZE-1,col);label=rotation%2?Math.floor(i/BOARD_SIZE)+1:columnLabel(i%BOARD_SIZE);}else {const i=boardIndex(row,col<0?0:BOARD_SIZE-1);label=rotation%2?columnLabel(i%BOARD_SIZE):Math.floor(i/BOARD_SIZE)+1;}
+ for(let row=-1;row<=boardSize();row++)for(let col=-1;col<=boardSize();col++){
+  if(row<0||row>=boardSize()||col<0||col>=boardSize()){let label='';if((row<0||row>=boardSize())&&(col<0||col>=boardSize()))label='✦';else if(row<0||row>=boardSize()){const i=boardIndex(row<0?0:boardSize()-1,col);label=rotation%2?Math.floor(i/boardSize())+1:columnLabel(i%boardSize());}else {const i=boardIndex(row,col<0?0:boardSize()-1);label=rotation%2?columnLabel(i%boardSize()):Math.floor(i/boardSize())+1;}
    html+=`<span class="axis ${label==='✦'?'corner':''}" aria-hidden="true">${label}</span>`;continue;
   }
   const index=boardIndex(row,col),n=preview[index],draft=pending.some(m=>m.index===index),selected=selection.includes(index),last=state.lastCells.includes(index);
@@ -118,7 +132,6 @@ $('#board').addEventListener('click',e=>{
  }
  renderBoard();renderControls();
 });
-$('#board').style.setProperty('--board-size',BOARD_SIZE);
 $('#rack').addEventListener('click',e=>{const b=e.target.closest('[data-digit]');if(!b)return;digit=Number(b.dataset.digit);sound('select');renderControls();renderBoard();});
 $$('.action-tab[data-action]').forEach(b=>b.addEventListener('click',()=>{action=b.dataset.action;resetDraft();sound();renderBoard();renderControls();}));
 $('#reading-options').addEventListener('click',e=>{const b=e.target.closest('[data-reverse]');if(!b)return;reverse=b.dataset.reverse==='true';sound('select');renderControls();});
@@ -160,7 +173,7 @@ function updateSetupOptions(){
  updateTimeOutOptions();
 }
 function openSetup(){
- const form=$('#setup-form');form.elements.one.value=state.names[0];form.elements.two.value=state.names[1];form.elements.mode.value=state.mode;form.elements.first.value='random';
+ const form=$('#setup-form');form.elements.one.value=state.names[0];form.elements.two.value=state.names[1];form.elements.mode.value=state.mode;form.elements.first.value='random';form.elements.boardSize.value=String(boardSize());
  form.elements.timeOutRule.checked=state.timeOutRule;form.elements.timeOutMinutes.value=state.timeOutSeconds/60;form.elements.timeOutMoves.value=state.timeOutMoves;
  form.elements.location.value=role===null?'local':'online';updateSetupOptions();$('#setup-dialog').showModal();$('#setup-dialog').scrollTop=0;sound();
 }
@@ -175,7 +188,7 @@ $('#setup-form').addEventListener('submit',async e=>{
   if(!/^primeria-[a-f0-9]{14}$/.test(code)){toast('Paste a complete invitation link or room code.');$('#room-code').focus();return;}
  }else{
   const enabled=data.has('timeOutRule');
-  try{next=newGame({mode:data.get('mode'),names:[data.get('one'),data.get('two')],first:data.get('first')==='random'?(crypto.getRandomValues(new Uint8Array(1))[0]%2):Number(data.get('first')),timeOutRule:enabled,timeOutSeconds:enabled?Number(data.get('timeOutMinutes'))*60:state.timeOutSeconds,timeOutMoves:enabled?Number(data.get('timeOutMoves')):state.timeOutMoves});}catch(err){return toast(err.message);}
+  try{next=newGame({boardSize:Number(data.get('boardSize')),mode:data.get('mode'),names:[data.get('one'),data.get('two')],first:data.get('first')==='random'?(crypto.getRandomValues(new Uint8Array(1))[0]%2):Number(data.get('first')),timeOutRule:enabled,timeOutSeconds:enabled?Number(data.get('timeOutMinutes'))*60:state.timeOutSeconds,timeOutMoves:enabled?Number(data.get('timeOutMoves')):state.timeOutMoves});}catch(err){return toast(err.message);}
  }
  if(online&&role===null&&!window.Peer){roomStatus('The online connection library is unavailable. Reload this page, or play on one device.');return;}
  if((state.started&&!state.ended)||(!online&&role!==null)){
@@ -183,7 +196,7 @@ $('#setup-form').addEventListener('submit',async e=>{
  }
  if(!online&&role!==null)leaveRoom();
  if(online&&role===null){connectRoom(code,next);return;}
- state=next;shownEnd=false;verdict=null;action='single';resetDraft();$('#result-dialog').close();$('#setup-dialog').close();save();sendState({fresh:true});render();sound('turn');toast(`${state.names[state.turn]} has the first move. Press Start when ready.`);
+ state=next;rotation=0;shownEnd=false;verdict=null;action='single';resetDraft();$('#result-dialog').close();$('#setup-dialog').close();save();sendState({fresh:true});render();sound('turn');toast(`${state.names[state.turn]} has the first move. Press Start when ready.`);
 });
 $$('[data-close]').forEach(b=>b.addEventListener('click',()=>b.closest('dialog').close()));
 $('#player-cards').addEventListener('click',e=>{const card=e.target.closest('[data-player]');if(!card)return;expanded=expanded===Number(card.dataset.player)?null:Number(card.dataset.player);renderPlayers();});
@@ -210,19 +223,19 @@ function bindConnection(conn){
  });
  conn.on('data',data=>{
   if(conn!==connection||!data||typeof data!=='object')return;
-  if(role===1&&data.type==='state'&&(data.rulesVersion!==RULES_VERSION||data.state?.board?.length!==BOARD_CELLS)){
+  if(role===1&&data.type==='state'&&(data.rulesVersion!==RULES_VERSION||!isSupportedBoardState(data.state))){
    connection=null;conn.close();networkPaused=true;state.paused=state.started&&!state.ended;state.lastTick=Date.now();
    $('#connection-status').innerHTML='<i></i> UPDATE REQUIRED';
-   roomStatus('This room uses a different board size or rules. Both players should reload Primeria and create a new room.');toast('Both players need the latest Primeria rules.');render();return;
+   roomStatus('This room uses an unsupported board size or rules. Both players should reload Primeria and create a new room.');toast('Both players need the latest Primeria rules.');render();return;
   }
   if(role===0&&data.type==='command'){
    if(data.revision!==state.revision){sendState();return;}
    try{if(!['move','continue','start','resign'].includes(data.command?.type))return;applyCommand(data.command,1);}catch(err){conn.send({type:'error',message:err.message});sendState();}
-  }else if(role===1&&data.type==='state'&&data.state?.board?.length===BOARD_CELLS){
+  }else if(role===1&&data.type==='state'&&isSupportedBoardState(data.state)){
    const oldRevision=state.revision,wasEnded=state.ended,oldVerdict=verdict;
    Object.assign(data.state,timeOutSettings(data.state));state=data.state;state.lastTick=Date.now();
    if(data.verdict&&!oldVerdict)showVerdict(data.verdict);else if(!data.verdict&&oldVerdict){verdict=null;$('#result-dialog').close();}
-   if(oldRevision!==state.revision||data.fresh){if(data.fresh){shownEnd=false;verdict=null;$('#result-dialog').close();}resetDraft();render();if(!data.verdict&&!state.ended)sound('turn');}else {renderClocks();if(!wasEnded&&state.ended)render();}
+   if(oldRevision!==state.revision||data.fresh){if(data.fresh){rotation=0;shownEnd=false;verdict=null;$('#result-dialog').close();}resetDraft();render();if(!data.verdict&&!state.ended)sound('turn');}else {renderClocks();if(!wasEnded&&state.ended)render();}
   }else if(data.type==='error')toast(data.message||'Move could not be accepted.');
  });
  conn.on('close',()=>{if(conn===connection)disconnected();});conn.on('error',()=>{if(conn===connection)disconnected();});
@@ -230,13 +243,13 @@ function bindConnection(conn){
 function connectRoom(code=null,next=null){
  if(peer)return;
  role=code?1:0;room=code||`primeria-${crypto.randomUUID().replaceAll('-','').slice(0,14)}`;
- state=next||newGame({mode:state.mode,names:state.names,...timeOutSettings(state)});shownEnd=false;verdict=null;action='single';$('#result-dialog').close();resetDraft();render();roomStatus('Opening a table…');updateSetupOptions();$('#setup-dialog').scrollTop=0;
+ state=next||newGame({boardSize:boardSize(),mode:state.mode,names:state.names,...timeOutSettings(state)});rotation=0;shownEnd=false;verdict=null;action='single';$('#result-dialog').close();resetDraft();render();roomStatus('Opening a table…');updateSetupOptions();$('#setup-dialog').scrollTop=0;
  const activePeer=peer=code?new Peer():new Peer(room);
  const timeout=setTimeout(()=>{if(peer===activePeer&&!connection?.open)roomStatus('Still waiting. Ask your friend to join using the invitation link. If connecting fails, try another network or play on one device.');},15000);
  activePeer.on('open',()=>{
   clearTimeout(timeout);if(peer!==activePeer)return;
   if(code){
-   roomStatus('Joining your friend’s table…');bindConnection(activePeer.connect(code,{reliable:true,metadata:{boardSize:BOARD_SIZE,rulesVersion:RULES_VERSION}}));
+   roomStatus('Joining your friend’s table…');bindConnection(activePeer.connect(code,{reliable:true,metadata:{boardSizes:BOARD_SIZES,rulesVersion:RULES_VERSION}}));
    setTimeout(()=>{if(peer===activePeer&&!connection?.open)roomStatus('The host has not connected yet. Check that their tab is open, or try another network.');},15000);
   }else{
    const url=new URL(location.href);url.searchParams.set('room',room);history.replaceState(null,'',url);
@@ -245,7 +258,7 @@ function connectRoom(code=null,next=null){
    $('#connection-status').innerHTML='<i></i> ONLINE · WAITING';
   }
  });
- activePeer.on('connection',incoming=>{if(peer!==activePeer||role!==0||connection){incoming.on('open',()=>incoming.close());return;}if(incoming.metadata?.boardSize!==BOARD_SIZE||incoming.metadata?.rulesVersion!==RULES_VERSION){incoming.on('open',()=>{incoming.send({type:'error',message:'This room uses a different board size or rules. Reload Primeria, then join again.'});incoming.close();});return;}bindConnection(incoming);});
+ activePeer.on('connection',incoming=>{if(peer!==activePeer||role!==0||connection){incoming.on('open',()=>incoming.close());return;}if(incoming.metadata?.rulesVersion!==RULES_VERSION||!incoming.metadata?.boardSizes?.includes(boardSize())){incoming.on('open',()=>{incoming.send({type:'error',message:'This room uses an unsupported board size or rules. Reload Primeria, then join again.'});incoming.close();});return;}bindConnection(incoming);});
  activePeer.on('error',err=>{clearTimeout(timeout);if(peer!==activePeer)return;roomStatus(`Could not connect (${err.type||'network error'}). Leave this room and try again, or play on one device.`);if(connection?.open)disconnected();});
  activePeer.on('disconnected',()=>{if(peer===activePeer&&!connection?.open)disconnected();});
 }

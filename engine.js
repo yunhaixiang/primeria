@@ -1,6 +1,13 @@
 export const BOARD_SIZE = 11;
 export const BOARD_CELLS = BOARD_SIZE * BOARD_SIZE;
-export const RULES_VERSION = 2;
+export const BOARD_SIZES = [9,11,13];
+export function getBoardSize(board){
+ const size=Array.isArray(board)?Math.sqrt(board.length):0;
+ if(!BOARD_SIZES.includes(size))throw Error('This board size is unsupported.');
+ return size;
+}
+export function isSupportedBoardState(state){return !!state&&BOARD_SIZES.includes(state.boardSize)&&Array.isArray(state.board)&&state.board.length===state.boardSize**2;}
+export const RULES_VERSION = 3;
 export const MODES = {blitz:[600,10],rapid:[1200,20],standard:[1800,30],classical:[2700,60],casual:[null,0]};
 export const PILE = [2,5,3,5,3,3,3,5,3,5];
 export const total = pile => pile.reduce((a,b)=>a+b,0);
@@ -10,9 +17,10 @@ export function timeOutSettings({timeOutRule,hourRule=false,timeOutSeconds=3600,
   return {timeOutRule:timeOutRule??hourRule,timeOutSeconds,timeOutMoves};
 }
 export function newGame(options={},now=Date.now()) {
-  const {mode='rapid',names=['Player one','Player two'],first=0}=options;
+  const {mode='rapid',names=['Player one','Player two'],first=0,boardSize=BOARD_SIZE}=options;
+  if(!BOARD_SIZES.includes(boardSize))throw Error('Choose a 9 × 9, 11 × 11, or 13 × 13 board.');
   if (!MODES[mode]) throw Error('Choose a valid time control.');
-  return {board:Array(BOARD_CELLS).fill(null),piles:[PILE.slice(),PILE.slice()],names:names.map((n,i)=>String(n).trim().slice(0,24)||`Player ${i+1}`),mode,turn:first===1?1:0,clocks:[MODES[mode][0],MODES[mode][0]],increment:MODES[mode][1],started:false,paused:false,ended:null,lastTick:now,elapsed:0,...timeOutSettings(options),leader:null,streak:0,history:[],lastCells:[],revision:0};
+  return {boardSize,board:Array(boardSize*boardSize).fill(null),piles:[PILE.slice(),PILE.slice()],names:names.map((n,i)=>String(n).trim().slice(0,24)||`Player ${i+1}`),mode,turn:first===1?1:0,clocks:[MODES[mode][0],MODES[mode][0]],increment:MODES[mode][1],started:false,paused:false,ended:null,lastTick:now,elapsed:0,...timeOutSettings(options),leader:null,streak:0,history:[],lastCells:[],revision:0};
 }
 export function tick(s,now=Date.now()) {
   const seconds=Math.max(0,now-s.lastTick)/1000;s.lastTick=now;
@@ -20,13 +28,14 @@ export function tick(s,now=Date.now()) {
   s.elapsed+=seconds;
   if(s.clocks[s.turn]!==null){s.clocks[s.turn]=Math.max(0,s.clocks[s.turn]-seconds);if(s.clocks[s.turn]===0)s.ended={winner:1-s.turn,reason:'on time'};}
 }
-export function adjacent(board,index){const x=index%BOARD_SIZE,y=Math.floor(index/BOARD_SIZE);return [[x-1,y],[x+1,y],[x,y-1],[x,y+1]].some(([a,b])=>a>=0&&a<BOARD_SIZE&&b>=0&&b<BOARD_SIZE&&board[b*BOARD_SIZE+a]!==null);}
+export function adjacent(board,index){const size=getBoardSize(board),x=index%size,y=Math.floor(index/size);return [[x-1,y],[x+1,y],[x,y-1],[x,y+1]].some(([a,b])=>a>=0&&a<size&&b>=0&&b<size&&board[b*size+a]!==null);}
 export function placement(s,action,moves,partial=false){
+  const boardCells=s.board.length;getBoardSize(s.board);
   const count=action==='single'?1:action==='double'?2:0;
   if(!count||moves.length<1||moves.length>count||(!partial&&moves.length!==count))throw Error(`Place ${count||'one or two'} tiles to complete this move.`);
   const board=s.board.slice(),pile=s.piles[s.turn].slice();
   for(const m of moves){
-    if(!Number.isInteger(m.index)||m.index<0||m.index>=BOARD_CELLS||!Number.isInteger(m.digit)||m.digit<0||m.digit>9)throw Error('Choose a board square and digit.');
+    if(!Number.isInteger(m.index)||m.index<0||m.index>=boardCells||!Number.isInteger(m.digit)||m.digit<0||m.digit>9)throw Error('Choose a board square and digit.');
     if(board[m.index]!==null)throw Error('That square is occupied.');
     if(!pile[m.digit])throw Error('No tiles of that digit remain.');
     if((action==='double'||m.digit===0)&&!adjacent(board,m.index))throw Error(m.digit===0?'Zero must touch another tile.':'Each Double Down tile must touch an existing tile.');
@@ -34,15 +43,16 @@ export function placement(s,action,moves,partial=false){
   }return {board,pile};
 }
 export function segment(board,a,b){
-  if(!Number.isInteger(a)||!Number.isInteger(b)||a<0||b<0||a>=BOARD_CELLS||b>=BOARD_CELLS)throw Error('Select the first and last tile of a number.');
-  if(Math.floor(a/BOARD_SIZE)!==Math.floor(b/BOARD_SIZE)&&a%BOARD_SIZE!==b%BOARD_SIZE)throw Error('Choose a straight horizontal or vertical number.');
-  const step=a===b?1:Math.floor(a/BOARD_SIZE)===Math.floor(b/BOARD_SIZE)?1:BOARD_SIZE,lo=Math.min(a,b),hi=Math.max(a,b),cells=[];
+  const size=getBoardSize(board),boardCells=board.length;
+  if(!Number.isInteger(a)||!Number.isInteger(b)||a<0||b<0||a>=boardCells||b>=boardCells)throw Error('Select the first and last tile of a number.');
+  if(Math.floor(a/size)!==Math.floor(b/size)&&a%size!==b%size)throw Error('Choose a straight horizontal or vertical number.');
+  const step=a===b?1:Math.floor(a/size)===Math.floor(b/size)?1:size,lo=Math.min(a,b),hi=Math.max(a,b),cells=[];
   for(let i=lo;i<=hi;i+=step){if(board[i]===null)throw Error('A challenged number cannot contain empty squares.');cells.push(i);}
   if(a===b){
     if(adjacent(board,a))throw Error('Single-digit challenges require an isolated tile with no edge-adjacent tiles.');
   }else{
-    const before=step===1?(lo%BOARD_SIZE>0?lo-1:null):(lo>=BOARD_SIZE?lo-BOARD_SIZE:null);
-    const after=step===1?(hi%BOARD_SIZE<BOARD_SIZE-1?hi+1:null):(hi+BOARD_SIZE<BOARD_CELLS?hi+BOARD_SIZE:null);
+    const before=step===1?(lo%size>0?lo-1:null):(lo>=size?lo-size:null);
+    const after=step===1?(hi%size<size-1?hi+1:null):(hi+size<boardCells?hi+size:null);
     if((before!==null&&board[before]!==null)||(after!==null&&board[after]!==null))throw Error('Select both ends of the whole uninterrupted number.');
   }
   return cells;
@@ -76,13 +86,17 @@ export function complete(s,command,now=Date.now()){
 
 // Expand the former board without moving a tile to a different coordinate.
 export function upgradeGameBoard(state){
-  if(state.board.length===BOARD_CELLS)return state;
+  const size=Math.sqrt(state.board.length);
+  if(BOARD_SIZES.includes(size)){
+    if(state.boardSize!==undefined&&state.boardSize!==size)throw Error('The saved board dimensions do not match.');
+    return state.boardSize===size?state:{...state,boardSize:size};
+  }
   const oldSize=state.board.length===100?10:null;
   if(!oldSize)throw Error('This saved board size is unsupported.');
   const remap=index=>Math.floor(index/oldSize)*BOARD_SIZE+index%oldSize;
   const board=Array(BOARD_CELLS).fill(null);
   state.board.forEach((digit,index)=>{board[remap(index)]=digit;});
-  return {...state,board,lastCells:state.lastCells.map(remap),history:state.history.map(entry=>({
+  return {...state,boardSize:BOARD_SIZE,board,lastCells:state.lastCells.map(remap),history:state.history.map(entry=>({
     ...entry,...(entry.moves?{moves:entry.moves.map(move=>({...move,index:remap(move.index)}))}:{}),
     ...(entry.cells?{cells:entry.cells.map(remap)}:{})
   }))};

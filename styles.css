@@ -300,3 +300,13 @@ main { padding-top: 16px; }
 .factor-digit { min-height: 39px; padding: 7px; border-radius: 6px; background: var(--tile-color); color: #283d36; box-shadow: inset 0 1px 0 #ffffff90,inset 0 -2px 0 #263d2c20; font-family: 'Manrope',sans-serif; font-size: 17px; font-weight: 650; font-variant-numeric: tabular-nums; }
 .factor-digit:hover { box-shadow: inset 0 0 0 2px #68816b; }
 .factor-digit:active { box-shadow: inset 0 2px 3px #263d2c25; }
+
+/* Board size is chosen with the rest of the new-game settings. */
+.board-size-choice { border: 0; padding: 0; margin: 0 0 22px; }
+.board-size-choice legend { padding: 0; margin-bottom: 10px; font-size: 9px; letter-spacing: 1.4px; font-weight: 600; color: #7d8573; }
+.board-size-options { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
+.board-size-options label { position: relative; display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 47px; padding: 11px 8px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; background: #f8f7f0; }
+.board-size-options input { margin: 0; accent-color: var(--green); }
+.board-size-options strong { font-size: 12px; font-weight: 600; white-space: nowrap; }
+.board-size-options label:has(input:checked) { background: #e8ebdd; border-color: #8ea281; }
+.board-size-options label:has(input:focus-visible) { outline: 2px solid #598b73; outline-offset: 2px; }
