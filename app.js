@@ -1,10 +1,10 @@
-import {BOARD_SIZES,isSupportedBoardState,RULES_VERSION,upgradeGameBoard,MODES,PILE,total,newGame,timeOutSettings,tick,placement,adjacent,segment,challenge,complete,beginChallengeReview,finishChallengeReview,challengeReviewSeconds} from './engine.js?v=00ed05c127';
+import {BOARD_SIZES,isSupportedBoardState,RULES_VERSION,upgradeGameBoard,MODES,PILE,total,newGame,timeOutSettings,tick,placement,adjacent,segment,challengeLines,challenge,complete,beginChallengeReview,finishChallengeReview,challengeReviewSeconds} from './engine.js?v=c0806176f1';
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const modeName=s=>s[0].toUpperCase()+s.slice(1);
 const colors=Array.from({length:10},(_,i)=>`var(--digit-${i})`);
-const key='primeria.game.taxation.v1';let state=newGame(),action='single',digit=3,pending=[],ends=[],reverse=false,rotation=0,muted=false,expanded=null,factor='';
+const key='primeria.game.taxation.v1';let state=newGame(),action='single',digit=3,pending=[],ends=[],lineChoices=[],challengeAxis='row',reverse=false,rotation=0,muted=false,expanded=null,factor='';
 let peer=null,connection=null,role=null,room=null,networkPaused=false,verdict=null,shownEnd=false,toastTimer,audio,saveAt=0,syncAt=0;
 try{
  for(const slot of [key,'primeria.game.selectable.v1','primeria.game.11x11.v1','primeria.game.13x13.v1','primeria.game.v1']){
@@ -31,9 +31,34 @@ function tile(n){return `<span class="tile" style="--tile-color:${colors[n]}" ar
 function columnLabel(x){return String.fromCharCode(65+x);}
 function coords(index){return `${columnLabel(index%boardSize())}${Math.floor(index/boardSize())+1}`;}
 function allowed(){return !state.ended&&!state.paused&&state.started&&(role===null||(connection?.open&&state.turn===role));}
-function resetDraft(){pending=[];ends=[];reverse=false;factor='';}
+function resetDraft(){pending=[];ends=[];lineChoices=[];reverse=false;factor='';clearChallengeHover();}
 function boardIndex(row,col){let x=col,y=row;for(let i=0;i<rotation;i++)[x,y]=[y,boardSize()-1-x];return y*boardSize()+x;}
 function screenPosition(index){let x=index%boardSize(),y=Math.floor(index/boardSize());for(let i=0;i<rotation;i++)[x,y]=[boardSize()-1-y,x];return [x,y];}
+function lineLabel(line){
+ const a=screenPosition(line.cells[0]),b=screenPosition(line.cells.at(-1));
+ return line.cells.length===1?'Single tile':a[0]===b[0]?'Column':'Row';
+}
+function pointedChallenge(index,event){
+ const choices=challengeLines(state.board,index);
+ let axis=challengeAxis;
+ if(choices.length>1&&event&&event.pointerType!=='touch'){
+  const rect=event.target.closest('[data-index]').getBoundingClientRect();
+  const dx=Math.abs(event.clientX-rect.left-rect.width/2),dy=Math.abs(event.clientY-rect.top-rect.height/2);
+  if(Math.abs(dx-dy)>2){const horizontal=dx>dy;axis=(horizontal!==(rotation%2===1))?'row':'column';}
+ }
+ return {choices,line:choices.find(c=>c.axis===axis)||choices[0]};
+}
+function clearChallengeHover(){ $$('.cell.challenge-hover').forEach(c=>c.classList.remove('challenge-hover')); }
+function previewChallenge(event){
+ if(action!=='challenge'||!allowed()||event.pointerType==='touch')return clearChallengeHover();
+ const cell=event.target.closest('[data-index]');
+ if(!cell)return clearChallengeHover();
+ const {line}=pointedChallenge(Number(cell.dataset.index),event.type==='focusin'?null:event),cells=new Set(line?.cells||[]);
+ $$('.cell').forEach(c=>c.classList.toggle('challenge-hover',cells.has(Number(c.dataset.index))));
+}
+function chooseChallenge(line,choices){
+ ends=[line.cells[0],line.cells.at(-1)];lineChoices=choices;challengeAxis=line.axis;reverse=false;factor='';clearChallengeHover();sound('select');
+}
 function renderBoard(){
  $('#board').style.setProperty('--board-size',boardSize());
  $('#board').setAttribute('aria-label',`Primeria board, columns A through ${columnLabel(boardSize()-1)}, rows 1 through ${boardSize()}`);
@@ -70,6 +95,8 @@ function renderControls(){
  $('#undo-button').disabled=!(pending.length||ends.length||factor.length);
  $('#factor').textContent=factor||'—';$('#factor').classList.toggle('empty',!factor);$('#factor-backspace').disabled=!factor;
  if(action==='challenge'){
+  $('#challenge-lines').hidden=lineChoices.length<2;
+  $('#challenge-lines').innerHTML=lineChoices.length<2?'':lineChoices.map(line=>`<button class="challenge-line ${line.axis===challengeAxis?'selected':''}" data-challenge-line="${line.axis}" aria-pressed="${line.axis===challengeAxis}" aria-label="Select ${lineLabel(line).toLowerCase()} ${line.cells.map(i=>state.board[i]).join('')}">${lineLabel(line)}<span>${line.cells.map(i=>state.board[i]).join('')}</span></button>`).join('');
   let html='';$('#tax-preview').hidden=true;if(ends.length===2)try{const cells=segment(state.board,...ends),forward=cells.map(i=>state.board[i]).join(''),backward=cells.slice().reverse().map(i=>state.board[i]).join('');
   const [ax,ay]=screenPosition(cells[0]),[bx,by]=screenPosition(cells.at(-1));
   const labels=cells.length===1?['As placed','Reversed']:ax!==bx?(ax<bx?['Left → right','Right → left']:['Right → left','Left → right']):(ay<by?['Top → bottom','Bottom → top']:['Bottom → top','Top → bottom']);
@@ -127,15 +154,22 @@ $('#board').addEventListener('click',e=>{
  const cell=e.target.closest('[data-index]');if(!cell)return;if(!allowed())return toast(state.paused?'Resume the game first.':!state.started?'Start the game when you’re ready.':'Wait for your turn.');const index=Number(cell.dataset.index);
  if(action==='challenge'){
   if(state.board[index]===null)return toast('Select a tile on the board.');
-  if(ends.length===2)ends=[];
-  if(ends.length===1)try{segment(state.board,ends[0],index);}catch(err){return toast(err.message);}
-  ends.push(index);reverse=false;sound('select');
+  const {line,choices}=pointedChallenge(index,e.detail?e:null);chooseChallenge(line,choices);
  }else{
   const existing=pending.findIndex(m=>m.index===index);if(existing>=0){pending=pending.slice(0,existing);render();return;}
   if(pending.length===(action==='double'?2:1))return toast('Commit your move, or clear it to choose again.');
   const next=[...pending,{index,digit}];try{placement(state,action,next,true);}catch(err){return toast(err.message);}pending=next;sound('place');
  }
  renderBoard();renderControls();
+});
+$('#board').addEventListener('pointermove',previewChallenge);
+$('#board').addEventListener('pointerleave',clearChallengeHover);
+$('#board').addEventListener('focusin',previewChallenge);
+$('#board').addEventListener('focusout',clearChallengeHover);
+$('#challenge-lines').addEventListener('click',e=>{
+ const button=e.target.closest('[data-challenge-line]');if(!button||!allowed())return;
+ const line=lineChoices.find(c=>c.axis===button.dataset.challengeLine);if(!line||line.axis===challengeAxis)return;
+ chooseChallenge(line,lineChoices);renderBoard();renderControls();
 });
 $('#rack').addEventListener('click',e=>{const b=e.target.closest('[data-digit]');if(!b)return;digit=Number(b.dataset.digit);sound('select');renderControls();renderBoard();});
 $$('.action-tab[data-action]').forEach(b=>b.addEventListener('click',()=>{action=b.dataset.action;resetDraft();sound();renderBoard();renderControls();}));

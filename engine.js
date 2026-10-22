@@ -57,6 +57,21 @@ export function segment(board,a,b){
   }
   return cells;
 }
+// Maximal numbers through a tile; connected tiles never offer a singleton.
+export function challengeLines(board,index){
+  const size=getBoardSize(board);
+  if(!Number.isInteger(index)||index<0||index>=board.length)throw Error('Choose a tile on the board.');
+  if(board[index]===null)return [];
+  const lines=[];
+  for(const [axis,step] of [['row',1],['column',size]]){
+    const inLine=i=>i>=0&&i<board.length&&(axis==='column'||Math.floor(i/size)===Math.floor(index/size));
+    let first=index,last=index;
+    while(inLine(first-step)&&board[first-step]!==null)first-=step;
+    while(inLine(last+step)&&board[last+step]!==null)last+=step;
+    if(first!==last)lines.push({axis,cells:Array.from({length:(last-first)/step+1},(_,n)=>first+n*step)});
+  }
+  return lines.length?lines:[{axis:'isolated',cells:[index]}];
+}
 export function challenge(s,a,b,reverse,factor){
   const cells=segment(s.board,a,b),digits=(reverse?cells.slice().reverse():cells).map(i=>s.board[i]).join('');
   if(!/^\d{1,20}$/.test(String(factor)))throw Error('Enter a whole-number factor greater than 1.');
