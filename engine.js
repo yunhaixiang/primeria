@@ -12,7 +12,7 @@ export const MODES = {blitz:[600,10],rapid:[1200,20],standard:[1800,30],classica
 export const PILE = [2,5,3,5,3,2,3,5,3,5];
 export const total = pile => pile.reduce((a,b)=>a+b,0);
 export function timeOutSettings({timeOutRule,hourRule=false,timeOutSeconds=3600,timeOutMoves=10}={}) {
-  if(!Number.isSafeInteger(timeOutSeconds)||timeOutSeconds<1)throw Error('Choose a positive whole-number time out duration.');
+  if(!Number.isSafeInteger(timeOutSeconds)||timeOutSeconds<1)throw Error('Choose a positive whole-number tie-breaker duration.');
   if(!Number.isSafeInteger(timeOutMoves)||timeOutMoves<1)throw Error('Choose a positive whole number of consecutive moves.');
   return {timeOutRule:timeOutRule??hourRule,timeOutSeconds,timeOutMoves};
 }

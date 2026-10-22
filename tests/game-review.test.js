@@ -54,7 +54,7 @@ test('starting position, resignation with no moves, and invalid move selections'
 });
 test('end descriptions cover clear-out, time, resignation and the Time Out Rule',()=>{
  const s=newGame({names:['Ada','Emmy']});assert.equal(gameResult(s),'');
- for(const [reason,label] of [['by playing every tile','Clear-out'],['on time','Time'],['by resignation','Resignation'],['by the Time Out Rule','Time Out Rule']]){s.ended={winner:1,reason};assert.equal(gameResult(s),`Emmy Wins by ${label}`);}
+ for(const [reason,label] of [['by playing every tile','Clear-out'],['on time','Time'],['by resignation','Resignation'],['by the Time Out Rule','Tie-breaker']]){s.ended={winner:1,reason};assert.equal(gameResult(s),`Emmy Wins by ${label}`);}
 });
 test('recorded move clocks are frozen copies, independent of later thinking time',()=>{
  const s={...newGame({},0),started:true};const entry=complete(s,{action:'single',moves:[{index:0,digit:1}]},2000),clocks=entry.clocks.slice();tick(s,5000);assert.deepEqual(entry.clocks,clocks);assert.equal(entry.elapsed,2);

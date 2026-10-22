@@ -1,8 +1,8 @@
-import {MODES,PILE} from './engine.js?v=3408d8251e';
+import {MODES,PILE} from './engine.js?v=e11efc1f0c';
 
 export function gameResult(game){
  if(!game.ended)return '';
- const reasons={'by playing every tile':'Clear-out','on time':'Time','by resignation':'Resignation','by the Time Out Rule':'Time Out Rule'};
+ const reasons={'by playing every tile':'Clear-out','on time':'Time','by resignation':'Resignation','by the Time Out Rule':'Tie-breaker'};
  return `${game.names[game.ended.winner]} Wins by ${reasons[game.ended.reason]||game.ended.reason.replace(/^by /,'')}`;
 }
 

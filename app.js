@@ -1,7 +1,7 @@
-import {BOARD_SIZES,isSupportedBoardState,RULES_VERSION,upgradeGameBoard,MODES,PILE,total,newGame,timeOutSettings,tick,placement,adjacent,segment,challengeLines,challengeNumber,challenge,complete,beginChallengeReview,finishChallengeReview,challengeReviewSeconds,beginGameCountdown,finishGameCountdown} from './engine.js?v=3408d8251e';
-import {BOT_LEVELS,botConfig,isBotTurn,createBot} from './bot.js?v=5a5a68baf1';
+import {BOARD_SIZES,isSupportedBoardState,RULES_VERSION,upgradeGameBoard,MODES,PILE,total,newGame,timeOutSettings,tick,placement,adjacent,segment,challengeLines,challengeNumber,challenge,complete,beginChallengeReview,finishChallengeReview,challengeReviewSeconds,beginGameCountdown,finishGameCountdown} from './engine.js?v=e11efc1f0c';
+import {BOT_LEVELS,botConfig,isBotTurn,createBot} from './bot.js?v=78e019dd23';
 
-import {gameResult,reviewPosition} from './review.js?v=4f418d5442';
+import {gameResult,reviewPosition} from './review.js?v=533f9acf37';
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -145,7 +145,7 @@ function renderControls(){
  $('#pause-resume').disabled=$('#start-button').disabled;
  $('#resign-button').disabled=!state.started||!!state.ended||(role!==null&&!connection?.open);
  $('#new-button').disabled=false;
- $('#board-note').textContent=reviewMove!==null?`Review · ${reviewMove===0?'Starting position':`After move ${reviewMove}`} of ${state.history.length}`:state.ended?gameResult(state):state.started?`${state.names[state.turn]==='You'?'Your turn':state.names[state.turn]+' to play'}${state.paused?' · paused':''}${state.timeOutRule&&state.elapsed>=state.timeOutSeconds?` · Time Out streak: ${state.streak}/${state.timeOutMoves}`:''}.`:networkPaused?'Connection lost.':state.startCountdown?'Starting game…':role!==null?'Waiting for your opponent.':'Create a new game to begin.';
+ $('#board-note').textContent=reviewMove!==null?`Review · ${reviewMove===0?'Starting position':`After move ${reviewMove}`} of ${state.history.length}`:state.ended?gameResult(state):state.started?`${state.names[state.turn]==='You'?'Your turn':state.names[state.turn]+' to play'}${state.paused?' · paused':''}${state.timeOutRule&&state.elapsed>=state.timeOutSeconds?` · Tie-breaker streak: ${state.streak}/${state.timeOutMoves}`:''}.`:networkPaused?'Connection lost.':state.startCountdown?'Starting game…':role!==null?'Waiting for your opponent.':'Create a new game to begin.';
  $('#turn-count').textContent=reviewMove!==null?`MOVE ${String(reviewMove).padStart(2,'0')}`:`TURN ${String(state.history.length+1).padStart(2,'0')}`;
 }
 function renderHistory(){
@@ -428,7 +428,7 @@ function updateBot(now){
   try{receive(createBot({size:state.boardSize,seed:state.bot.seed^state.revision,strength:state.bot.strength}).choose(state));}catch{botFailed(job);}
  };
  try{
-  botWorker=new Worker(new URL('./bot-worker.js?v=7b0c53eb32',import.meta.url),{type:'module'});
+  botWorker=new Worker(new URL('./bot-worker.js?v=db9d1b4003',import.meta.url),{type:'module'});
   botWorker.onmessage=event=>{if(botJob!==job||event.data.id!==job.id)return;if(event.data.error)fallback();else receive(event.data.result);};
   botWorker.onerror=event=>{event.preventDefault();fallback();};
   botWorker.postMessage({id:job.id,state,key:job.game,seed:state.bot.seed^state.revision});
