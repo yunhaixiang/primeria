@@ -1,4 +1,4 @@
-export const BOARD_SIZE = 15;
+export const BOARD_SIZE = 13;
 export const BOARD_CELLS = BOARD_SIZE * BOARD_SIZE;
 export const RULES_VERSION = 2;
 export const MODES = {blitz:[600,10],rapid:[1200,20],standard:[1800,30],classical:[2700,60],casual:[null,0]};

@@ -3,15 +3,15 @@ import assert from 'node:assert/strict';
 import {BOARD_SIZE,BOARD_CELLS,upgradeGameBoard,MODES,PILE,total,newGame,timeOutSettings,tick,placement,segment,challenge,complete} from '../engine.js';
 const square=(x,y)=>y*BOARD_SIZE+x;
 const active=(options={})=>{const s=newGame(options,0);s.started=true;return s;};
-test('starting supply is exactly 37 tiles per player',()=>{assert.equal(total(PILE),37);const s=newGame();assert.equal(total(s.piles[0]),37);assert.equal(BOARD_SIZE,15);assert.equal(s.board.length,225);s.piles[0][0]--;assert.equal(s.piles[1][0],2);});
+test('starting supply is exactly 37 tiles per player',()=>{assert.equal(total(PILE),37);const s=newGame();assert.equal(total(s.piles[0]),37);assert.equal(BOARD_SIZE,13);assert.equal(s.board.length,169);s.piles[0][0]--;assert.equal(s.piles[1][0],2);});
 for(const [mode,[seconds,increment]] of Object.entries(MODES))test(`${mode} clock and increment`,()=>{const s=active({mode});tick(s,2000);assert.equal(s.clocks[0],seconds===null?null:seconds-2);complete(s,{action:'single',moves:[{index:square(4,4),digit:3}]},4000);assert.equal(s.clocks[0],seconds===null?null:seconds-4+increment);assert.equal(s.clocks[1],seconds);});
 test('unstarted and paused clocks do not run',()=>{const s=newGame({},0);tick(s,10000);assert.equal(s.clocks[0],1200);s.started=true;s.paused=true;tick(s,20000);assert.equal(s.clocks[0],1200);assert.equal(s.elapsed,0);});
 test('single drops can be isolated; zero cannot',()=>{const s=active();assert.doesNotThrow(()=>placement(s,'single',[{index:square(4,4),digit:3}]));assert.throws(()=>placement(s,'single',[{index:square(4,4),digit:0}]),/Zero/);s.board[square(3,4)]=3;assert.doesNotThrow(()=>placement(s,'single',[{index:square(4,4),digit:0}]));});
 test('double down cannot open the board; second tile may touch the first',()=>{const s=active();assert.throws(()=>placement(s,'double',[{index:square(4,4),digit:3},{index:square(5,4),digit:7}]),/touch/);s.board[square(3,4)]=3;const p=placement(s,'double',[{index:square(4,4),digit:3},{index:square(5,4),digit:7}]);assert.equal(p.board[square(5,4)],7);assert.equal(p.pile[7],4);assert.equal(s.board[square(4,4)],null);});
-test('adjacency does not wrap at 15-column boundaries or include diagonals',()=>{
- const s=active();s.board[square(14,0)]=3;
+test('adjacency does not wrap at 13-column boundaries or include diagonals',()=>{
+ const s=active();s.board[square(12,0)]=3;
  assert.throws(()=>placement(s,'double',[{index:square(0,1),digit:3},{index:square(1,1),digit:7}]),/touch/);
- s.board[square(14,0)]=null;s.board[square(3,3)]=7;
+ s.board[square(12,0)]=null;s.board[square(3,3)]=7;
  assert.throws(()=>placement(s,'single',[{index:square(4,4),digit:0}]),/Zero/);
 });
 test('cannot overspend a digit or overwrite a square',()=>{const s=active();s.board[square(4,4)]=3;s.piles[0][7]=1;assert.throws(()=>placement(s,'double',[{index:square(5,4),digit:7},{index:square(6,4),digit:7}]),/No tiles/);assert.throws(()=>placement(s,'single',[{index:square(4,4),digit:7}]),/occupied/);});
@@ -25,7 +25,7 @@ test('challenge reading direction changes divisibility',()=>{const s=active();s.
 test('correct challenge transfers every selected tile to opponent',()=>{const s=active();s.board[square(4,4)]=1;s.board[square(5,4)]=4;const before=total(s.piles[1]);complete(s,{action:'challenge',a:square(4,4),b:square(5,4),reverse:false,factor:'2'},0);assert.equal(total(s.piles[1]),before+2);assert.equal(s.board[square(4,4)],null);assert.equal(s.turn,1);});
 test('failed challenge consumes a turn and receives increment',()=>{const s=active();s.board[square(4,4)]=1;s.board[square(5,4)]=3;complete(s,{action:'challenge',a:square(4,4),b:square(5,4),reverse:false,factor:'2'},1000);assert.equal(s.board[square(4,4)],1);assert.equal(s.turn,1);assert.equal(s.clocks[0],1219);assert.equal(s.history[0].success,false);});
 test('single-digit one and trivial factors cannot be challenged',()=>{const s=active();s.board[square(4,4)]=1;assert.throws(()=>challenge(s,square(4,4),square(4,4),false,'2'),/cannot/);s.board[square(4,4)]=4;for(const f of ['0','1','4','-2','2.5','x'])assert.throws(()=>challenge(s,square(4,4),square(4,4),false,f));});
-test('zero, leading zeros and fifteen-digit numbers are handled exactly',()=>{const s=active();s.board[0]=0;assert.equal(challenge(s,0,0,false,'2').success,true);s.board[1]=4;assert.equal(challenge(s,0,1,false,'2').digits,'04');s.board=Array(BOARD_CELLS).fill(null);'987654321012345'.split('').forEach((n,i)=>s.board[i]=Number(n));assert.equal(challenge(s,0,14,false,'3').success,true);});
+test('zero, leading zeros and thirteen-digit numbers are handled exactly',()=>{const s=active();s.board[0]=0;assert.equal(challenge(s,0,0,false,'2').success,true);s.board[1]=4;assert.equal(challenge(s,0,1,false,'2').digits,'04');s.board=Array(BOARD_CELLS).fill(null);'9876543210123'.split('').forEach((n,i)=>s.board[i]=Number(n));assert.equal(challenge(s,0,12,false,'3').success,true);});
 test('emptying a pile wins',()=>{const s=active();s.piles[0]=Array(10).fill(0);s.piles[0][7]=1;complete(s,{action:'single',moves:[{index:square(4,4),digit:7}]},0);assert.deepEqual(s.ended,{winner:0,reason:'by playing every tile'});});
 test('timeout prevents late placement',()=>{const s=active({mode:'blitz'});assert.throws(()=>complete(s,{action:'single',moves:[{index:square(4,4),digit:7}]},600001),/over/);assert.equal(s.ended.winner,1);assert.equal(s.board[square(4,4)],null);});
 test('Time Out Rule defaults track ten completed moves with a continuous leader',()=>{const s=active({mode:'casual',timeOutRule:true});s.elapsed=3601;s.piles[1][1]+=20;for(let i=0;i<10;i++){complete(s,{action:'single',moves:[{index:i,digit:7}]},0);if(i<9)assert.equal(s.ended,null);}assert.equal(s.streak,10);assert.equal(s.ended.winner,0);});
@@ -79,23 +79,23 @@ test('new rows and columns accept placements with normal adjacency rules',()=>{
  assert.doesNotThrow(()=>placement(s,'single',[{index:last,digit:0}]));
  for(const index of [-1,BOARD_CELLS,BOARD_CELLS+11,1.5])assert.throws(()=>placement(s,'single',[{index,digit:3}]),/square/);
 });
-test('a horizontal challenge spans all fifteen squares of the last row in both directions',()=>{
- const s=active(),digits='987654321012345',start=square(0,14),last=BOARD_CELLS-1;
+test('a horizontal challenge spans all thirteen squares of the last row in both directions',()=>{
+ const s=active(),digits='9876543210123',start=square(0,12),last=BOARD_CELLS-1;
  [...digits].forEach((d,x)=>s.board[start+x]=Number(d));
- assert.deepEqual(segment(s.board,last,start),Array.from({length:15},(_,i)=>start+i));
+ assert.deepEqual(segment(s.board,last,start),Array.from({length:13},(_,i)=>start+i));
  assert.equal(challenge(s,start,last,false,'3').digits,digits);
  assert.equal(challenge(s,start,last,true,'3').digits,[...digits].reverse().join(''));
  const before=total(s.piles[1]);complete(s,{action:'challenge',a:start,b:last,reverse:false,factor:'3'},0);
- assert.equal(total(s.piles[1]),before+15);assert.equal(s.board.filter(d=>d!==null).length,0);
+ assert.equal(total(s.piles[1]),before+13);assert.equal(s.board.filter(d=>d!==null).length,0);
 });
-test('a vertical challenge spans the last column using a fifteen-square stride',()=>{
- const s=active(),digits='987654321012345',last=BOARD_CELLS-1;
- [...digits].forEach((d,y)=>s.board[square(14,y)]=Number(d));
- assert.deepEqual(segment(s.board,last,14),Array.from({length:15},(_,y)=>square(14,y)));
- assert.equal(challenge(s,14,last,false,'3').success,true);
- assert.equal(challenge(s,14,last,true,'3').digits,[...digits].reverse().join(''));
+test('a vertical challenge spans the last column using a thirteen-square stride',()=>{
+ const s=active(),digits='9876543210123',last=BOARD_CELLS-1;
+ [...digits].forEach((d,y)=>s.board[square(12,y)]=Number(d));
+ assert.deepEqual(segment(s.board,last,12),Array.from({length:13},(_,y)=>square(12,y)));
+ assert.equal(challenge(s,12,last,false,'3').success,true);
+ assert.equal(challenge(s,12,last,true,'3').digits,[...digits].reverse().join(''));
  assert.throws(()=>segment(s.board,14,BOARD_CELLS),/first and last/);
- assert.throws(()=>segment(s.board,square(14,13),square(0,14)),/straight/);
+ assert.throws(()=>segment(s.board,square(12,11),square(0,12)),/straight/);
 });
 for(const oldSize of [10,12])test(`saved ${oldSize} by ${oldSize} games expand with coordinates, clocks, supplies and history preserved`,()=>{
  const legacy=newGame({timeOutRule:true,timeOutSeconds:1200,timeOutMoves:4});
@@ -104,11 +104,11 @@ for(const oldSize of [10,12])test(`saved ${oldSize} by ${oldSize} games expand w
  legacy.lastCells=[bottomLeft,last];legacy.history=[{action:'single',moves:[{index:last,digit:7}]},{action:'challenge',cells:[topRight,topRight+oldSize,topRight+2*oldSize],digits:'247',factor:'13'}];
  legacy.clocks=[800,1000];legacy.started=true;legacy.elapsed=55;
  const before=JSON.stringify(legacy),expanded=upgradeGameBoard(legacy);
- assert.equal(expanded.board.length,225);assert.equal(expanded.board[square(oldSize-1,oldSize-1)],7);assert.equal(expanded.board[square(0,oldSize-1)],3);assert.equal(expanded.board[topRight],2);
- assert.deepEqual(expanded.lastCells,[square(0,oldSize-1),square(oldSize-1,oldSize-1)]);assert.equal(expanded.history[0].moves[0].index,square(oldSize-1,oldSize-1));assert.deepEqual(expanded.history[1].cells,[topRight,topRight+15,topRight+30]);
+ assert.equal(expanded.board.length,169);assert.equal(expanded.board[square(oldSize-1,oldSize-1)],7);assert.equal(expanded.board[square(0,oldSize-1)],3);assert.equal(expanded.board[topRight],2);
+ assert.deepEqual(expanded.lastCells,[square(0,oldSize-1),square(oldSize-1,oldSize-1)]);assert.equal(expanded.history[0].moves[0].index,square(oldSize-1,oldSize-1));assert.deepEqual(expanded.history[1].cells,[topRight,topRight+13,topRight+26]);
  assert.equal(expanded.history[1].digits,'247');assert.equal(expanded.history[1].factor,'13');
  assert.deepEqual(expanded.clocks,legacy.clocks);assert.deepEqual(expanded.piles,legacy.piles);assert.deepEqual(timeOutSettings(expanded),timeOutSettings(legacy));assert.equal(expanded.elapsed,55);
- for(let y=0;y<15;y++)for(let x=0;x<15;x++)if(x>=oldSize||y>=oldSize)assert.equal(expanded.board[square(x,y)],null);
+ for(let y=0;y<13;y++)for(let x=0;x<13;x++)if(x>=oldSize||y>=oldSize)assert.equal(expanded.board[square(x,y)],null);
  assert.equal(JSON.stringify(legacy),before);assert.equal(upgradeGameBoard(expanded),expanded);
 });
 
@@ -147,11 +147,11 @@ test('perpendicular crossings do not extend a multi-digit challenge',()=>{
  assert.equal(challenge(s,square(5,3),square(5,5),false,'2').digits,'246');
 });
 test('row-edge isolation and full-number boundaries never wrap into another row',()=>{
- const left=active();left.board[square(14,4)]=3;left.board[square(0,5)]=1;left.board[square(1,5)]=4;
+ const left=active();left.board[square(12,4)]=3;left.board[square(0,5)]=1;left.board[square(1,5)]=4;
  assert.equal(challenge(left,square(0,5),square(1,5),false,'2').digits,'14');
- const right=active();right.board[square(13,5)]=1;right.board[square(14,5)]=4;right.board[square(0,6)]=3;
- assert.equal(challenge(right,square(13,5),square(14,5),false,'2').digits,'14');
- const isolated=active();isolated.board[square(14,4)]=3;isolated.board[square(0,5)]=4;
+ const right=active();right.board[square(11,5)]=1;right.board[square(12,5)]=4;right.board[square(0,6)]=3;
+ assert.equal(challenge(right,square(11,5),square(12,5),false,'2').digits,'14');
+ const isolated=active();isolated.board[square(12,4)]=3;isolated.board[square(0,5)]=4;
  assert.equal(challenge(isolated,square(0,5),square(0,5),false,'2').success,true);
 });
 test('zero tiles at either end cannot be omitted from a challenge',()=>{
@@ -169,4 +169,9 @@ test('invalid partial and connected-single challenges do not consume a move or t
  assert.deepEqual(s,before);
  assert.throws(()=>complete(s,{action:'challenge',a:a+1,b:a+1,reverse:false,factor:'2'},0),/isolated tile/);
  assert.deepEqual(s,before);
+});
+
+test('larger saved boards are rejected without truncating their tiles',()=>{
+ const s=newGame();s.board=Array(225).fill(null);s.board[224]=7;const before=JSON.stringify(s);
+ assert.throws(()=>upgradeGameBoard(s),/unsupported/);assert.equal(JSON.stringify(s),before);
 });
