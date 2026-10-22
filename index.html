@@ -4,7 +4,7 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f6f3eb"><meta name="description" content="Primeria is a two-player number tile game. Play on one device or online.">
   <title>Primeria</title>
-  <link rel="icon" href="./favicon.svg?v=02199c7e1a" type="image/svg+xml"><link rel="stylesheet" href="./styles.css?v=76ab2b938e">
+  <link rel="icon" href="./favicon.svg?v=02199c7e1a" type="image/svg+xml"><link rel="stylesheet" href="./styles.css?v=bb9be95754">
 </head>
 <body>
 <main>
@@ -47,9 +47,9 @@
  <h2 id="rules-title">Primeria: How to Play</h2>
  <p>Primeria is a two person board game invented by Yunhai Xiang which combines clever strategies with quick mental arithmetic skills. Click <a href="https://yunhaimath.com/posts/c219c1f/" target="_blank" rel="noopener noreferrer">here</a> to see the original blog post. The name of the game is a reference to <a href="https://en.wikipedia.org/wiki/Prime_number" target="_blank" rel="noopener noreferrer">prime numbers</a>, which are natural numbers greater than 1 that cannot be factored into the product of two smaller natural numbers: for example 2, 3, 5, and 7.</p>
  <h3>Set-up</h3>
- <p>The game is played on a square board with 9 × 9, 11 × 11, 13 × 13, or 15 × 15 squares.<br>Each player starts with a pile of 36 tiles labelled with digits 0–9.<br>Each player gets 2 copies of 0 and 5 each, 3 copies of 2, 4, 6, and 8 each, and 5 copies of 1, 3, 7, and 9 each.<br>Two players take turns to place tiles on the squares.<br>Flip a coin to decide which player plays first.</p>
+ <p>The game is played on a square board with 9 × 9, 11 × 11, 13 × 13, or 15 × 15 squares. Each player starts with a pile of 36 tiles labelled with digits 0–9. Each player gets 2 copies of 0 and 5 each, 3 copies of 2, 4, 6, and 8 each, and 5 copies of 1, 3, 7, and 9 each. Two players take turns to place tiles on the squares. Flip a coin to decide which player plays first.</p>
  <h3>Moves</h3>
- <p>At each turn, there are three kinds of moves.</p>
+ <p>At each turn, the player chooses from one of three kinds of moves.</p>
  <p><strong>Single Drop</strong>: the player places one of their tiles on any empty square.</p>
  <p><strong>Double Down</strong>: the player places one of their tiles on an empty square adjacent to an existing tile on the board, and then places another one of their tiles on an empty square adjacent to an existing tile on the board (which could be the one just placed).</p>
  <p><strong>Challenge</strong>: the player points to a whole connected row or column of digits, and declares to <em>challenge</em> the number formed by this row or column (viewed left to right and top to bottom, from the player/challenger’s perspective). An attempt at a challenge is to write down a factor of the number, other than 1 or itself, and then verify it with a calculator. The longer the number, the more attempts the challenger gets: 1 ~ 3 digits get 1 attempt, 4 ~ 6 digits get 2 attempts, 7 ~ 9 digits get 3 attempts, and so on.</p>
@@ -67,6 +67,23 @@
   <li>Resignation: a player wins by their opponent resigning the game.</li>
   <li>(Optional Rule) Tie-breaker: if the game extends for a long time, for example 1 hour, then the first player to have fewer tiles for 10 consecutive turns wins.</li>
  </ol>
+ <section class="rules-time-controls" aria-labelledby="rules-time-title">
+  <h3 id="rules-time-title">Time Controls</h3>
+  <p>Players can choose one of the following time controls.</p>
+  <table class="rules-time-table">
+   <caption class="sr-only">Available time controls</caption>
+   <thead><tr><th scope="col">Mode</th><th scope="col">Time per player</th><th scope="col">Increment per turn</th></tr></thead>
+   <tbody>
+    <tr><th scope="row">Blitz</th><td>10 minutes</td><td>10 seconds</td></tr>
+    <tr><th scope="row">Rapid</th><td>20 minutes</td><td>20 seconds</td></tr>
+    <tr><th scope="row">Standard</th><td>30 minutes</td><td>30 seconds</td></tr>
+    <tr><th scope="row">Classical</th><td>45 minutes</td><td>60 seconds</td></tr>
+    <tr><th scope="row">Casual</th><td>Unlimited</td><td>—</td></tr>
+   </tbody>
+  </table>
+  <p>Your clock runs while you choose a placement or find a factor. To challenge, identify both the number and the proposed factor before submitting your attempt. The increment is added after each completed turn.</p>
+  <p>Both clocks pause for the three-second challenge result. After a failed attempt, your clock resumes if you have another attempt remaining. When the challenge ends, the next player’s clock starts after the countdown. Tile transfers take place while the clocks are paused.</p>
+ </section>
  <h3>Tips</h3>
  <p>A good strategy is to make use of the following facts:</p>
  <ol>

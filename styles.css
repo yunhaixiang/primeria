@@ -401,3 +401,11 @@ main { padding-top: 16px; }
 #rules-dialog li + li { margin-top: 8px; }
 #rules-dialog strong { color: #3f5946; font-weight: 650; }
 #rules-dialog p a { color: var(--green); text-decoration: underline; text-underline-offset: 3px; }
+
+#rules-dialog .rules-time-table { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; margin: 14px 0 18px; }
+#rules-dialog .rules-time-table th, #rules-dialog .rules-time-table td { padding: 10px 8px; text-align: center; vertical-align: middle; border-right: 1px solid var(--line); }
+#rules-dialog .rules-time-table thead th { background: #e9ebde; color: #3f5946; font-size: 10px; letter-spacing: .3px; line-height: 1.5; }
+#rules-dialog .rules-time-table tbody th { color: #3f5946; font-size: 12px; font-weight: 600; letter-spacing: 0; }
+#rules-dialog .rules-time-table td { font-size: 12px; color: #7b8571; }
+#rules-dialog .rules-time-table tr > :last-child { border-right: 0; }
+#rules-dialog .rules-time-table tbody tr:last-child > * { border-bottom: 0; }
