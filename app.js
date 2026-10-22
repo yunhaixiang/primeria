@@ -1,4 +1,4 @@
-import {BOARD_SIZE,BOARD_CELLS,RULES_VERSION,upgradeGameBoard,MODES,PILE,total,newGame,timeOutSettings,tick,placement,adjacent,segment,challenge,complete} from './engine.js?v=401326f2da';
+import {BOARD_SIZE,BOARD_CELLS,RULES_VERSION,upgradeGameBoard,MODES,PILE,total,newGame,timeOutSettings,tick,placement,adjacent,segment,challenge,complete} from './engine.js?v=bbe7aacde6';
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -6,7 +6,7 @@ const modeName=s=>s[0].toUpperCase()+s.slice(1);
 const colors=Array.from({length:10},(_,i)=>`var(--digit-${i})`);
 const key='primeria.game.v1';let state=newGame(),action='single',digit=3,pending=[],ends=[],reverse=false,rotation=0,muted=false,expanded=null,factor='';
 let peer=null,connection=null,role=null,room=null,networkPaused=false,verdict=null,shownEnd=false,toastTimer,audio,saveAt=0,syncAt=0;
-try{const saved=JSON.parse(localStorage.getItem(key));if([1,2].includes(saved?.version)&&[100,BOARD_CELLS].includes(saved.state?.board?.length)&&MODES[saved.state.mode]&&saved.state.piles?.length===2){Object.assign(saved.state,timeOutSettings(saved.state));state=upgradeGameBoard(saved.state);state.paused=state.started&&!state.ended;state.lastTick=Date.now();}muted=localStorage.getItem('primeria.muted')==='true';}catch{}
+try{const saved=JSON.parse(localStorage.getItem(key));if([1,2].includes(saved?.version)&&[100,144,BOARD_CELLS].includes(saved.state?.board?.length)&&MODES[saved.state.mode]&&saved.state.piles?.length===2){Object.assign(saved.state,timeOutSettings(saved.state));state=upgradeGameBoard(saved.state);state.paused=state.started&&!state.ended;state.lastTick=Date.now();}muted=localStorage.getItem('primeria.muted')==='true';}catch{}
 function save(){if(role!==null)return;try{localStorage.setItem(key,JSON.stringify({version:2,state}));}catch{}}
 function sound(kind='click'){
  if(muted)return;try{audio??=new (window.AudioContext||window.webkitAudioContext)();if(audio.state==='suspended')audio.resume();const now=audio.currentTime;
@@ -213,7 +213,7 @@ function bindConnection(conn){
   if(role===1&&data.type==='state'&&(data.rulesVersion!==RULES_VERSION||data.state?.board?.length!==BOARD_CELLS)){
    connection=null;conn.close();networkPaused=true;state.paused=state.started&&!state.ended;state.lastTick=Date.now();
    $('#connection-status').innerHTML='<i></i> UPDATE REQUIRED';
-   roomStatus('This room uses different rules. Both players should reload Primeria and create a new room.');toast('Both players need the latest Primeria rules.');render();return;
+   roomStatus('This room uses a different board size or rules. Both players should reload Primeria and create a new room.');toast('Both players need the latest Primeria rules.');render();return;
   }
   if(role===0&&data.type==='command'){
    if(data.revision!==state.revision){sendState();return;}
@@ -245,7 +245,7 @@ function connectRoom(code=null,next=null){
    $('#connection-status').innerHTML='<i></i> ONLINE · WAITING';
   }
  });
- activePeer.on('connection',incoming=>{if(peer!==activePeer||role!==0||connection){incoming.on('open',()=>incoming.close());return;}if(incoming.metadata?.boardSize!==BOARD_SIZE||incoming.metadata?.rulesVersion!==RULES_VERSION){incoming.on('open',()=>{incoming.send({type:'error',message:'This room uses updated challenge rules. Reload Primeria, then join again.'});incoming.close();});return;}bindConnection(incoming);});
+ activePeer.on('connection',incoming=>{if(peer!==activePeer||role!==0||connection){incoming.on('open',()=>incoming.close());return;}if(incoming.metadata?.boardSize!==BOARD_SIZE||incoming.metadata?.rulesVersion!==RULES_VERSION){incoming.on('open',()=>{incoming.send({type:'error',message:'This room uses a different board size or rules. Reload Primeria, then join again.'});incoming.close();});return;}bindConnection(incoming);});
  activePeer.on('error',err=>{clearTimeout(timeout);if(peer!==activePeer)return;roomStatus(`Could not connect (${err.type||'network error'}). Leave this room and try again, or play on one device.`);if(connection?.open)disconnected();});
  activePeer.on('disconnected',()=>{if(peer===activePeer&&!connection?.open)disconnected();});
 }
