@@ -103,7 +103,7 @@ function renderControls(){
    const [ax,ay]=screenPosition(cells[0]),[bx,by]=screenPosition(cells.at(-1));
    const direction=cells.length===1?'Single tile':ax!==bx?(ax<bx?'Left → right':'Right → left'):(ay<by?'Top → bottom':'Bottom → top');
    const taxedDigit=state.board[cells.at(-1)];$('#tax-preview').textContent=`If successful: ${cells.length-1} ${cells.length===2?'tile goes':'tiles go'} to your opponent; the final ${taxedDigit} is removed from play.`;$('#tax-preview').hidden=false;
-   html=`<div class="reading-fixed"><strong>${reading.digits}</strong><small>${escape(state.names[reading.perspective])}’s reading · ${direction}</small></div>`;
+   html=`<div class="reading-fixed"><strong>${reading.digits}</strong><small>Challenger’s perspective · ${direction}</small></div>`;
    const used=state.challengeAttempt?.attempts.length||0;
    $('#attempt-status').textContent=`Attempt ${used+1} of ${reading.attemptLimit}${used?' · failed: '+state.challengeAttempt.attempts.map(a=>a.factor).join(', '):''}`;
   }catch{}
