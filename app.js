@@ -16,7 +16,8 @@ function sound(kind='click'){
 function toast(message){$('#toast').textContent=message;$('#toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').hidden=true,4000);}
 function ask(title,message,confirmLabel='Continue'){return new Promise(resolve=>{const d=$('#confirm-dialog');$('#confirm-title').textContent=title;$('#confirm-detail').textContent=message;$('#confirm-yes').innerHTML=`${escape(confirmLabel)} <span>↗</span>`;const finish=value=>{d.close();$('#confirm-yes').onclick=null;$('#confirm-no').onclick=null;d.oncancel=null;resolve(value);};$('#confirm-yes').onclick=()=>finish(true);$('#confirm-no').onclick=()=>finish(false);d.oncancel=e=>{e.preventDefault();finish(false);};d.showModal();});}
 function tile(n){return `<span class="tile" style="--tile-color:${colors[n]}" aria-hidden="true"><span class="tile-number north">${n}</span><span class="tile-number east">${n}</span><span class="tile-number south">${n}</span><span class="tile-number west">${n}</span><span class="tile-center"></span></span>`;}
-function coords(index){return `(${index%BOARD_SIZE}, ${Math.floor(index/BOARD_SIZE)})`;}
+function columnLabel(x){return String.fromCharCode(65+x);}
+function coords(index){return `${columnLabel(index%BOARD_SIZE)}${Math.floor(index/BOARD_SIZE)+1}`;}
 function allowed(){return !state.ended&&!state.paused&&state.started&&(role===null||(connection?.open&&state.turn===role));}
 function resetDraft(){pending=[];ends=[];reverse=false;factor='';}
 function boardIndex(row,col){let x=col,y=row;for(let i=0;i<rotation;i++)[x,y]=[y,BOARD_SIZE-1-x];return y*BOARD_SIZE+x;}
@@ -26,12 +27,12 @@ function renderBoard(){
  if(ends.length===2)try{selection=segment(state.board,...ends);}catch{}else selection=ends;
  let html='';
  for(let row=-1;row<=BOARD_SIZE;row++)for(let col=-1;col<=BOARD_SIZE;col++){
-  if(row<0||row>=BOARD_SIZE||col<0||col>=BOARD_SIZE){let label='';if((row<0||row>=BOARD_SIZE)&&(col<0||col>=BOARD_SIZE))label='✦';else if(row<0||row>=BOARD_SIZE){const i=boardIndex(row<0?0:BOARD_SIZE-1,col);label=rotation%2?Math.floor(i/BOARD_SIZE):i%BOARD_SIZE;}else {const i=boardIndex(row,col<0?0:BOARD_SIZE-1);label=rotation%2?i%BOARD_SIZE:Math.floor(i/BOARD_SIZE);}
+  if(row<0||row>=BOARD_SIZE||col<0||col>=BOARD_SIZE){let label='';if((row<0||row>=BOARD_SIZE)&&(col<0||col>=BOARD_SIZE))label='✦';else if(row<0||row>=BOARD_SIZE){const i=boardIndex(row<0?0:BOARD_SIZE-1,col);label=rotation%2?Math.floor(i/BOARD_SIZE)+1:columnLabel(i%BOARD_SIZE);}else {const i=boardIndex(row,col<0?0:BOARD_SIZE-1);label=rotation%2?columnLabel(i%BOARD_SIZE):Math.floor(i/BOARD_SIZE)+1;}
    html+=`<span class="axis ${label==='✦'?'corner':''}" aria-hidden="true">${label}</span>`;continue;
   }
   const index=boardIndex(row,col),n=preview[index],draft=pending.some(m=>m.index===index),selected=selection.includes(index),last=state.lastCells.includes(index);
   const legal=allowed()&&action!=='challenge'&&n===null&&(action==='single'&&digit!==0||adjacent(preview,index));
-  html+=`<button class="cell ${n===null?'empty':'occupied'} ${(row+col)%2?'alt':''} ${draft?'pending':''} ${selected?'challenge-selected':''} ${last?'last':''} ${legal?'legal':''}" data-index="${index}" aria-label="x ${index%BOARD_SIZE}, y ${Math.floor(index/BOARD_SIZE)}, ${n===null?'empty':`digit ${n}`}${draft?', pending placement':''}${selected?', selected for challenge':''}" ${state.ended?'disabled':''}>${n===null?'':tile(n)}</button>`;
+  html+=`<button class="cell ${n===null?'empty':'occupied'} ${(row+col)%2?'alt':''} ${draft?'pending':''} ${selected?'challenge-selected':''} ${last?'last':''} ${legal?'legal':''}" data-index="${index}" aria-label="${coords(index)}, ${n===null?'empty':`digit ${n}`}${draft?', pending placement':''}${selected?', selected for challenge':''}" ${state.ended?'disabled':''}>${n===null?'':tile(n)}</button>`;
  }
  $('#board').innerHTML=html;$('.board-surround').classList.toggle('finished',!!state.ended);
 }
