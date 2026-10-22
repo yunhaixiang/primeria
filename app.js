@@ -1,22 +1,25 @@
 import {BOARD_SIZES,isSupportedBoardState,RULES_VERSION,upgradeGameBoard,MODES,PILE,total,newGame,timeOutSettings,tick,placement,adjacent,segment,challengeLines,challengeNumber,challenge,complete,beginChallengeReview,finishChallengeReview,challengeReviewSeconds} from './engine.js?v=8f4f757756';
+import {BOT_LEVELS,botConfig,isBotTurn,createBot} from './bot.js?v=53bafd80cd';
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const modeName=s=>s[0].toUpperCase()+s.slice(1);
 const colors=Array.from({length:10},(_,i)=>`var(--digit-${i})`);
 const key='primeria.game.rules9.v1';let state=newGame(),action='single',digit=3,pending=[],ends=[],lineChoices=[],challengeAxis='row',rotation=0,muted=false,expanded=null,factor='';
-let peer=null,connection=null,role=null,room=null,networkPaused=false,verdict=null,shownEnd=false,resigning=null,toastTimer,audio,saveAt=0,syncAt=0;
+let peer=null,connection=null,role=null,room=null,networkPaused=false,verdict=null,shownEnd=false,resigning=null,toastTimer,audio,saveAt=0,syncAt=0,botWorker=null,botJob=null,botCounter=0;
 try{
  for(const slot of [key]){
   try{
    const saved=JSON.parse(localStorage.getItem(slot));
    if(saved?.version!==9||!MODES[saved.state?.mode]||saved.state.piles?.length!==2||!isSupportedBoardState(saved.state))continue;
+   if(saved.state.bot&&!botConfig(saved.state))continue;
    const restored=upgradeGameBoard(saved.state);Object.assign(restored,timeOutSettings(restored));
    state=restored;state.paused=state.started&&!state.ended;state.lastTick=Date.now();break;
   }catch{}
  }
  muted=localStorage.getItem('primeria.muted')==='true';
 }catch{}
+function viewer(){return role??(botConfig(state)?0:state.turn);}
 function boardSize(){return state.boardSize;}
 
 function save(){if(role!==null)return;try{localStorage.setItem(key,JSON.stringify({version:9,state}));}catch{}}
@@ -30,8 +33,8 @@ function ask(title,message,confirmLabel='Continue'){return new Promise(resolve=>
 function tile(n){return `<span class="tile" style="--tile-color:${colors[n]}" aria-hidden="true"><span class="tile-number north">${n}</span><span class="tile-number east">${n}</span><span class="tile-number south">${n}</span><span class="tile-number west">${n}</span><span class="tile-center"></span></span>`;}
 function columnLabel(x){return String.fromCharCode(65+x);}
 function coords(index){return `${columnLabel(index%boardSize())}${Math.floor(index/boardSize())+1}`;}
-function allowed(){return resigning===null&&!state.ended&&!state.paused&&state.started&&(role===null||(connection?.open&&state.turn===role));}
-function resetDraft(){resigning=null;pending=[];ends=[];lineChoices=[];factor='';clearChallengeHover();if(state.challengeAttempt){action='challenge';ends=[state.challengeAttempt.a,state.challengeAttempt.b];}}
+function allowed(){return !isBotTurn(state)&&resigning===null&&!state.ended&&!state.paused&&state.started&&(role===null||(connection?.open&&state.turn===role));}
+function resetDraft(){cancelBot();resigning=null;pending=[];ends=[];lineChoices=[];factor='';clearChallengeHover();if(state.challengeAttempt){action='challenge';ends=[state.challengeAttempt.a,state.challengeAttempt.b];}}
 function boardIndex(row,col){let x=col,y=row;for(let i=0;i<rotation;i++)[x,y]=[y,boardSize()-1-x];return y*boardSize()+x;}
 function screenPosition(index){let x=index%boardSize(),y=Math.floor(index/boardSize());for(let i=0;i<rotation;i++)[x,y]=[boardSize()-1-y,x];return [x,y];}
 function lineLabel(line){
@@ -78,25 +81,29 @@ function renderBoard(){
 function formatTime(t){if(t===null)return '∞';const s=Math.ceil(t);return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;}
 function renderClocks(){for(let i=0;i<2;i++){const clock=$(`#clock-${i}`);if(clock){clock.textContent=formatTime(state.clocks[i]);clock.classList.toggle('low',state.clocks[i]!==null&&state.clocks[i]<60);}}}
 function renderPlayers(){
- $('#player-cards').innerHTML=state.names.map((name,i)=>`<div class="player-card ${state.turn===i&&!state.ended?'active':''} ${expanded===i?'expanded':''}" role="button" tabindex="0" data-player="${i}" aria-expanded="${expanded===i}" aria-label="${escape(name)}, ${total(state.piles[i])} tiles. Show tile counts"><span class="player-avatar">${i===0?'✳':'✧'}</span><div class="player-info"><div class="player-name">${escape(name)}${role===i?' · you':''}</div><div class="player-desc">${state.turn===i&&!state.ended?'<i class="turn-dot"></i>':''}${total(state.piles[i])} tiles ${state.turn===i&&!state.ended?'· '+(state.paused?'paused':state.started?'to play':'first move'):''}</div><div class="pile-peek">${state.piles[i].map((n,d)=>`<span style="--tile-color:${colors[d]}">${d} × ${n}</span>`).join('')}</div></div><span id="clock-${i}" class="player-time"></span></div>`).join('');renderClocks();
+ $('#player-cards').innerHTML=state.names.map((name,i)=>`<div class="player-card ${state.turn===i&&!state.ended?'active':''} ${expanded===i?'expanded':''}" role="button" tabindex="0" data-player="${i}" aria-expanded="${expanded===i}" aria-label="${escape(name)}, ${total(state.piles[i])} tiles. Show tile counts"><span class="player-avatar">${i===0?'✳':'✧'}</span><div class="player-info"><div class="player-name">${escape(name)}${(role===i||(botConfig(state)&&i===0))&&name.toLowerCase()!=='you'?' · you':''}</div><div class="player-desc">${state.turn===i&&!state.ended?'<i class="turn-dot"></i>':''}${total(state.piles[i])} tiles ${state.turn===i&&!state.ended?'· '+(state.paused?'paused':state.started?'to play':'first move'):''}</div><div class="pile-peek">${state.piles[i].map((n,d)=>`<span style="--tile-color:${colors[d]}">${d} × ${n}</span>`).join('')}</div></div><span id="clock-${i}" class="player-time"></span></div>`).join('');renderClocks();
+ if(role===null)$('#connection-status').innerHTML=`<i></i> ${botConfig(state)?'VS BOT · '+BOT_LEVELS[state.bot.strength].label.toUpperCase():'LOCAL GAME'}`;
  const mode=MODES[state.mode];$('#mode-label').textContent=`${modeName(state.mode).toUpperCase()} · ${mode[0]===null?'∞':`${mode[0]/60} + ${mode[1]}`}`;
  $('#move-owner').textContent=state.names[state.turn].toUpperCase();
- const opponent=1-(role??state.turn);$('#opponent-name').textContent=`${state.names[opponent].toUpperCase()}’S PILE`;
+ const opponent=1-viewer();$('#opponent-name').textContent=`${state.names[opponent].toUpperCase()}’S PILE`;
  $('#opponent-rack').innerHTML=state.piles[opponent].map((n,d)=>`<span class="supply-chip" style="--tile-color:${colors[d]}" aria-label="${escape(state.names[opponent])}: digit ${d}, ${n} remaining"><b>${d}</b><small>×${n}</small></span>`).join('');
 }
 function renderControls(){
  const paused=state.started&&state.paused&&!state.ended&&!verdict;
  if(paused)resigning=null;
- $('#pause-panel').hidden=!paused;$('.move-panel > .section-heading').hidden=paused;
- if(resigning!==null&&(!state.started||state.ended||(role!==null&&!connection?.open)||(role===null&&state.turn!==resigning)))resigning=null;
+ const thinking=isBotTurn(state)&&state.started&&!state.paused&&!state.ended&&!verdict&&resigning===null;
+ $('#bot-thinking').hidden=!thinking;
+ if(botConfig(state))$('#bot-thinking-level').textContent=BOT_LEVELS[state.bot.strength].label;
+ $('#pause-panel').hidden=!paused;$('.move-panel > .section-heading').hidden=paused||thinking;
+ if(resigning!==null&&(!state.started||state.ended||(role!==null&&!connection?.open)||(role===null&&!botConfig(state)&&state.turn!==resigning)))resigning=null;
  $('#resign-confirmation').hidden=resigning===null;
  if(resigning!==null)$('#resign-detail').textContent=`${state.names[1-resigning]} will win the game.`;
- $('#move-options').hidden=paused||!!verdict||resigning!==null;renderVerdict();
- const pile=state.piles[role??state.turn].slice();pending.forEach(m=>pile[m.digit]--);
- $('.move-panel > .section-heading h2').textContent=role!==null&&state.turn!==role?'Their move':'Your move';
+ $('#move-options').hidden=paused||thinking||!!verdict||resigning!==null;renderVerdict();
+ const pile=state.piles[viewer()].slice();pending.forEach(m=>pile[m.digit]--);
+ $('.move-panel > .section-heading h2').textContent=state.turn!==viewer()?'Their move':'Your move';
  $('#rack').innerHTML=pile.map((n,d)=>`<button class="rack-button ${digit===d?'selected':''}" data-digit="${d}" aria-label="Digit ${d}, ${n} remaining" aria-pressed="${digit===d}" ${n===0?'disabled':''}>${tile(d)}<span class="tile-count">${n}</span></button>`).join('');
  $('#rack-count').textContent=`${total(pile)} remaining`;
- $$('.action-tab[data-action]').forEach(b=>{b.disabled=!!state.challengeAttempt;b.classList.toggle('selected',b.dataset.action===action);b.setAttribute('aria-pressed',b.dataset.action===action);});
+ $$('.action-tab[data-action]').forEach(b=>{b.disabled=!!state.challengeAttempt||isBotTurn(state);b.classList.toggle('selected',b.dataset.action===action);b.setAttribute('aria-pressed',b.dataset.action===action);});
  $('#placement-controls').hidden=action==='challenge';$('#challenge-controls').hidden=action!=='challenge';
  $('#undo-button').disabled=!(pending.length||ends.length||factor.length);
  $('#factor').textContent=factor||'—';$('#factor').classList.toggle('empty',!factor);$('#factor-backspace').disabled=!factor;
@@ -123,11 +130,11 @@ function renderControls(){
  $('#pause-resume').disabled=$('#start-button').disabled;
  $('#resign-button').disabled=!state.started||!!state.ended||(role!==null&&!connection?.open);
  $('#new-button').disabled=false;
- $('#board-note').textContent=state.ended?`${state.names[state.ended.winner]} wins.`:state.started?`${state.names[state.turn]} to play${state.paused?' · paused':''}${state.timeOutRule&&state.elapsed>=state.timeOutSeconds?` · Time Out streak: ${state.streak}/${state.timeOutMoves}`:''}.`:'Press Start to begin.';
+ $('#board-note').textContent=state.ended?`${state.names[state.ended.winner]} wins.`:state.started?`${state.names[state.turn]==='You'?'Your turn':state.names[state.turn]+' to play'}${state.paused?' · paused':''}${state.timeOutRule&&state.elapsed>=state.timeOutSeconds?` · Time Out streak: ${state.streak}/${state.timeOutMoves}`:''}.`:'Press Start to begin.';
  $('#turn-count').textContent=`TURN ${String(state.history.length+1).padStart(2,'0')}`;
 }
 function renderHistory(){
- $('#history-count').textContent=`${state.history.length} MOVES`;
+ $('#history-count').textContent=`${state.history.length} ${state.history.length===1?'MOVE':'MOVES'}`;
  $('#history').innerHTML=state.history.length?state.history.slice().reverse().slice(0,80).map((e,i)=>`<li class="history-entry"><span class="history-index">${String(state.history.length-i).padStart(2,'0')}</span><div class="history-text"><b>${escape(state.names[e.player])}</b> ${e.action==='challenge'?`challenged ${e.digits}`:e.action==='double'?'doubled down':'dropped a tile'}<small>${e.action==='challenge'?`${e.digits} ÷ ${e.factor} · ${e.quit?'quit':e.success?(e.taxedDigit===undefined?'tiles transferred':`${e.transferredCount} transferred · ${e.taxedDigit} taxed`):'not a factor'}${e.cleanup?.length?' · '+e.cleanup.length+' additional '+(e.cleanup.length===1?'tile':'tiles')+' removed':''}${e.attempts?.length>1?' · '+e.attempts.length+' attempts':''}`:e.moves.map(m=>`${m.digit} at ${coords(m.index)}`).join(' · ')}</small></div><span class="history-badge">${e.action==='challenge'?(e.success?'✓':'×'):e.action==='double'?'+2':'+1'}</span></li>`).join(''):'<li class="history-empty">No moves yet.</li>';
 }
 function render(){const taxed=total(state.taxed);$('#taxed-count').textContent=`${taxed} ${taxed===1?'tile':'tiles'} out of play`;$('#taxed-count').title=state.taxed.map((n,d)=>`${d}: ${n}`).join(' · ');$('#taxed-count').hidden=taxed===0;$('#time-out-summary').textContent=state.timeOutRule?`This game: Time Out Rule begins after ${state.timeOutSeconds/60} minutes and requires ${state.timeOutMoves} consecutive moves.`:'Time Out Rule is off for this game.';renderBoard();renderPlayers();renderControls();renderHistory();$('#sound-button .sound-label').textContent=muted?'Unmute':'Mute';$('#sound-icon-detail').innerHTML=muted?'<path d="m16 9 6 6m0-6-6 6"/>':'<path d="M15 8a6 6 0 0 1 0 8M18 5a10 10 0 0 1 0 14"/>';$('#sound-button').setAttribute('aria-label',muted?'Unmute':'Mute');$('#sound-button').setAttribute('title',muted?'Unmute sound':'Mute sound');$('#sound-button').setAttribute('aria-pressed',String(muted));if(state.ended&&!shownEnd)showEnd();}
@@ -144,7 +151,7 @@ function renderVerdict(){
 }
 function showVerdict(review){verdict=review;sound(review.success?'challenge':'fail');}
 function sendState(extra={}){if(role===0&&connection?.open)connection.send({type:'state',rulesVersion:RULES_VERSION,state,verdict,verdictMs:verdict?Math.max(0,verdict.resumeAt-Date.now()):0,...extra});}
-function applyCommand(command,actor=role===null?state.turn:role){
+function applyCommand(command,actor=viewer()){
  tick(state);
  if(command.type==='start'){
   if(state.ended)throw Error('Start a new game to play again.');
@@ -205,18 +212,31 @@ $('#sound-button').addEventListener('click',()=>{muted=!muted;try{localStorage.s
 $('#start-button').addEventListener('click',()=>dispatch({type:'start'}));
 $('#pause-resume').addEventListener('click',()=>{if(state.started&&state.paused&&!state.ended&&!verdict)dispatch({type:'start'});});
 $('#pause-new-game').addEventListener('click',openSetup);
+$('#bot-pause').addEventListener('click',()=>{if(isBotTurn(state)&&state.started&&!state.paused&&!verdict)dispatch({type:'start'});});
+$('#bot-resign').addEventListener('click',()=>$('#resign-button').click());
 $('#result-continue').addEventListener('click',()=>$('#result-dialog').close());
-function cancelResignation(){resigning=null;sound();renderControls();$('#resign-button').focus();}
+function cancelResignation(){resigning=null;sound();renderControls();$(isBotTurn(state)?'#bot-resign':'#resign-button').focus();}
 $('#resign-button').addEventListener('click',()=>{
  if($('#resign-button').disabled)return;
- resigning=role??state.turn;clearChallengeHover();sound();renderControls();$('#resign-cancel').focus();
+ resigning=viewer();clearChallengeHover();sound();renderControls();$('#resign-cancel').focus();
 });
 $('#resign-cancel').addEventListener('click',cancelResignation);
 $('#resign-confirm').addEventListener('click',()=>{if(resigning===null)return;resigning=null;sound();dispatch({type:'resign'});});
 function updateTimeOutOptions(){const enabled=$('#time-out-rule').checked;$('#time-out-options').hidden=!enabled;$('#time-out-options').disabled=!enabled;$('#time-out-rule').setAttribute('aria-expanded',String(enabled));}
 $('#time-out-rule').addEventListener('change',updateTimeOutOptions);
 function updateSetupOptions(){
- const form=$('#setup-form'),online=form.elements.location.value==='online',joining=online&&role===null&&form.elements.roomAction.value==='join';
+ const form=$('#setup-form'),online=form.elements.location.value==='online',withBot=form.elements.location.value==='bot',joining=online&&role===null&&form.elements.roomAction.value==='join';
+ $('#bot-options').hidden=!withBot;$('#bot-options').disabled=!withBot;
+ const strength=form.elements.botStrength.value,level=BOT_LEVELS[strength];
+ $('#bot-description').textContent=level.description;
+ if(withBot){
+  if(!form.elements.two.readOnly&&!/^Bot \(/.test(form.elements.two.value))form.elements.two.dataset.localName=form.elements.two.value;
+  if(form.elements.one.value==='Player one')form.elements.one.value='You';
+  form.elements.two.value=`Bot (${level.label})`;
+ }else if(form.elements.two.readOnly){form.elements.two.value=form.elements.two.dataset.localName||'Player two';if(form.elements.one.value==='You')form.elements.one.value='Player one';}
+ form.elements.two.readOnly=withBot;
+ $('#player-one-label').textContent=withBot?'You':'Player one';$('#player-two-label').textContent=withBot?'Bot':'Player two';
+ form.elements.first.querySelector('[value="0"]').textContent=withBot?'You':'Player one';form.elements.first.querySelector('[value="1"]').textContent=withBot?'Bot':'Player two';
  $('#online-options').hidden=!online;
  $('#room-choice').hidden=role!==null;
  $('#room-choice').disabled=!online||role!==null;
@@ -228,18 +248,18 @@ function updateSetupOptions(){
  $('#setup-submit').innerHTML=`${!online?'Create game':role===0?'Start a new game':joining?'Join game':'Create a room'} <span>↗</span>`;
  $('#leave-button').hidden=role===null;
  $('#online-note').textContent=role===1?'You are player two. The host chooses the settings and starts new games.':role===0?'You are player one. New games stay in this room with your friend. Keep this tab open.':'Share an invitation link with your friend. Keep the host’s tab open while playing. Some networks may prevent a connection.';
- $('#setup-warning').textContent=online&&role===1?'To play on one device, select that option above.':!online&&role!==null?'Starting on one device leaves your online room.':joining?'Your friend’s game settings will be used.':'New games replace the current game.';
+ $('#setup-warning').textContent=online&&role===1?'To play on one device, select that option above.':!online&&role!==null?'Starting this game leaves your online room.':joining?'Your friend’s game settings will be used.':'New games replace the current game.';
  updateTimeOutOptions();
 }
 function openSetup(){
- const form=$('#setup-form');form.elements.one.value=state.names[0];form.elements.two.value=state.names[1];form.elements.mode.value=state.mode;form.elements.first.value='random';form.elements.boardSize.value=String(boardSize());
+ const form=$('#setup-form');form.elements.two.readOnly=false;form.elements.two.dataset.localName=botConfig(state)?'Player two':state.names[1];form.elements.one.value=state.names[0];form.elements.two.value=state.names[1];form.elements.mode.value=state.mode;form.elements.first.value='random';form.elements.boardSize.value=String(boardSize());
  form.elements.timeOutRule.checked=state.timeOutRule;form.elements.timeOutMinutes.value=state.timeOutSeconds/60;form.elements.timeOutMoves.value=state.timeOutMoves;
- form.elements.location.value=role===null?'local':'online';updateSetupOptions();$('#setup-dialog').showModal();$('#setup-dialog').scrollTop=0;sound();
+ form.elements.location.value=role===null?(botConfig(state)?'bot':'local'):'online';form.elements.botStrength.value=botConfig(state)?.strength||'intermediate';updateSetupOptions();$('#setup-dialog').showModal();$('#setup-dialog').scrollTop=0;sound();
 }
-$$('input[name="location"],input[name="roomAction"]').forEach(input=>input.addEventListener('change',()=>{updateSetupOptions();sound('select');}));
+$$('input[name="location"],input[name="roomAction"],input[name="botStrength"]').forEach(input=>input.addEventListener('change',()=>{updateSetupOptions();sound('select');}));
 $('#new-button').addEventListener('click',openSetup);
 $('#setup-form').addEventListener('submit',async e=>{
- e.preventDefault();const data=new FormData(e.target),online=data.get('location')==='online',joining=online&&role===null&&data.get('roomAction')==='join';
+ e.preventDefault();const data=new FormData(e.target),online=data.get('location')==='online',withBot=data.get('location')==='bot',joining=online&&role===null&&data.get('roomAction')==='join';
  if(online&&role===1)return;
  let code=null,next;
  if(joining){
@@ -249,6 +269,7 @@ $('#setup-form').addEventListener('submit',async e=>{
   const enabled=data.has('timeOutRule');
   try{next=newGame({boardSize:Number(data.get('boardSize')),mode:data.get('mode'),names:[data.get('one'),data.get('two')],first:data.get('first')==='random'?(crypto.getRandomValues(new Uint8Array(1))[0]%2):Number(data.get('first')),timeOutRule:enabled,timeOutSeconds:enabled?Number(data.get('timeOutMinutes'))*60:state.timeOutSeconds,timeOutMoves:enabled?Number(data.get('timeOutMoves')):state.timeOutMoves});}catch(err){return toast(err.message);}
  }
+ if(withBot){const strength=data.get('botStrength');if(!Object.hasOwn(BOT_LEVELS,strength))return toast('Choose a bot strength.');next.bot={player:1,strength,id:crypto.randomUUID(),seed:crypto.getRandomValues(new Uint32Array(1))[0]};}
  if(online&&role===null&&!window.Peer){roomStatus('The online connection library is unavailable. Reload this page, or play on one device.');return;}
  if((state.started&&!state.ended)||(!online&&role!==null)){
   if(!await ask('Start a new game?',!online&&role!==null?'Leave your online room and start a new game on this device?':'Replace the current game? This starts a new game.'))return;
@@ -260,7 +281,7 @@ $('#setup-form').addEventListener('submit',async e=>{
 $$('[data-close]').forEach(b=>b.addEventListener('click',()=>b.closest('dialog').close()));
 $('#player-cards').addEventListener('click',e=>{const card=e.target.closest('[data-player]');if(!card)return;expanded=expanded===Number(card.dataset.player)?null:Number(card.dataset.player);renderPlayers();});
 $('#player-cards').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.target.closest('[data-player]')?.click();}});
-document.addEventListener('keydown',e=>{if(e.target.matches('input,select')||$('dialog[open]')||(state.started&&state.paused&&!verdict))return;if(resigning!==null){if(e.key==='Escape'){e.preventDefault();cancelResignation();}return;}if(/^\d$/.test(e.key)){e.preventDefault();if(action==='challenge')appendFactor(e.key);else{digit=Number(e.key);renderControls();sound('select');}}if(action==='challenge'&&e.key==='Backspace'){e.preventDefault();deleteFactorDigit();}if(e.key==='Escape'){resetDraft();render();}});
+document.addEventListener('keydown',e=>{if(e.target.matches('input,select')||$('dialog[open]')||(state.started&&state.paused&&!verdict))return;if(resigning!==null){if(e.key==='Escape'){e.preventDefault();cancelResignation();}return;}if(isBotTurn(state))return;if(/^\d$/.test(e.key)){e.preventDefault();if(action==='challenge')appendFactor(e.key);else{digit=Number(e.key);renderControls();sound('select');}}if(action==='challenge'&&e.key==='Backspace'){e.preventDefault();deleteFactorDigit();}if(e.key==='Escape'){resetDraft();render();}});
 
 function roomStatus(message){$('#room-info').textContent=message;}
 function leaveRoom(){
@@ -330,6 +351,39 @@ $('#leave-button').addEventListener('click',async()=>{
  if(state.started&&!state.ended&&!await ask('Leave this room?','Disconnect from your friend? You can continue this game on one device, with the clocks paused.'))return;
  leaveRoom();$('#setup-form').elements.location.value='local';updateSetupOptions();toast('Playing on one device.');
 });
+function cancelBot(){botWorker?.terminate();botWorker=null;botJob=null;}
+function botFailed(job){
+ if(botJob!==job)return;cancelBot();tick(state);if(state.ended){render();return;}
+ state.paused=true;state.revision++;save();render();toast('The bot could not choose a move. Resume to retry.');
+}
+function updateBot(now){
+ if(role!==null||!botConfig(state)||!isBotTurn(state)||!state.started||state.paused||state.ended||verdict){cancelBot();return;}
+ if(botJob){
+  if(botJob.game!==state.bot.id||botJob.revision!==state.revision){cancelBot();return;}
+  if(botJob.result&&now>=botJob.executeAt){
+   const job=botJob;
+   try{applyCommand(job.result.command?{type:'move',move:job.result.command}:{type:'resign'},1);}catch{botFailed(job);}
+  }
+  return;
+ }
+ const job=botJob={id:++botCounter,game:state.bot.id,revision:state.revision,startedAt:now,result:null};
+ const receive=result=>{
+  if(botJob!==job)return;
+  if(!result||!Number.isFinite(result.seconds))return botFailed(job);
+  const remaining=state.clocks[1],delay=Math.min(Math.max(500,result.seconds*1000),remaining===null?60000:Math.max(100,remaining*500));
+  job.result=result;job.executeAt=Math.max(Date.now()+100,job.startedAt+delay);
+ };
+ const fallback=()=>{
+  if(botJob!==job)return;botWorker?.terminate();botWorker=null;
+  try{receive(createBot({size:state.boardSize,seed:state.bot.seed^state.revision,strength:state.bot.strength}).choose(state));}catch{botFailed(job);}
+ };
+ try{
+  botWorker=new Worker(new URL('./bot-worker.js?v=e8494cc30f',import.meta.url),{type:'module'});
+  botWorker.onmessage=event=>{if(botJob!==job||event.data.id!==job.id)return;if(event.data.error)fallback();else receive(event.data.result);};
+  botWorker.onerror=event=>{event.preventDefault();fallback();};
+  botWorker.postMessage({id:job.id,state,key:job.game,seed:state.bot.seed^state.revision});
+ }catch{fallback();}
+}
 setInterval(()=>{
  const now=Date.now();const ended=state.ended;
  if(verdict&&role!==1&&!networkPaused&&(role===null||connection?.open)&&finishChallengeReview(state,verdict,now)){
@@ -339,8 +393,9 @@ setInterval(()=>{
  tick(state,now);if(role===1&&!ended&&state.ended)state.ended=null;renderClocks();
  if(!ended&&state.ended){resetDraft();save();sendState();render();}
  if(role===0&&now-syncAt>1000){sendState();syncAt=now;}
+ updateBot(now);
  if(now-saveAt>1000){save();saveAt=now;}
 },100);
-window.addEventListener('pagehide',save);resetDraft();render();
+window.addEventListener('pagehide',()=>{cancelBot();save();});resetDraft();render();
 const urlRoom=new URL(location.href).searchParams.get('room');
 if(urlRoom){openSetup();$('#setup-form').elements.location.value='online';$('#setup-form').elements.roomAction.value='join';$('#room-code').value=urlRoom;updateSetupOptions();roomStatus('Select Join game to join as player two.');}
