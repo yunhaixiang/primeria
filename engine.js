@@ -181,3 +181,17 @@ export function finishChallengeReview(s,review,now=Date.now()){
 export function challengeReviewSeconds(review,now=Date.now()){
   return Math.max(1,Math.ceil((review.resumeAt-now)/1000));
 }
+
+// No clock runs before the opening countdown; only its owner starts the game.
+export function beginGameCountdown(s,now=Date.now()){
+  if(s.started||s.ended)throw Error('Create a new game before starting the countdown.');
+  s.paused=false;s.lastTick=now;s.revision++;
+  s.startCountdown={revision:s.revision,resumeAt:now+3000};
+  return s.startCountdown;
+}
+export function finishGameCountdown(s,now=Date.now()){
+  const countdown=s.startCountdown;
+  if(!countdown||s.started||s.ended||s.revision!==countdown.revision||now<countdown.resumeAt)return false;
+  s.started=true;s.paused=false;s.lastTick=countdown.resumeAt;s.revision++;
+  delete s.startCountdown;tick(s,now);return true;
+}

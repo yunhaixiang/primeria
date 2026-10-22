@@ -1,10 +1,11 @@
-import {BOARD_SIZES,isSupportedBoardState,RULES_VERSION,upgradeGameBoard,MODES,PILE,total,newGame,timeOutSettings,tick,placement,adjacent,segment,challengeLines,challengeNumber,challenge,complete,beginChallengeReview,finishChallengeReview,challengeReviewSeconds} from './engine.js?v=8f4f757756';
-import {BOT_LEVELS,botConfig,isBotTurn,createBot} from './bot.js?v=53bafd80cd';
+import {BOARD_SIZES,isSupportedBoardState,RULES_VERSION,upgradeGameBoard,MODES,PILE,total,newGame,timeOutSettings,tick,placement,adjacent,segment,challengeLines,challengeNumber,challenge,complete,beginChallengeReview,finishChallengeReview,challengeReviewSeconds,beginGameCountdown,finishGameCountdown} from './engine.js?v=60a34b61b0';
+import {BOT_LEVELS,botConfig,isBotTurn,createBot} from './bot.js?v=ae98403ca8';
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const modeName=s=>s[0].toUpperCase()+s.slice(1);
 const colors=Array.from({length:10},(_,i)=>`var(--digit-${i})`);
+const ONLINE_VERSION=1;
 const key='primeria.game.rules9.v1';let state=newGame(),action='single',digit=3,pending=[],ends=[],lineChoices=[],challengeAxis='row',rotation=0,muted=false,expanded=null,factor='';
 let peer=null,connection=null,role=null,room=null,networkPaused=false,verdict=null,shownEnd=false,resigning=null,toastTimer,audio,saveAt=0,syncAt=0,botWorker=null,botJob=null,botCounter=0;
 try{
@@ -14,7 +15,7 @@ try{
    if(saved?.version!==9||!MODES[saved.state?.mode]||saved.state.piles?.length!==2||!isSupportedBoardState(saved.state))continue;
    if(saved.state.bot&&!botConfig(saved.state))continue;
    const restored=upgradeGameBoard(saved.state);Object.assign(restored,timeOutSettings(restored));
-   state=restored;state.paused=state.started&&!state.ended;state.lastTick=Date.now();break;
+   state=restored;if(state.startCountdown&&!state.started&&!state.ended)beginGameCountdown(state);state.paused=state.started&&!state.ended;state.lastTick=Date.now();break;
   }catch{}
  }
  muted=localStorage.getItem('primeria.muted')==='true';
@@ -33,7 +34,7 @@ function ask(title,message,confirmLabel='Continue'){return new Promise(resolve=>
 function tile(n){return `<span class="tile" style="--tile-color:${colors[n]}" aria-hidden="true"><span class="tile-number north">${n}</span><span class="tile-number east">${n}</span><span class="tile-number south">${n}</span><span class="tile-number west">${n}</span><span class="tile-center"></span></span>`;}
 function columnLabel(x){return String.fromCharCode(65+x);}
 function coords(index){return `${columnLabel(index%boardSize())}${Math.floor(index/boardSize())+1}`;}
-function allowed(){return !isBotTurn(state)&&resigning===null&&!state.ended&&!state.paused&&state.started&&(role===null||(connection?.open&&state.turn===role));}
+function allowed(){return !state.startCountdown&&!isBotTurn(state)&&resigning===null&&!state.ended&&!state.paused&&state.started&&(role===null||(connection?.open&&state.turn===role));}
 function resetDraft(){cancelBot();resigning=null;pending=[];ends=[];lineChoices=[];factor='';clearChallengeHover();if(state.challengeAttempt){action='challenge';ends=[state.challengeAttempt.a,state.challengeAttempt.b];}}
 function boardIndex(row,col){let x=col,y=row;for(let i=0;i<rotation;i++)[x,y]=[y,boardSize()-1-x];return y*boardSize()+x;}
 function screenPosition(index){let x=index%boardSize(),y=Math.floor(index/boardSize());for(let i=0;i<rotation;i++)[x,y]=[boardSize()-1-y,x];return [x,y];}
@@ -88,7 +89,16 @@ function renderPlayers(){
  const opponent=1-viewer();$('#opponent-name').textContent=`${state.names[opponent].toUpperCase()}’S PILE`;
  $('#opponent-rack').innerHTML=state.piles[opponent].map((n,d)=>`<span class="supply-chip" style="--tile-color:${colors[d]}" aria-label="${escape(state.names[opponent])}: digit ${d}, ${n} remaining"><b>${d}</b><small>×${n}</small></span>`).join('');
 }
+function renderStartCountdown(){
+ const countdown=state.startCountdown,visible=!!countdown&&!state.started&&!state.ended&&!networkPaused;
+ $('#start-countdown').hidden=!visible;$('#board').inert=visible;
+ if(visible){
+  const seconds=challengeReviewSeconds(countdown),message=`Game Starts in ${seconds} ${seconds===1?'Second':'Seconds'}`;
+  if($('#start-countdown-text').textContent!==message)$('#start-countdown-text').textContent=message;
+ }
+}
 function renderControls(){
+ renderStartCountdown();
  const paused=state.started&&state.paused&&!state.ended&&!verdict;
  if(paused)resigning=null;
  const thinking=isBotTurn(state)&&state.started&&!state.paused&&!state.ended&&!verdict&&resigning===null;
@@ -125,12 +135,13 @@ function renderControls(){
  const ready=action==='challenge'?ends.length===2&&factor.length>0:pending.length===(action==='double'?2:1);
  const button=$('#commit-button');button.innerHTML=`${action==='challenge'?(state.challengeAttempt?'Submit attempt':'Submit challenge'):action==='double'?'Place two tiles':'Place tile'} <span>↗</span>`;
  button.disabled=!allowed()||!ready;
- $('#start-button .start-label').textContent=state.ended?'Game Over':!state.started?'Start':state.paused?'Resume':'Pause';$('#start-icon').innerHTML=state.ended?'<rect x="5" y="5" width="14" height="14" rx="1"/>':state.started&&!state.paused?'<path d="M8 4v16M16 4v16"/>':'<path d="m8 4 12 8-12 8Z"/>';$('#start-button').classList.toggle('paused',state.paused);
- $('#start-button').disabled=!!state.ended||!!verdict||(role!==null&&(!connection?.open||(!state.started&&role!==0)));
+ $('#start-button').hidden=!state.started||!!state.ended;
+ $('#start-button .start-label').textContent=state.paused?'Resume':'Pause';$('#start-icon').innerHTML=state.ended?'<rect x="5" y="5" width="14" height="14" rx="1"/>':state.started&&!state.paused?'<path d="M8 4v16M16 4v16"/>':'<path d="m8 4 12 8-12 8Z"/>';$('#start-button').classList.toggle('paused',state.paused);
+ $('#start-button').disabled=!state.started||!!state.ended||!!verdict||(role!==null&&!connection?.open);
  $('#pause-resume').disabled=$('#start-button').disabled;
  $('#resign-button').disabled=!state.started||!!state.ended||(role!==null&&!connection?.open);
  $('#new-button').disabled=false;
- $('#board-note').textContent=state.ended?`${state.names[state.ended.winner]} wins.`:state.started?`${state.names[state.turn]==='You'?'Your turn':state.names[state.turn]+' to play'}${state.paused?' · paused':''}${state.timeOutRule&&state.elapsed>=state.timeOutSeconds?` · Time Out streak: ${state.streak}/${state.timeOutMoves}`:''}.`:'Press Start to begin.';
+ $('#board-note').textContent=state.ended?`${state.names[state.ended.winner]} wins.`:state.started?`${state.names[state.turn]==='You'?'Your turn':state.names[state.turn]+' to play'}${state.paused?' · paused':''}${state.timeOutRule&&state.elapsed>=state.timeOutSeconds?` · Time Out streak: ${state.streak}/${state.timeOutMoves}`:''}.`:networkPaused?'Connection lost.':state.startCountdown?'Starting game…':role!==null?'Waiting for your opponent.':'Create a new game to begin.';
  $('#turn-count').textContent=`TURN ${String(state.history.length+1).padStart(2,'0')}`;
 }
 function renderHistory(){
@@ -150,13 +161,14 @@ function renderVerdict(){
  if($('#challenge-countdown').textContent!==message)$('#challenge-countdown').textContent=message;
 }
 function showVerdict(review){verdict=review;sound(review.success?'challenge':'fail');}
-function sendState(extra={}){if(role===0&&connection?.open)connection.send({type:'state',rulesVersion:RULES_VERSION,state,verdict,verdictMs:verdict?Math.max(0,verdict.resumeAt-Date.now()):0,...extra});}
+function sendState(extra={}){if(role===0&&connection?.open)connection.send({type:'state',rulesVersion:RULES_VERSION,onlineVersion:ONLINE_VERSION,state,startMs:state.startCountdown?Math.max(0,state.startCountdown.resumeAt-Date.now()):0,verdict,verdictMs:verdict?Math.max(0,verdict.resumeAt-Date.now()):0,...extra});}
 function applyCommand(command,actor=viewer()){
  tick(state);
  if(command.type==='start'){
   if(state.ended)throw Error('Start a new game to play again.');
   if(verdict)throw Error('The next turn begins after the countdown.');
-  if(!state.started){if(role!==null&&actor!==0)throw Error('The host starts the game.');state.started=true;state.paused=false;}else state.paused=!state.paused;
+  if(!state.started)throw Error('The game starts automatically after the countdown.');
+  state.paused=!state.paused;
   state.lastTick=Date.now();state.revision++;sound('turn');
  }else if(command.type==='resign'){
   if(!state.started||state.ended)throw Error('There is no active game to resign.');state.ended={winner:1-actor,reason:'by resignation'};state.challengeAttempt=null;verdict=null;state.revision++;
@@ -171,7 +183,7 @@ function dispatch(command){
  try{if(role===1){connection.send({type:'command',command,revision:state.revision});return;}applyCommand(command);}catch(e){toast(e.message);renderControls();}
 }
 $('#board').addEventListener('click',e=>{
- const cell=e.target.closest('[data-index]');if(!cell)return;if(!allowed())return toast(state.paused?'Resume the game first.':!state.started?'Press Start to begin.':'Wait for your turn.');const index=Number(cell.dataset.index);
+ const cell=e.target.closest('[data-index]');if(!cell)return;if(!allowed())return toast(state.paused?'Resume the game first.':!state.started?'The game has not started yet.':'Wait for your turn.');const index=Number(cell.dataset.index);
  if(action==='challenge'){
   if(state.challengeAttempt)return toast('Finish or quit the current challenge before selecting another number.');
   if(state.board[index]===null)return toast('Select a tile on the board.');
@@ -201,7 +213,7 @@ $('#factor-keypad').addEventListener('click',e=>{const button=e.target.closest('
 $('#factor-backspace').addEventListener('click',deleteFactorDigit);
 $('#undo-button').addEventListener('click',()=>{resetDraft();sound();render();});
 $('#commit-button').addEventListener('click',()=>{
- if(!state.started)return dispatch({type:'start'});
+ if(!state.started)return;
  if(action==='challenge'){try{challenge(state,ends[0],ends[1],factor);}catch(err){return toast(err.message);}}
  dispatch({type:'move',move:action==='challenge'?{action,a:ends[0],b:ends[1],factor:factor}:{action,moves:pending.slice()}});
 });
@@ -271,23 +283,24 @@ $('#setup-form').addEventListener('submit',async e=>{
  }
  if(withBot){const strength=data.get('botStrength');if(!Object.hasOwn(BOT_LEVELS,strength))return toast('Choose a bot strength.');next.bot={player:1,strength,id:crypto.randomUUID(),seed:crypto.getRandomValues(new Uint32Array(1))[0]};}
  if(online&&role===null&&!window.Peer){roomStatus('The online connection library is unavailable. Reload this page, or play on one device.');return;}
- if((state.started&&!state.ended)||(!online&&role!==null)){
+ if(((state.started||state.startCountdown)&&!state.ended)||(!online&&role!==null)){
   if(!await ask('Start a new game?',!online&&role!==null?'Leave your online room and start a new game on this device?':'Replace the current game? This starts a new game.'))return;
  }
  if(!online&&role!==null)leaveRoom();
  if(online&&role===null){connectRoom(code,next);return;}
- state=next;rotation=0;shownEnd=false;verdict=null;action='single';resetDraft();$('#result-dialog').close();$('#setup-dialog').close();save();sendState({fresh:true});render();sound('turn');toast(`${state.names[state.turn]} has the first move. Press Start to begin.`);
+ state=next;if(role===null||connection?.open)beginGameCountdown(state);rotation=0;shownEnd=false;verdict=null;action='single';resetDraft();$('#result-dialog').close();$('#setup-dialog').close();save();sendState({fresh:true});render();sound('turn');
 });
 $$('[data-close]').forEach(b=>b.addEventListener('click',()=>b.closest('dialog').close()));
 $('#player-cards').addEventListener('click',e=>{const card=e.target.closest('[data-player]');if(!card)return;expanded=expanded===Number(card.dataset.player)?null:Number(card.dataset.player);renderPlayers();});
 $('#player-cards').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.target.closest('[data-player]')?.click();}});
-document.addEventListener('keydown',e=>{if(e.target.matches('input,select')||$('dialog[open]')||(state.started&&state.paused&&!verdict))return;if(resigning!==null){if(e.key==='Escape'){e.preventDefault();cancelResignation();}return;}if(isBotTurn(state))return;if(/^\d$/.test(e.key)){e.preventDefault();if(action==='challenge')appendFactor(e.key);else{digit=Number(e.key);renderControls();sound('select');}}if(action==='challenge'&&e.key==='Backspace'){e.preventDefault();deleteFactorDigit();}if(e.key==='Escape'){resetDraft();render();}});
+document.addEventListener('keydown',e=>{if(e.target.matches('input,select')||$('dialog[open]')||state.startCountdown||(state.started&&state.paused&&!verdict))return;if(resigning!==null){if(e.key==='Escape'){e.preventDefault();cancelResignation();}return;}if(isBotTurn(state))return;if(/^\d$/.test(e.key)){e.preventDefault();if(action==='challenge')appendFactor(e.key);else{digit=Number(e.key);renderControls();sound('select');}}if(action==='challenge'&&e.key==='Backspace'){e.preventDefault();deleteFactorDigit();}if(e.key==='Escape'){resetDraft();render();}});
 
 function roomStatus(message){$('#room-info').textContent=message;}
 function leaveRoom(){
  const oldConnection=connection,oldPeer=peer;
  connection=null;peer=null;role=null;room=null;networkPaused=false;verdict=null;
  oldConnection?.close();oldPeer?.destroy();$('#result-dialog').close();
+ if(state.startCountdown&&!state.started&&!state.ended)beginGameCountdown(state);
  state.paused=state.started&&!state.ended;state.lastTick=Date.now();$('#connection-status').innerHTML='<i></i> LOCAL GAME';
  $('#room-info').textContent='';const url=new URL(location.href);url.searchParams.delete('room');history.replaceState(null,'',url);
  updateSetupOptions();render();save();
@@ -298,12 +311,13 @@ function bindConnection(conn){
  conn.on('open',()=>{
   if(conn!==connection)return;
   networkPaused=false;$('#connection-status').innerHTML='<i></i> ONLINE · CONNECTED';$('#leave-button').hidden=false;
-  if(role===0){state.paused=state.started;state.lastTick=Date.now();sendState({fresh:true});}else{roomStatus('Connected. You are player two. The host chooses the game and starts the clock.');$('#setup-dialog').close();}
+  if(role===0){if(!state.started&&!state.ended)beginGameCountdown(state);else state.paused=state.started;state.lastTick=Date.now();sendState({fresh:true});}
+  $('#setup-dialog').close();
   updateSetupOptions();toast('Your opponent is connected.');sound('turn');render();
  });
  conn.on('data',data=>{
   if(conn!==connection||!data||typeof data!=='object')return;
-  if(role===1&&data.type==='state'&&(data.rulesVersion!==RULES_VERSION||!isSupportedBoardState(data.state))){
+  if(role===1&&data.type==='state'&&(data.onlineVersion!==ONLINE_VERSION||data.rulesVersion!==RULES_VERSION||!isSupportedBoardState(data.state))){
    connection=null;conn.close();networkPaused=true;state.paused=state.started&&!state.ended;state.lastTick=Date.now();
    $('#connection-status').innerHTML='<i></i> UPDATE REQUIRED';
    roomStatus('This room uses an unsupported board size or rules. Both players should reload Primeria and create a new room.');toast('Both players need the latest Primeria rules.');render();return;
@@ -313,14 +327,16 @@ function bindConnection(conn){
    try{if(!['move','start','resign'].includes(data.command?.type))return;applyCommand(data.command,1);}catch(err){conn.send({type:'error',message:err.message});sendState();}
   }else if(role===1&&data.type==='state'&&isSupportedBoardState(data.state)){
    const oldRevision=state.revision,wasEnded=state.ended,oldVerdict=verdict;
-   Object.assign(data.state,timeOutSettings(data.state));state=data.state;state.lastTick=Date.now();
+   Object.assign(data.state,timeOutSettings(data.state));
+   if(data.state.startCountdown){const countdown=data.state.startCountdown;countdown.resumeAt=Date.now()+Math.max(0,data.startMs);if(state.startCountdown?.revision===countdown.revision&&!data.fresh)countdown.resumeAt=Math.min(state.startCountdown.resumeAt,countdown.resumeAt);}
+   state=data.state;state.lastTick=Date.now();
    if(data.fresh){rotation=0;shownEnd=false;verdict=null;$('#result-dialog').close();}
    if(data.verdict){
     const review={...data.verdict,resumeAt:Date.now()+Math.max(0,data.verdictMs)};
     if(verdict?.revision!==review.revision)showVerdict(review);
     else verdict={...review,resumeAt:Math.min(verdict.resumeAt,review.resumeAt)};
    }else verdict=null;
-   if(oldRevision!==state.revision||data.fresh||!!oldVerdict!==!!verdict){resetDraft();render();if(!data.verdict&&!state.ended)sound('turn');}else {renderClocks();renderVerdict();if(!wasEnded&&state.ended)render();}
+   if(oldRevision!==state.revision||data.fresh||!!oldVerdict!==!!verdict){resetDraft();render();if(!data.verdict&&!state.ended)sound('turn');}else {renderClocks();renderVerdict();renderStartCountdown();if(!wasEnded&&state.ended)render();}
   }else if(data.type==='error')toast(data.message||'Move could not be accepted.');
  });
  conn.on('close',()=>{if(conn===connection)disconnected();});conn.on('error',()=>{if(conn===connection)disconnected();});
@@ -334,7 +350,7 @@ function connectRoom(code=null,next=null){
  activePeer.on('open',()=>{
   clearTimeout(timeout);if(peer!==activePeer)return;
   if(code){
-   roomStatus('Joining the room…');bindConnection(activePeer.connect(code,{reliable:true,metadata:{boardSizes:BOARD_SIZES,rulesVersion:RULES_VERSION}}));
+   roomStatus('Joining the room…');bindConnection(activePeer.connect(code,{reliable:true,metadata:{boardSizes:BOARD_SIZES,rulesVersion:RULES_VERSION,onlineVersion:ONLINE_VERSION}}));
    setTimeout(()=>{if(peer===activePeer&&!connection?.open)roomStatus('The host has not connected yet. Check that their tab is open, or try another network.');},15000);
   }else{
    const url=new URL(location.href);url.searchParams.set('room',room);history.replaceState(null,'',url);
@@ -343,7 +359,7 @@ function connectRoom(code=null,next=null){
    $('#connection-status').innerHTML='<i></i> ONLINE · WAITING';
   }
  });
- activePeer.on('connection',incoming=>{if(peer!==activePeer||role!==0||connection){incoming.on('open',()=>incoming.close());return;}if(incoming.metadata?.rulesVersion!==RULES_VERSION||!incoming.metadata?.boardSizes?.includes(boardSize())){incoming.on('open',()=>{incoming.send({type:'error',message:'This room uses an unsupported board size or rules. Reload Primeria, then join again.'});incoming.close();});return;}bindConnection(incoming);});
+ activePeer.on('connection',incoming=>{if(peer!==activePeer||role!==0||connection){incoming.on('open',()=>incoming.close());return;}if(incoming.metadata?.onlineVersion!==ONLINE_VERSION||incoming.metadata?.rulesVersion!==RULES_VERSION||!incoming.metadata?.boardSizes?.includes(boardSize())){incoming.on('open',()=>{incoming.send({type:'error',message:'This room uses an unsupported board size or rules. Reload Primeria, then join again.'});incoming.close();});return;}bindConnection(incoming);});
  activePeer.on('error',err=>{clearTimeout(timeout);if(peer!==activePeer)return;roomStatus(`Could not connect (${err.type||'network error'}). Leave this room and try again, or play on one device.`);if(connection?.open)disconnected();});
  activePeer.on('disconnected',()=>{if(peer===activePeer&&!connection?.open)disconnected();});
 }
@@ -378,7 +394,7 @@ function updateBot(now){
   try{receive(createBot({size:state.boardSize,seed:state.bot.seed^state.revision,strength:state.bot.strength}).choose(state));}catch{botFailed(job);}
  };
  try{
-  botWorker=new Worker(new URL('./bot-worker.js?v=e8494cc30f',import.meta.url),{type:'module'});
+  botWorker=new Worker(new URL('./bot-worker.js?v=60ef0f581c',import.meta.url),{type:'module'});
   botWorker.onmessage=event=>{if(botJob!==job||event.data.id!==job.id)return;if(event.data.error)fallback();else receive(event.data.result);};
   botWorker.onerror=event=>{event.preventDefault();fallback();};
   botWorker.postMessage({id:job.id,state,key:job.game,seed:state.bot.seed^state.revision});
@@ -386,6 +402,8 @@ function updateBot(now){
 }
 setInterval(()=>{
  const now=Date.now();const ended=state.ended;
+ if(state.startCountdown&&role!==1&&!networkPaused&&(role===null||connection?.open)&&finishGameCountdown(state,now)){resetDraft();save();sendState();render();sound('turn');}
+ if(state.startCountdown)renderStartCountdown();
  if(verdict&&role!==1&&!networkPaused&&(role===null||connection?.open)&&finishChallengeReview(state,verdict,now)){
   verdict=null;resetDraft();save();sendState();render();sound('turn');
  }

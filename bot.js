@@ -1,4 +1,4 @@
-import * as engine from './engine.js?v=8f4f757756';
+import * as engine from './engine.js?v=60a34b61b0';
 
 export const BOT_LEVELS={
  beginner:{label:'Beginner',description:'Basic divisibility checks and short plans.',speed:1.5,ideas:5,targets:2,replies:1,followups:0,budget:7,eleven:false,primes:[7],maxDigits:2,noise:2.5},
