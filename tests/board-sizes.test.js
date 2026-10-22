@@ -28,7 +28,7 @@ for(const size of BOARD_SIZES){
    assert.throws(()=>segment(s.board,cells[1],cells.at(-1)),/whole uninterrupted/);
    assert.throws(()=>segment(s.board,cells[0],cells[0]),/isolated/);
    const before=total(s.piles[1]);complete(s,{action:'challenge',a:cells[0],b:cells.at(-1),reverse:false,factor:'3'},0);
-   assert.equal(total(s.piles[1]),before+size);assert.equal(s.board.filter(n=>n!==null).length,0);
+   assert.equal(total(s.piles[1]),before+size-1);assert.equal(s.board.filter(n=>n!==null).length,0);
   }
  });
  test(`${size} × ${size}: board state validation rejects inconsistent online dimensions`,()=>{

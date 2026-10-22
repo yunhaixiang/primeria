@@ -310,3 +310,5 @@ main { padding-top: 16px; }
 .board-size-options strong { font-size: 12px; font-weight: 600; white-space: nowrap; }
 .board-size-options label:has(input:checked) { background: #e8ebdd; border-color: #8ea281; }
 .board-size-options label:has(input:focus-visible) { outline: 2px solid #598b73; outline-offset: 2px; }
+
+.tax-preview{font-size:10px;line-height:1.6;color:#73816d;margin:0 0 14px}.taxed-count{font-size:9px;color:#858b7a;margin:10px 0 0}.tax-preview[hidden],.taxed-count[hidden]{display:none}

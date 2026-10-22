@@ -1,16 +1,16 @@
-import {BOARD_SIZES,isSupportedBoardState,RULES_VERSION,upgradeGameBoard,MODES,PILE,total,newGame,timeOutSettings,tick,placement,adjacent,segment,challenge,complete} from './engine.js?v=7248bec6d5';
+import {BOARD_SIZES,isSupportedBoardState,RULES_VERSION,upgradeGameBoard,MODES,PILE,total,newGame,timeOutSettings,tick,placement,adjacent,segment,challenge,complete} from './engine.js?v=cac4d6dd1a';
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const modeName=s=>s[0].toUpperCase()+s.slice(1);
 const colors=Array.from({length:10},(_,i)=>`var(--digit-${i})`);
-const key='primeria.game.selectable.v1';let state=newGame(),action='single',digit=3,pending=[],ends=[],reverse=false,rotation=0,muted=false,expanded=null,factor='';
+const key='primeria.game.taxation.v1';let state=newGame(),action='single',digit=3,pending=[],ends=[],reverse=false,rotation=0,muted=false,expanded=null,factor='';
 let peer=null,connection=null,role=null,room=null,networkPaused=false,verdict=null,shownEnd=false,toastTimer,audio,saveAt=0,syncAt=0;
 try{
- for(const slot of [key,'primeria.game.11x11.v1','primeria.game.13x13.v1','primeria.game.v1']){
+ for(const slot of [key,'primeria.game.selectable.v1','primeria.game.11x11.v1','primeria.game.13x13.v1','primeria.game.v1']){
   try{
    const saved=JSON.parse(localStorage.getItem(slot));
-   if(![1,2,3].includes(saved?.version)||!MODES[saved.state?.mode]||saved.state.piles?.length!==2)continue;
+   if(![1,2,3,4].includes(saved?.version)||!MODES[saved.state?.mode]||saved.state.piles?.length!==2)continue;
    const restored=upgradeGameBoard(saved.state);Object.assign(restored,timeOutSettings(restored));
    state=restored;state.paused=state.started&&!state.ended;state.lastTick=Date.now();break;
   }catch{}
@@ -19,7 +19,7 @@ try{
 }catch{}
 function boardSize(){return state.boardSize;}
 
-function save(){if(role!==null)return;try{localStorage.setItem(key,JSON.stringify({version:3,state}));}catch{}}
+function save(){if(role!==null)return;try{localStorage.setItem(key,JSON.stringify({version:4,state}));}catch{}}
 function sound(kind='click'){
  if(muted)return;try{audio??=new (window.AudioContext||window.webkitAudioContext)();if(audio.state==='suspended')audio.resume();const now=audio.currentTime;
  const notes={click:[520],select:[650],place:[440,660],turn:[392,523],challenge:[330,440,660],fail:[260,196],win:[392,494,587,784]};
@@ -69,9 +69,10 @@ function renderControls(){
  $('#undo-button').disabled=!(pending.length||ends.length||factor.length);
  $('#factor').textContent=factor||'—';$('#factor').classList.toggle('empty',!factor);$('#factor-backspace').disabled=!factor;
  if(action==='challenge'){
-  let html='';if(ends.length===2)try{const cells=segment(state.board,...ends),forward=cells.map(i=>state.board[i]).join(''),backward=cells.slice().reverse().map(i=>state.board[i]).join('');
+  let html='';$('#tax-preview').hidden=true;if(ends.length===2)try{const cells=segment(state.board,...ends),forward=cells.map(i=>state.board[i]).join(''),backward=cells.slice().reverse().map(i=>state.board[i]).join('');
   const [ax,ay]=screenPosition(cells[0]),[bx,by]=screenPosition(cells.at(-1));
   const labels=cells.length===1?['As placed','Reversed']:ax!==bx?(ax<bx?['Left → right','Right → left']:['Right → left','Left → right']):(ay<by?['Top → bottom','Bottom → top']:['Bottom → top','Top → bottom']);
+  const taxedDigit=state.board[reverse?cells[0]:cells.at(-1)];$('#tax-preview').textContent=`If successful: ${cells.length-1} ${cells.length===2?'tile goes':'tiles go'} to your opponent; the final ${taxedDigit} is removed from play.`;$('#tax-preview').hidden=false;
   html=`<button class="reading-option ${!reverse?'selected':''}" data-reverse="false" aria-pressed="${!reverse}">${forward}<small>${labels[0]}</small></button><button class="reading-option ${reverse?'selected':''}" data-reverse="true" aria-pressed="${reverse}">${backward}<small>${labels[1]}</small></button>`;}catch{}
   $('#reading-options').innerHTML=html;
  }
@@ -87,13 +88,13 @@ function renderControls(){
 }
 function renderHistory(){
  $('#history-count').textContent=`${state.history.length} MOVES`;
- $('#history').innerHTML=state.history.length?state.history.slice().reverse().slice(0,80).map((e,i)=>`<li class="history-entry"><span class="history-index">${String(state.history.length-i).padStart(2,'0')}</span><div class="history-text"><b>${escape(state.names[e.player])}</b> ${e.action==='challenge'?`challenged ${e.digits}`:e.action==='double'?'doubled down':'dropped a tile'}<small>${e.action==='challenge'?`${e.digits} ÷ ${e.factor} · ${e.success?'tiles transferred':'not a factor'}`:e.moves.map(m=>`${m.digit} at ${coords(m.index)}`).join(' · ')}</small></div><span class="history-badge">${e.action==='challenge'?(e.success?'✓':'×'):e.action==='double'?'+2':'+1'}</span></li>`).join(''):'<li class="history-empty">Every great game starts with a single tile.</li>';
+ $('#history').innerHTML=state.history.length?state.history.slice().reverse().slice(0,80).map((e,i)=>`<li class="history-entry"><span class="history-index">${String(state.history.length-i).padStart(2,'0')}</span><div class="history-text"><b>${escape(state.names[e.player])}</b> ${e.action==='challenge'?`challenged ${e.digits}`:e.action==='double'?'doubled down':'dropped a tile'}<small>${e.action==='challenge'?`${e.digits} ÷ ${e.factor} · ${e.success?(e.taxedDigit===undefined?'tiles transferred':`${e.transferredCount} transferred · ${e.taxedDigit} taxed`):'not a factor'}`:e.moves.map(m=>`${m.digit} at ${coords(m.index)}`).join(' · ')}</small></div><span class="history-badge">${e.action==='challenge'?(e.success?'✓':'×'):e.action==='double'?'+2':'+1'}</span></li>`).join(''):'<li class="history-empty">Every great game starts with a single tile.</li>';
 }
-function render(){$('#time-out-summary').textContent=state.timeOutRule?`This game: Time Out Rule begins after ${state.timeOutSeconds/60} minutes and requires ${state.timeOutMoves} consecutive moves.`:'Time Out Rule is off for this game.';renderBoard();renderPlayers();renderControls();renderHistory();$('#sound-button .sound-label').textContent=muted?'Unmute':'Mute';$('#sound-icon-detail').innerHTML=muted?'<path d="m16 9 6 6m0-6-6 6"/>':'<path d="M15 8a6 6 0 0 1 0 8M18 5a10 10 0 0 1 0 14"/>';$('#sound-button').setAttribute('aria-label',muted?'Unmute':'Mute');$('#sound-button').setAttribute('title',muted?'Unmute sound':'Mute sound');$('#sound-button').setAttribute('aria-pressed',String(muted));if(state.ended&&!shownEnd)showEnd();}
+function render(){const taxed=total(state.taxed);$('#taxed-count').textContent=`${taxed} ${taxed===1?'tile':'tiles'} taxed · out of play`;$('#taxed-count').title=state.taxed.map((n,d)=>`${d}: ${n}`).join(' · ');$('#taxed-count').hidden=taxed===0;$('#time-out-summary').textContent=state.timeOutRule?`This game: Time Out Rule begins after ${state.timeOutSeconds/60} minutes and requires ${state.timeOutMoves} consecutive moves.`:'Time Out Rule is off for this game.';renderBoard();renderPlayers();renderControls();renderHistory();$('#sound-button .sound-label').textContent=muted?'Unmute':'Mute';$('#sound-icon-detail').innerHTML=muted?'<path d="m16 9 6 6m0-6-6 6"/>':'<path d="M15 8a6 6 0 0 1 0 8M18 5a10 10 0 0 1 0 14"/>';$('#sound-button').setAttribute('aria-label',muted?'Unmute':'Mute');$('#sound-button').setAttribute('title',muted?'Unmute sound':'Mute sound');$('#sound-button').setAttribute('aria-pressed',String(muted));if(state.ended&&!shownEnd)showEnd();}
 function showEnd(){shownEnd=true;sound('win');$('#result-eyebrow').textContent='A GAME WELL PLAYED';$('#result-symbol').textContent='✳';$('#result-title').textContent=`${state.names[state.ended.winner]} wins.`;$('#result-detail').textContent=`Victory ${state.ended.reason}. ${state.history.length} moves, and a few new possibilities discovered.`;$('#result-continue').textContent='Back to the board';if(!$('#result-dialog').open)$('#result-dialog').showModal();}
 function showVerdict(entry){
  verdict=entry;$('#result-eyebrow').textContent='BOTH CLOCKS ARE PAUSED';$('#result-symbol').textContent=entry.success?'✓':'×';$('#result-title').textContent=entry.success?'Factor found.':'Not this time.';
- $('#result-detail').textContent=entry.success?`${entry.digits} ÷ ${entry.factor} = ${entry.quotient}. ${entry.cells.length} ${entry.cells.length===1?'tile moves':'tiles move'} to ${state.names[1-entry.player]}’s pile.`:`${entry.digits} ÷ ${entry.factor} leaves remainder ${entry.remainder}. No tiles move. The turn passes to ${state.names[state.turn]}.`;
+ $('#result-detail').textContent=entry.success?`${entry.digits} ÷ ${entry.factor} = ${entry.quotient}. ${entry.transferredCount===0?'No tiles move':`${entry.transferredCount} ${entry.transferredCount===1?'tile moves':'tiles move'}`} to ${state.names[1-entry.player]}’s pile. The final digit, ${entry.taxedDigit}, is taxed and removed from play.`:`${entry.digits} ÷ ${entry.factor} leaves remainder ${entry.remainder}. No tiles move. The turn passes to ${state.names[state.turn]}.`;
  $('#result-continue').textContent='Continue to the next turn';if(!$('#result-dialog').open)$('#result-dialog').showModal();sound(entry.success?'challenge':'fail');
 }
 function sendState(extra={}){if(role===0&&connection?.open)connection.send({type:'state',rulesVersion:RULES_VERSION,state,verdict,...extra});}

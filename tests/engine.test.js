@@ -22,14 +22,14 @@ test('challenge segments must be straight and continuous',()=>{
  assert.throws(()=>segment(b,a,square(2,2)),/straight/);assert.throws(()=>segment(b,a,a+3),/empty/);
 });
 test('challenge reading direction changes divisibility',()=>{const s=active();s.board[square(4,4)]=1;s.board[square(5,4)]=4;assert.equal(challenge(s,square(4,4),square(5,4),false,'2').success,true);assert.equal(challenge(s,square(4,4),square(5,4),true,'2').success,false);assert.equal(challenge(s,square(4,4),square(5,4),true,'2').digits,'41');});
-test('correct challenge transfers every selected tile to opponent',()=>{const s=active();s.board[square(4,4)]=1;s.board[square(5,4)]=4;const before=total(s.piles[1]);complete(s,{action:'challenge',a:square(4,4),b:square(5,4),reverse:false,factor:'2'},0);assert.equal(total(s.piles[1]),before+2);assert.equal(s.board[square(4,4)],null);assert.equal(s.turn,1);});
+test('correct challenge transfers all but the final tile and taxes that tile',()=>{const s=active();s.board[square(4,4)]=1;s.board[square(5,4)]=4;const before=total(s.piles[1]);complete(s,{action:'challenge',a:square(4,4),b:square(5,4),reverse:false,factor:'2'},0);assert.equal(total(s.piles[1]),before+1);assert.equal(s.taxed[4],1);assert.equal(s.board[square(4,4)],null);assert.equal(s.turn,1);});
 test('failed challenge consumes a turn and receives increment',()=>{const s=active();s.board[square(4,4)]=1;s.board[square(5,4)]=3;complete(s,{action:'challenge',a:square(4,4),b:square(5,4),reverse:false,factor:'2'},1000);assert.equal(s.board[square(4,4)],1);assert.equal(s.turn,1);assert.equal(s.clocks[0],1219);assert.equal(s.history[0].success,false);});
 test('single-digit one and trivial factors cannot be challenged',()=>{const s=active();s.board[square(4,4)]=1;assert.throws(()=>challenge(s,square(4,4),square(4,4),false,'2'),/cannot/);s.board[square(4,4)]=4;for(const f of ['0','1','4','-2','2.5','x'])assert.throws(()=>challenge(s,square(4,4),square(4,4),false,f));});
 test('zero, leading zeros and eleven-digit numbers are handled exactly',()=>{const s=active();s.board[0]=0;assert.equal(challenge(s,0,0,false,'2').success,true);s.board[1]=4;assert.equal(challenge(s,0,1,false,'2').digits,'04');s.board=Array(BOARD_CELLS).fill(null);'98765432103'.split('').forEach((n,i)=>s.board[i]=Number(n));assert.equal(challenge(s,0,10,false,'3').success,true);});
 test('emptying a pile wins',()=>{const s=active();s.piles[0]=Array(10).fill(0);s.piles[0][7]=1;complete(s,{action:'single',moves:[{index:square(4,4),digit:7}]},0);assert.deepEqual(s.ended,{winner:0,reason:'by playing every tile'});});
 test('timeout prevents late placement',()=>{const s=active({mode:'blitz'});assert.throws(()=>complete(s,{action:'single',moves:[{index:square(4,4),digit:7}]},600001),/over/);assert.equal(s.ended.winner,1);assert.equal(s.board[square(4,4)],null);});
 test('Time Out Rule defaults track ten completed moves with a continuous leader',()=>{const s=active({mode:'casual',timeOutRule:true});s.elapsed=3601;s.piles[1][1]+=20;for(let i=0;i<10;i++){complete(s,{action:'single',moves:[{index:i,digit:7}]},0);if(i<9)assert.equal(s.ended,null);}assert.equal(s.streak,10);assert.equal(s.ended.winner,0);});
-test('tiles are conserved through moves and successful challenges',()=>{const s=active();complete(s,{action:'single',moves:[{index:square(4,4),digit:1}]},0);complete(s,{action:'single',moves:[{index:square(5,4),digit:4}]},0);complete(s,{action:'challenge',a:square(4,4),b:square(5,4),reverse:false,factor:'2'},0);assert.equal(total(s.piles[0])+total(s.piles[1])+s.board.filter(n=>n!==null).length,74);});
+test('tiles are conserved through moves and successful challenges',()=>{const s=active();complete(s,{action:'single',moves:[{index:square(4,4),digit:1}]},0);complete(s,{action:'single',moves:[{index:square(5,4),digit:4}]},0);complete(s,{action:'challenge',a:square(4,4),b:square(5,4),reverse:false,factor:'2'},0);assert.equal(total(s.taxed)+total(s.piles[0])+total(s.piles[1])+s.board.filter(n=>n!==null).length,74);});
 
 test('custom Time Out Rule starts exactly at the configured duration',()=>{
  const s=active({mode:'casual',timeOutRule:true,timeOutSeconds:1200,timeOutMoves:3});s.piles[1][1]+=20;
@@ -86,7 +86,7 @@ test('a horizontal challenge spans all eleven squares of the last row in both di
  assert.equal(challenge(s,start,last,false,'3').digits,digits);
  assert.equal(challenge(s,start,last,true,'3').digits,[...digits].reverse().join(''));
  const before=total(s.piles[1]);complete(s,{action:'challenge',a:start,b:last,reverse:false,factor:'3'},0);
- assert.equal(total(s.piles[1]),before+11);assert.equal(s.board.filter(d=>d!==null).length,0);
+ assert.equal(total(s.piles[1]),before+10);assert.equal(s.board.filter(d=>d!==null).length,0);
 });
 test('a vertical challenge spans the last column using a eleven-square stride',()=>{
  const s=active(),digits='98765432103',last=BOARD_CELLS-1;
@@ -138,7 +138,7 @@ test('isolated composite digits remain challengeable and diagonal neighbors are 
  const s=active();s.board[square(0,0)]=4;s.board[square(1,1)]=7;
  assert.equal(challenge(s,square(0,0),square(0,0),false,'2').success,true);
  const before=total(s.piles[1]);complete(s,{action:'challenge',a:0,b:0,reverse:false,factor:'2'},0);
- assert.equal(s.board[0],null);assert.equal(total(s.piles[1]),before+1);
+ assert.equal(s.board[0],null);assert.equal(total(s.piles[1]),before);assert.equal(s.taxed[4],1);
 });
 test('perpendicular crossings do not extend a multi-digit challenge',()=>{
  const s=active();s.board[square(4,4)]=1;s.board[square(5,4)]=4;s.board[square(6,4)]=7;

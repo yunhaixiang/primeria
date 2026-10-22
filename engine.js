@@ -6,8 +6,8 @@ export function getBoardSize(board){
  if(!BOARD_SIZES.includes(size))throw Error('This board size is unsupported.');
  return size;
 }
-export function isSupportedBoardState(state){return !!state&&BOARD_SIZES.includes(state.boardSize)&&Array.isArray(state.board)&&state.board.length===state.boardSize**2;}
-export const RULES_VERSION = 3;
+export function isSupportedBoardState(state){return !!state&&BOARD_SIZES.includes(state.boardSize)&&Array.isArray(state.board)&&state.board.length===state.boardSize**2&&Array.isArray(state.taxed)&&state.taxed.length===10&&state.taxed.every(n=>Number.isSafeInteger(n)&&n>=0);}
+export const RULES_VERSION = 4;
 export const MODES = {blitz:[600,10],rapid:[1200,20],standard:[1800,30],classical:[2700,60],casual:[null,0]};
 export const PILE = [2,5,3,5,3,3,3,5,3,5];
 export const total = pile => pile.reduce((a,b)=>a+b,0);
@@ -20,7 +20,7 @@ export function newGame(options={},now=Date.now()) {
   const {mode='rapid',names=['Player one','Player two'],first=0,boardSize=BOARD_SIZE}=options;
   if(!BOARD_SIZES.includes(boardSize))throw Error('Choose a 9 × 9, 11 × 11, or 13 × 13 board.');
   if (!MODES[mode]) throw Error('Choose a valid time control.');
-  return {boardSize,board:Array(boardSize*boardSize).fill(null),piles:[PILE.slice(),PILE.slice()],names:names.map((n,i)=>String(n).trim().slice(0,24)||`Player ${i+1}`),mode,turn:first===1?1:0,clocks:[MODES[mode][0],MODES[mode][0]],increment:MODES[mode][1],started:false,paused:false,ended:null,lastTick:now,elapsed:0,...timeOutSettings(options),leader:null,streak:0,history:[],lastCells:[],revision:0};
+  return {boardSize,board:Array(boardSize*boardSize).fill(null),piles:[PILE.slice(),PILE.slice()],taxed:Array(10).fill(0),names:names.map((n,i)=>String(n).trim().slice(0,24)||`Player ${i+1}`),mode,turn:first===1?1:0,clocks:[MODES[mode][0],MODES[mode][0]],increment:MODES[mode][1],started:false,paused:false,ended:null,lastTick:now,elapsed:0,...timeOutSettings(options),leader:null,streak:0,history:[],lastCells:[],revision:0};
 }
 export function tick(s,now=Date.now()) {
   const seconds=Math.max(0,now-s.lastTick)/1000;s.lastTick=now;
@@ -70,8 +70,14 @@ export function complete(s,command,now=Date.now()){
   const actor=s.turn;let entry;
   if(command.action==='challenge'){
     const c=challenge(s,command.a,command.b,command.reverse,command.factor);
-    if(c.success)for(const i of c.cells){s.piles[1-actor][s.board[i]]++;s.board[i]=null;}
-    entry={action:'challenge',player:actor,...c};s.lastCells=c.cells;
+    entry={action:'challenge',player:actor,...c};
+    if(c.success){
+      // The reading direction, rather than endpoint click order, determines the tax.
+      const taxedCell=command.reverse?c.cells[0]:c.cells.at(-1),taxedDigit=s.board[taxedCell];
+      for(const i of c.cells){if(i===taxedCell)s.taxed[s.board[i]]++;else s.piles[1-actor][s.board[i]]++;s.board[i]=null;}
+      Object.assign(entry,{taxedCell,taxedDigit,transferredCount:c.cells.length-1});
+    }
+    s.lastCells=c.cells;
   }else{
     const p=placement(s,command.action,command.moves);s.board=p.board;s.piles[actor]=p.pile;s.lastCells=command.moves.map(m=>m.index);
     entry={action:command.action,player:actor,moves:command.moves};
@@ -89,14 +95,15 @@ export function upgradeGameBoard(state){
   const size=Math.sqrt(state.board.length);
   if(BOARD_SIZES.includes(size)){
     if(state.boardSize!==undefined&&state.boardSize!==size)throw Error('The saved board dimensions do not match.');
-    return state.boardSize===size?state:{...state,boardSize:size};
+    if(state.taxed!==undefined&&(!Array.isArray(state.taxed)||state.taxed.length!==10||!state.taxed.every(n=>Number.isSafeInteger(n)&&n>=0)))throw Error('The saved taxation counts are invalid.');
+    return state.boardSize===size&&state.taxed!==undefined?state:{...state,boardSize:size,taxed:state.taxed??Array(10).fill(0)};
   }
   const oldSize=state.board.length===100?10:null;
   if(!oldSize)throw Error('This saved board size is unsupported.');
   const remap=index=>Math.floor(index/oldSize)*BOARD_SIZE+index%oldSize;
   const board=Array(BOARD_CELLS).fill(null);
   state.board.forEach((digit,index)=>{board[remap(index)]=digit;});
-  return {...state,boardSize:BOARD_SIZE,board,lastCells:state.lastCells.map(remap),history:state.history.map(entry=>({
+  return {...state,taxed:state.taxed??Array(10).fill(0),boardSize:BOARD_SIZE,board,lastCells:state.lastCells.map(remap),history:state.history.map(entry=>({
     ...entry,...(entry.moves?{moves:entry.moves.map(move=>({...move,index:remap(move.index)}))}:{}),
     ...(entry.cells?{cells:entry.cells.map(remap)}:{})
   }))};
