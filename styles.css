@@ -154,3 +154,23 @@
   .site-header .icon-button { width: 30px; height: 30px; }
   .site-header .text-button span { display: none; }
 }
+
+/* Center the label and larger plus glyph independently of their baselines. */
+#new-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  min-height: 40px;
+  line-height: 1;
+}
+#new-button .new-game-label { margin: 0; font-size: inherit; line-height: 1; }
+#new-button .new-game-icon { margin: 0; font-size: 16px; line-height: 1; }
+@media (max-width: 780px) {
+  #new-button { gap: 5px; min-height: 38px; }
+}
+@media (max-width: 480px) {
+  #new-button { gap: 0; min-height: 32px; }
+  #new-button .new-game-label { display: none; }
+  #new-button .new-game-icon { font-size: 22px; }
+}
