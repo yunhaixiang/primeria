@@ -21,7 +21,7 @@ Each player starts with 36 tiles: two each of 0 and 5, three each of 2, 4, 6, 8,
 
 Placements are previews until committed. Clear a draft with the undo button or Escape. Digit keys select rack tiles. The rotation button turns the board 90 degrees while keeping coordinates attached to their original squares. Columns are labeled A–I, A–K, A–M, or A–O, and rows 1–9, 1–11, 1–13, or 1–15, according to the selected size. These labels rotate with the board; move history uses coordinates such as A1 and K11. Counts for every digit are visible in the active rack and the opponent’s supply strip; player cards also expand to show inventories.
 
-The first player to play every tile wins. Resignation and running out of time also end the game. The optional **Tie-breaker** requires the same player to have fewer tiles for a configurable number of consecutive completed moves after a configurable duration of active play. Enable it in New game to set **Tie-breaker after** (in minutes, default 60 = 1 hour) and **Consecutive moves** (default 10). A tie resets the streak; a new leader starts a new streak. Settings are preserved in saved games and online rooms.
+The first player to play every tile wins. Resignation and running out of time also end the game. The optional **Tie-breaker** requires the same player to have fewer tiles for exactly 10 consecutive completed moves after a configurable duration of active play. Enable it in New game to set **Tie-breaker after** (in minutes, default 60 = 1 hour). A tie resets the streak; a new leader starts a new streak. The duration is preserved in saved games and online rooms. The move count is always 10, including for saved settings that previously used another count.
 
 ### Time controls
 

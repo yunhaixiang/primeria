@@ -1,13 +1,13 @@
-import {BOARD_SIZES,isSupportedBoardState,RULES_VERSION,upgradeGameBoard,MODES,PILE,total,newGame,timeOutSettings,tick,placement,adjacent,segment,challengeLines,challengeNumber,challenge,complete,beginChallengeReview,finishChallengeReview,challengeReviewSeconds,beginGameCountdown,finishGameCountdown} from './engine.js?v=e11efc1f0c';
-import {BOT_LEVELS,botConfig,isBotTurn,createBot} from './bot.js?v=78e019dd23';
+import {BOARD_SIZES,isSupportedBoardState,RULES_VERSION,upgradeGameBoard,MODES,PILE,total,newGame,timeOutSettings,tick,placement,adjacent,segment,challengeLines,challengeNumber,challenge,complete,beginChallengeReview,finishChallengeReview,challengeReviewSeconds,beginGameCountdown,finishGameCountdown} from './engine.js?v=a715b1f2ae';
+import {BOT_LEVELS,botConfig,isBotTurn,createBot} from './bot.js?v=a74288f309';
 
-import {gameResult,reviewPosition} from './review.js?v=533f9acf37';
+import {gameResult,reviewPosition} from './review.js?v=7c6df222da';
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const modeName=s=>s[0].toUpperCase()+s.slice(1);
 const colors=Array.from({length:10},(_,i)=>`var(--digit-${i})`);
-const ONLINE_VERSION=1;
+const ONLINE_VERSION=2;
 const key='primeria.game.rules9.v1';let state=newGame(),action='single',digit=3,pending=[],ends=[],lineChoices=[],challengeAxis='row',rotation=0,muted=false,expanded=null,factor='';
 let peer=null,connection=null,role=null,room=null,networkPaused=false,verdict=null,shownEnd=false,reviewMove=null,reviewSnapshot=null,resigning=null,toastTimer,audio,saveAt=0,syncAt=0,botWorker=null,botJob=null,botCounter=0;
 try{
@@ -299,7 +299,7 @@ function updateSetupOptions(){
 }
 function openSetup(){
  const form=$('#setup-form');form.elements.two.readOnly=false;form.elements.two.dataset.localName=botConfig(state)?'Player two':state.names[1];form.elements.one.value=state.names[0];form.elements.two.value=state.names[1];form.elements.mode.value=state.mode;form.elements.first.value='random';form.elements.boardSize.value=String(boardSize());
- form.elements.timeOutRule.checked=state.timeOutRule;form.elements.timeOutMinutes.value=state.timeOutSeconds/60;form.elements.timeOutMoves.value=state.timeOutMoves;
+ form.elements.timeOutRule.checked=state.timeOutRule;form.elements.timeOutMinutes.value=state.timeOutSeconds/60;
  form.elements.location.value=role===null?(botConfig(state)?'bot':'local'):'online';form.elements.botStrength.value=botConfig(state)?.strength||'intermediate';updateSetupOptions();$('#setup-dialog').showModal();$('#setup-dialog').scrollTop=0;sound();
 }
 $$('input[name="location"],input[name="roomAction"],input[name="botStrength"]').forEach(input=>input.addEventListener('change',()=>{updateSetupOptions();sound('select');}));
@@ -313,7 +313,7 @@ $('#setup-form').addEventListener('submit',async e=>{
   if(!/^primeria-[a-f0-9]{14}$/.test(code)){toast('Paste a complete invitation link or room code.');$('#room-code').focus();return;}
  }else{
   const enabled=data.has('timeOutRule');
-  try{next=newGame({boardSize:Number(data.get('boardSize')),mode:data.get('mode'),names:[data.get('one'),data.get('two')],first:data.get('first')==='random'?(crypto.getRandomValues(new Uint8Array(1))[0]%2):Number(data.get('first')),timeOutRule:enabled,timeOutSeconds:enabled?Number(data.get('timeOutMinutes'))*60:state.timeOutSeconds,timeOutMoves:enabled?Number(data.get('timeOutMoves')):state.timeOutMoves});}catch(err){return toast(err.message);}
+  try{next=newGame({boardSize:Number(data.get('boardSize')),mode:data.get('mode'),names:[data.get('one'),data.get('two')],first:data.get('first')==='random'?(crypto.getRandomValues(new Uint8Array(1))[0]%2):Number(data.get('first')),timeOutRule:enabled,timeOutSeconds:enabled?Number(data.get('timeOutMinutes'))*60:state.timeOutSeconds});}catch(err){return toast(err.message);}
  }
  if(withBot){const strength=data.get('botStrength');if(!Object.hasOwn(BOT_LEVELS,strength))return toast('Choose a bot strength.');next.bot={player:1,strength,id:crypto.randomUUID(),seed:crypto.getRandomValues(new Uint32Array(1))[0]};}
  if(online&&role===null&&!window.Peer){roomStatus('The online connection library is unavailable. Reload this page, or play on one device.');return;}
@@ -428,7 +428,7 @@ function updateBot(now){
   try{receive(createBot({size:state.boardSize,seed:state.bot.seed^state.revision,strength:state.bot.strength}).choose(state));}catch{botFailed(job);}
  };
  try{
-  botWorker=new Worker(new URL('./bot-worker.js?v=db9d1b4003',import.meta.url),{type:'module'});
+  botWorker=new Worker(new URL('./bot-worker.js?v=d5fc3d2fca',import.meta.url),{type:'module'});
   botWorker.onmessage=event=>{if(botJob!==job||event.data.id!==job.id)return;if(event.data.error)fallback();else receive(event.data.result);};
   botWorker.onerror=event=>{event.preventDefault();fallback();};
   botWorker.postMessage({id:job.id,state,key:job.game,seed:state.bot.seed^state.revision});

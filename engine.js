@@ -11,10 +11,10 @@ export const RULES_VERSION = 9;
 export const MODES = {blitz:[600,10],rapid:[1200,20],standard:[1800,30],classical:[2700,60],casual:[null,0]};
 export const PILE = [2,5,3,5,3,2,3,5,3,5];
 export const total = pile => pile.reduce((a,b)=>a+b,0);
-export function timeOutSettings({timeOutRule,hourRule=false,timeOutSeconds=3600,timeOutMoves=10}={}) {
+export const TIE_BREAKER_MOVES = 10;
+export function timeOutSettings({timeOutRule,hourRule=false,timeOutSeconds=3600}={}) {
   if(!Number.isSafeInteger(timeOutSeconds)||timeOutSeconds<1)throw Error('Choose a positive whole-number tie-breaker duration.');
-  if(!Number.isSafeInteger(timeOutMoves)||timeOutMoves<1)throw Error('Choose a positive whole number of consecutive moves.');
-  return {timeOutRule:timeOutRule??hourRule,timeOutSeconds,timeOutMoves};
+  return {timeOutRule:timeOutRule??hourRule,timeOutSeconds,timeOutMoves:TIE_BREAKER_MOVES};
 }
 export function newGame(options={},now=Date.now()) {
   const {mode='rapid',names=['Player one','Player two'],first=0,boardSize=BOARD_SIZE}=options;

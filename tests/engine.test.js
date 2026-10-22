@@ -36,7 +36,7 @@ test('tiles are conserved through moves and successful challenges',()=>{const s=
 test('custom Time Out Rule starts exactly at the configured duration',()=>{
  const s=active({mode:'casual',timeOutRule:true,timeOutSeconds:1200,timeOutMoves:3});s.piles[1][1]+=20;
  s.elapsed=1199;complete(s,{action:'single',moves:[{index:0,digit:7}]},0);assert.equal(s.streak,0);
- s.elapsed=1200;for(let i=1;i<=3;i++){complete(s,{action:'single',moves:[{index:i,digit:7}]},0);assert.equal(s.streak,i);if(i<3)assert.equal(s.ended,null);}
+ s.elapsed=1200;for(let i=1;i<=10;i++){complete(s,{action:'single',moves:[{index:i,digit:i<6?7:3}]},0);assert.equal(s.streak,i);if(i<10)assert.equal(s.ended,null);}
  assert.deepEqual(s.ended,{winner:0,reason:'by the Time Out Rule'});
 });
 test('a tie resets the Time Out streak and a new leader starts at one',()=>{
@@ -57,14 +57,14 @@ test('the disabled Time Out Rule never counts a streak',()=>{
 });
 test('Time Out settings survive serialization and starting an online game',()=>{
  const s=newGame({timeOutRule:true,timeOutSeconds:2700,timeOutMoves:6});const saved=JSON.parse(JSON.stringify(s));
- const online=newGame({...timeOutSettings(saved)});assert.equal(online.timeOutRule,true);assert.equal(online.timeOutSeconds,2700);assert.equal(online.timeOutMoves,6);
+ const online=newGame({...timeOutSettings(saved)});assert.equal(online.timeOutRule,true);assert.equal(online.timeOutSeconds,2700);assert.equal(online.timeOutMoves,10);
 });
 test('legacy saved games keep the former one-hour defaults',()=>{
  assert.deepEqual(timeOutSettings({hourRule:true}),{timeOutRule:true,timeOutSeconds:3600,timeOutMoves:10});
  assert.equal(timeOutSettings({hourRule:true,timeOutRule:false}).timeOutRule,false);
 });
 test('invalid Time Out settings cannot start a game',()=>{
- for(const n of [0,-1,1.5,NaN,Infinity,Number.MAX_SAFE_INTEGER+1]){assert.throws(()=>newGame({timeOutSeconds:n}),/duration/);assert.throws(()=>newGame({timeOutMoves:n}),/consecutive/);}
+ for(const n of [0,-1,1.5,NaN,Infinity,Number.MAX_SAFE_INTEGER+1]){assert.throws(()=>newGame({timeOutSeconds:n}),/duration/);assert.equal(newGame({timeOutMoves:n}).timeOutMoves,10);}
 });
 test('playing every tile retains priority over the Time Out Rule',()=>{
  const s=active({mode:'casual',timeOutRule:true,timeOutSeconds:1,timeOutMoves:1});s.elapsed=2;s.piles[0]=Array(10).fill(0);s.piles[0][7]=1;
@@ -176,4 +176,17 @@ test('invalid partial and connected-single challenges do not consume a move or t
 for(const oldSize of [12,17])test(`larger ${oldSize} by ${oldSize} saved boards are rejected without truncating their tiles`,()=>{
  const s=newGame();s.board=Array(oldSize*oldSize).fill(null);s.board[s.board.length-1]=7;const before=JSON.stringify(s);
  assert.throws(()=>upgradeGameBoard(s),/unsupported/);assert.equal(JSON.stringify(s),before);
+});
+
+test('legacy and directly supplied tie-breaker counts cannot bypass the fixed ten-move requirement',()=>{
+ for(const count of [1,6,20]){
+  const s=active({mode:'casual',timeOutRule:true,timeOutSeconds:1,timeOutMoves:count});
+  assert.equal(s.timeOutMoves,10);s.timeOutMoves=count;s.elapsed=2;s.piles[1][1]+=20;
+  assert.equal(timeOutSettings(JSON.parse(JSON.stringify(s))).timeOutMoves,10);
+  for(let i=0;i<10;i++){
+   complete(s,{action:'single',moves:[{index:i,digit:7}]},0);
+   if(i<9)assert.equal(s.ended,null);
+  }
+  assert.equal(s.streak,10);assert.equal(s.ended.winner,0);
+ }
 });
