@@ -100,12 +100,11 @@ function renderControls(){
  if(action==='challenge'){
   $('#challenge-lines').hidden=lineChoices.length<2;
   $('#challenge-lines').innerHTML=lineChoices.length<2?'':lineChoices.map(line=>`<button class="challenge-line ${line.axis===challengeAxis?'selected':''}" data-challenge-line="${line.axis}" aria-pressed="${line.axis===challengeAxis}" aria-label="Select ${lineLabel(line).toLowerCase()} ${challengeNumber(state,line.cells[0],line.cells.at(-1)).digits}">${lineLabel(line)}<span>${challengeNumber(state,line.cells[0],line.cells.at(-1)).digits}</span></button>`).join('');
-  let html='';$('#tax-preview').hidden=true;$('#attempt-status').textContent='';
+  let html='';$('#attempt-status').textContent='';
   if(ends.length===2)try{
    const reading=challengeNumber(state,...ends),cells=reading.readingCells;
    const [ax,ay]=screenPosition(cells[0]),[bx,by]=screenPosition(cells.at(-1));
    const direction=cells.length===1?'Single tile':ax!==bx?(ax<bx?'Left → right':'Right → left'):(ay<by?'Top → bottom':'Bottom → top');
-   const taxedDigit=state.board[cells.at(-1)];$('#tax-preview').textContent=`If successful: ${cells.length-1} ${cells.length===2?'tile goes':'tiles go'} to your opponent; the final ${taxedDigit} is removed from play.`;$('#tax-preview').hidden=false;
    html=`<div class="reading-fixed"><strong>${reading.digits}</strong><small>Challenger’s perspective · ${direction}</small></div>`;
    const used=state.challengeAttempt?.attempts.length||0;
    $('#attempt-status').textContent=`Attempt ${used+1} of ${reading.attemptLimit}${used?' · failed: '+state.challengeAttempt.attempts.map(a=>a.factor).join(', '):''}`;
