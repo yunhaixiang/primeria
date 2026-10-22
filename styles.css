@@ -185,3 +185,9 @@
 .input-with-unit span { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 10px; font-weight: 400; color: var(--muted); pointer-events: none; }
 .time-out-options p { margin: 10px 0 0; font-size: 10px; line-height: 1.6; }
 @media (max-width: 380px) { .time-out-fields { grid-template-columns: 1fr; } }
+
+/* Original vector lettering, with no enclosing emblem or accent period. */
+.wordmark { flex-shrink: 0; line-height: 1; }
+.wordmark-art { display: block; width: 174px; height: 44px; }
+@media (max-width: 480px) { .wordmark-art { width: 140px; height: 36px; } }
+@media (max-width: 360px) { .wordmark-art { width: 124px; height: 33px; } }

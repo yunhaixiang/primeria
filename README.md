@@ -62,6 +62,7 @@ Open `http://localhost:4173`. JavaScript modules require an HTTP server; opening
 - `engine.js`: rules, inventories, exact challenge arithmetic, clocks, victory conditions.
 - `app.js`: interface, sound synthesis, local saves, and online room synchronization.
 - `styles.css`: responsive visual design and ten digit color themes.
+- `wordmark.svg`: original Primeria lettering drawn as editable vector paths; `favicon.svg` uses its p.
 - `tests/engine.test.js`: core game-rule and clock tests.
 - `vendor/`: PeerJS and its MIT license.
 
