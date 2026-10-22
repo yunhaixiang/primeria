@@ -142,6 +142,7 @@ export function complete(s,command,now=Date.now()){
     entry={action:command.action,player:actor,moves:command.moves};
   }
   if(s.clocks[actor]!==null)s.clocks[actor]+=s.increment;
+  entry.clocks=s.clocks.slice();entry.elapsed=s.elapsed;
   s.history.push(entry);s.revision++;
   if(total(s.piles[actor])===0)s.ended={winner:actor,reason:'by playing every tile'};
   const rule=timeOutSettings(s);

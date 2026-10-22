@@ -1,4 +1,4 @@
-import {createBot} from './bot.js?v=ae98403ca8';
+import {createBot} from './bot.js?v=a85499ff34';
 let bot=null,gameKey=null;
 self.onmessage=event=>{
  const {id,state,key,seed}=event.data;

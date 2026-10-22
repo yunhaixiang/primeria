@@ -1,5 +1,7 @@
-import {BOARD_SIZES,isSupportedBoardState,RULES_VERSION,upgradeGameBoard,MODES,PILE,total,newGame,timeOutSettings,tick,placement,adjacent,segment,challengeLines,challengeNumber,challenge,complete,beginChallengeReview,finishChallengeReview,challengeReviewSeconds,beginGameCountdown,finishGameCountdown} from './engine.js?v=60a34b61b0';
-import {BOT_LEVELS,botConfig,isBotTurn,createBot} from './bot.js?v=ae98403ca8';
+import {BOARD_SIZES,isSupportedBoardState,RULES_VERSION,upgradeGameBoard,MODES,PILE,total,newGame,timeOutSettings,tick,placement,adjacent,segment,challengeLines,challengeNumber,challenge,complete,beginChallengeReview,finishChallengeReview,challengeReviewSeconds,beginGameCountdown,finishGameCountdown} from './engine.js?v=3dfc1a2bbf';
+import {BOT_LEVELS,botConfig,isBotTurn,createBot} from './bot.js?v=a85499ff34';
+
+import {gameResult,reviewPosition} from './review.js?v=8fec3483a3';
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -7,7 +9,7 @@ const modeName=s=>s[0].toUpperCase()+s.slice(1);
 const colors=Array.from({length:10},(_,i)=>`var(--digit-${i})`);
 const ONLINE_VERSION=1;
 const key='primeria.game.rules9.v1';let state=newGame(),action='single',digit=3,pending=[],ends=[],lineChoices=[],challengeAxis='row',rotation=0,muted=false,expanded=null,factor='';
-let peer=null,connection=null,role=null,room=null,networkPaused=false,verdict=null,shownEnd=false,resigning=null,toastTimer,audio,saveAt=0,syncAt=0,botWorker=null,botJob=null,botCounter=0;
+let peer=null,connection=null,role=null,room=null,networkPaused=false,verdict=null,shownEnd=false,reviewMove=null,reviewSnapshot=null,resigning=null,toastTimer,audio,saveAt=0,syncAt=0,botWorker=null,botJob=null,botCounter=0;
 try{
  for(const slot of [key]){
   try{
@@ -20,7 +22,8 @@ try{
  }
  muted=localStorage.getItem('primeria.muted')==='true';
 }catch{}
-function viewer(){return role??(botConfig(state)?0:state.turn);}
+function viewState(){return reviewSnapshot??state;}
+function viewer(){return role??(botConfig(state)?0:viewState().turn);}
 function boardSize(){return state.boardSize;}
 
 function save(){if(role!==null)return;try{localStorage.setItem(key,JSON.stringify({version:9,state}));}catch{}}
@@ -35,7 +38,7 @@ function tile(n){return `<span class="tile" style="--tile-color:${colors[n]}" ar
 function columnLabel(x){return String.fromCharCode(65+x);}
 function coords(index){return `${columnLabel(index%boardSize())}${Math.floor(index/boardSize())+1}`;}
 function allowed(){return !state.startCountdown&&!isBotTurn(state)&&resigning===null&&!state.ended&&!state.paused&&state.started&&(role===null||(connection?.open&&state.turn===role));}
-function resetDraft(){cancelBot();resigning=null;pending=[];ends=[];lineChoices=[];factor='';clearChallengeHover();if(state.challengeAttempt){action='challenge';ends=[state.challengeAttempt.a,state.challengeAttempt.b];}}
+function resetDraft(){cancelBot();resigning=null;pending=[];ends=[];lineChoices=[];factor='';clearChallengeHover();if(state.challengeAttempt&&!state.ended){action='challenge';ends=[state.challengeAttempt.a,state.challengeAttempt.b];}}
 function boardIndex(row,col){let x=col,y=row;for(let i=0;i<rotation;i++)[x,y]=[y,boardSize()-1-x];return y*boardSize()+x;}
 function screenPosition(index){let x=index%boardSize(),y=Math.floor(index/boardSize());for(let i=0;i<rotation;i++)[x,y]=[boardSize()-1-y,x];return [x,y];}
 function lineLabel(line){
@@ -66,49 +69,50 @@ function chooseChallenge(line,choices){
 function renderBoard(){
  $('#board').style.setProperty('--board-size',boardSize());
  $('#board').setAttribute('aria-label',`Primeria board, columns A through ${columnLabel(boardSize()-1)}, rows 1 through ${boardSize()}`);
- const preview=state.board.slice();pending.forEach(m=>preview[m.index]=m.digit);let selection=[];
+ const display=viewState(),preview=display.board.slice();pending.forEach(m=>preview[m.index]=m.digit);let selection=[];
  if(ends.length===2)try{selection=segment(state.board,...ends);}catch{}else selection=ends;
  let html='';
  for(let row=-1;row<=boardSize();row++)for(let col=-1;col<=boardSize();col++){
   if(row<0||row>=boardSize()||col<0||col>=boardSize()){let label='';if((row<0||row>=boardSize())&&(col<0||col>=boardSize()))label='✦';else if(row<0||row>=boardSize()){const i=boardIndex(row<0?0:boardSize()-1,col);label=rotation%2?Math.floor(i/boardSize())+1:columnLabel(i%boardSize());}else {const i=boardIndex(row,col<0?0:boardSize()-1);label=rotation%2?columnLabel(i%boardSize()):Math.floor(i/boardSize())+1;}
    html+=`<span class="axis ${label==='✦'?'corner':''}" aria-hidden="true">${label}</span>`;continue;
   }
-  const index=boardIndex(row,col),n=preview[index],draft=pending.some(m=>m.index===index),selected=selection.includes(index),last=state.lastCells.includes(index);
+  const index=boardIndex(row,col),n=preview[index],draft=pending.some(m=>m.index===index),selected=selection.includes(index),last=display.lastCells.includes(index);
   let legal=false;if(allowed()&&action!=='challenge'&&n===null&&pending.length<(action==='double'?2:1))try{placement(state,action,[...pending,{index,digit}],true);legal=true;}catch{}
   html+=`<button class="cell ${n===null?'empty':'occupied'} ${(row+col)%2?'alt':''} ${draft?'pending':''} ${selected?'challenge-selected':''} ${last?'last':''} ${legal?'legal':''}" data-index="${index}" aria-label="${coords(index)}, ${n===null?'empty':`digit ${n}`}${draft?', pending placement':''}${selected?', selected for challenge':''}" ${state.ended?'disabled':''}>${n===null?'':tile(n)}</button>`;
  }
- $('#board').innerHTML=html;$('.board-surround').classList.toggle('finished',!!state.ended);
+ $('#board').innerHTML=html;$('.board-surround').classList.toggle('finished',!!state.ended&&reviewMove===null);
 }
 function formatTime(t){if(t===null)return '∞';const s=Math.ceil(t);return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;}
-function renderClocks(){for(let i=0;i<2;i++){const clock=$(`#clock-${i}`);if(clock){clock.textContent=formatTime(state.clocks[i]);clock.classList.toggle('low',state.clocks[i]!==null&&state.clocks[i]<60);}}}
+function renderClocks(){for(let i=0;i<2;i++){const clock=$(`#clock-${i}`),clocks=viewState().clocks;if(clock){clock.textContent=clocks?formatTime(clocks[i]):'—';clock.classList.toggle('low',!!clocks&&clocks[i]!==null&&clocks[i]<60);}}}
 function renderPlayers(){
- $('#player-cards').innerHTML=state.names.map((name,i)=>`<div class="player-card ${state.turn===i&&!state.ended?'active':''} ${expanded===i?'expanded':''}" role="button" tabindex="0" data-player="${i}" aria-expanded="${expanded===i}" aria-label="${escape(name)}, ${total(state.piles[i])} tiles. Show tile counts"><span class="player-avatar">${i===0?'✳':'✧'}</span><div class="player-info"><div class="player-name">${escape(name)}${(role===i||(botConfig(state)&&i===0))&&name.toLowerCase()!=='you'?' · you':''}</div><div class="player-desc">${state.turn===i&&!state.ended?'<i class="turn-dot"></i>':''}${total(state.piles[i])} tiles ${state.turn===i&&!state.ended?'· '+(state.paused?'paused':state.started?'to play':'first move'):''}</div><div class="pile-peek">${state.piles[i].map((n,d)=>`<span style="--tile-color:${colors[d]}">${d} × ${n}</span>`).join('')}</div></div><span id="clock-${i}" class="player-time"></span></div>`).join('');renderClocks();
+ const display=viewState();
+ $('#player-cards').innerHTML=state.names.map((name,i)=>`<div class="player-card ${state.turn===i&&!state.ended?'active':''} ${expanded===i?'expanded':''}" role="button" tabindex="0" data-player="${i}" aria-expanded="${expanded===i}" aria-label="${escape(name)}, ${total(display.piles[i])} tiles. Show tile counts"><span class="player-avatar">${i===0?'✳':'✧'}</span><div class="player-info"><div class="player-name">${escape(name)}${(role===i||(botConfig(state)&&i===0))&&name.toLowerCase()!=='you'?' · you':''}</div><div class="player-desc">${state.turn===i&&!state.ended?'<i class="turn-dot"></i>':''}${total(display.piles[i])} tiles ${state.turn===i&&!state.ended?'· '+(state.paused?'paused':state.started?'to play':'first move'):''}</div><div class="pile-peek">${display.piles[i].map((n,d)=>`<span style="--tile-color:${colors[d]}">${d} × ${n}</span>`).join('')}</div></div><span id="clock-${i}" class="player-time"></span></div>`).join('');renderClocks();
  if(role===null)$('#connection-status').innerHTML=`<i></i> ${botConfig(state)?'VS BOT · '+BOT_LEVELS[state.bot.strength].label.toUpperCase():'LOCAL GAME'}`;
  const mode=MODES[state.mode];$('#mode-label').textContent=`${modeName(state.mode).toUpperCase()} · ${mode[0]===null?'∞':`${mode[0]/60} + ${mode[1]}`}`;
  $('#move-owner').textContent=state.names[state.turn].toUpperCase();
  const opponent=1-viewer();$('#opponent-name').textContent=`${state.names[opponent].toUpperCase()}’S PILE`;
- $('#opponent-rack').innerHTML=state.piles[opponent].map((n,d)=>`<span class="supply-chip" style="--tile-color:${colors[d]}" aria-label="${escape(state.names[opponent])}: digit ${d}, ${n} remaining"><b>${d}</b><small>×${n}</small></span>`).join('');
+ $('#opponent-rack').innerHTML=display.piles[opponent].map((n,d)=>`<span class="supply-chip" style="--tile-color:${colors[d]}" aria-label="${escape(state.names[opponent])}: digit ${d}, ${n} remaining"><b>${d}</b><small>×${n}</small></span>`).join('');
 }
 function renderStartCountdown(){
  const countdown=state.startCountdown,visible=!!countdown&&!state.started&&!state.ended&&!networkPaused;
- $('#start-countdown').hidden=!visible;$('#board').inert=visible;
+ $('#start-countdown').hidden=!visible;$('#board').inert=visible||(!!state.ended&&reviewMove===null);
  if(visible){
   const seconds=challengeReviewSeconds(countdown),message=`Game Starts in ${seconds} ${seconds===1?'Second':'Seconds'}`;
   if($('#start-countdown-text').textContent!==message)$('#start-countdown-text').textContent=message;
  }
 }
 function renderControls(){
- renderStartCountdown();
+ renderStartCountdown();renderGameEnd();
  const paused=state.started&&state.paused&&!state.ended&&!verdict;
  if(paused)resigning=null;
  const thinking=isBotTurn(state)&&state.started&&!state.paused&&!state.ended&&!verdict&&resigning===null;
  $('#bot-thinking').hidden=!thinking;
  if(botConfig(state))$('#bot-thinking-level').textContent=BOT_LEVELS[state.bot.strength].label;
- $('#pause-panel').hidden=!paused;$('.move-panel > .section-heading').hidden=paused||thinking;
+ $('#pause-panel').hidden=!paused;$('.move-panel > .section-heading').hidden=paused||thinking||!!state.ended;
  if(resigning!==null&&(!state.started||state.ended||(role!==null&&!connection?.open)||(role===null&&!botConfig(state)&&state.turn!==resigning)))resigning=null;
  $('#resign-confirmation').hidden=resigning===null;
  if(resigning!==null)$('#resign-detail').textContent=`${state.names[1-resigning]} will win the game.`;
- $('#move-options').hidden=paused||thinking||!!verdict||resigning!==null;renderVerdict();
+ $('#move-options').hidden=paused||thinking||!!verdict||resigning!==null||!!state.ended;renderVerdict();
  const pile=state.piles[viewer()].slice();pending.forEach(m=>pile[m.digit]--);
  $('.move-panel > .section-heading h2').textContent=state.turn!==viewer()?'Their move':'Your move';
  $('#rack').innerHTML=pile.map((n,d)=>`<button class="rack-button ${digit===d?'selected':''}" data-digit="${d}" aria-label="Digit ${d}, ${n} remaining" aria-pressed="${digit===d}" ${n===0?'disabled':''}>${tile(d)}<span class="tile-count">${n}</span></button>`).join('');
@@ -141,15 +145,41 @@ function renderControls(){
  $('#pause-resume').disabled=$('#start-button').disabled;
  $('#resign-button').disabled=!state.started||!!state.ended||(role!==null&&!connection?.open);
  $('#new-button').disabled=false;
- $('#board-note').textContent=state.ended?`${state.names[state.ended.winner]} wins.`:state.started?`${state.names[state.turn]==='You'?'Your turn':state.names[state.turn]+' to play'}${state.paused?' · paused':''}${state.timeOutRule&&state.elapsed>=state.timeOutSeconds?` · Time Out streak: ${state.streak}/${state.timeOutMoves}`:''}.`:networkPaused?'Connection lost.':state.startCountdown?'Starting game…':role!==null?'Waiting for your opponent.':'Create a new game to begin.';
- $('#turn-count').textContent=`TURN ${String(state.history.length+1).padStart(2,'0')}`;
+ $('#board-note').textContent=reviewMove!==null?`Review · ${reviewMove===0?'Starting position':`After move ${reviewMove}`} of ${state.history.length}`:state.ended?gameResult(state):state.started?`${state.names[state.turn]==='You'?'Your turn':state.names[state.turn]+' to play'}${state.paused?' · paused':''}${state.timeOutRule&&state.elapsed>=state.timeOutSeconds?` · Time Out streak: ${state.streak}/${state.timeOutMoves}`:''}.`:networkPaused?'Connection lost.':state.startCountdown?'Starting game…':role!==null?'Waiting for your opponent.':'Create a new game to begin.';
+ $('#turn-count').textContent=reviewMove!==null?`MOVE ${String(reviewMove).padStart(2,'0')}`:`TURN ${String(state.history.length+1).padStart(2,'0')}`;
 }
 function renderHistory(){
  $('#history-count').textContent=`${state.history.length} ${state.history.length===1?'MOVE':'MOVES'}`;
- $('#history').innerHTML=state.history.length?state.history.slice().reverse().slice(0,80).map((e,i)=>`<li class="history-entry"><span class="history-index">${String(state.history.length-i).padStart(2,'0')}</span><div class="history-text"><b>${escape(state.names[e.player])}</b> ${e.action==='challenge'?`challenged ${e.digits}`:e.action==='double'?'doubled down':'dropped a tile'}<small>${e.action==='challenge'?`${e.digits} ÷ ${e.factor} · ${e.quit?'quit':e.success?(e.taxedDigit===undefined?'tiles transferred':`${e.transferredCount} transferred · ${e.taxedDigit} taxed`):'not a factor'}${e.cleanup?.length?' · '+e.cleanup.length+' additional '+(e.cleanup.length===1?'tile':'tiles')+' removed':''}${e.attempts?.length>1?' · '+e.attempts.length+' attempts':''}`:e.moves.map(m=>`${m.digit} at ${coords(m.index)}`).join(' · ')}</small></div><span class="history-badge">${e.action==='challenge'?(e.success?'✓':'×'):e.action==='double'?'+2':'+1'}</span></li>`).join(''):'<li class="history-empty">No moves yet.</li>';
+ const entries=state.history.map((entry,index)=>({entry,move:index+1})).reverse();
+ $('#history').innerHTML=(state.ended?entries:entries.slice(0,80)).map(({entry:e,move})=>{
+  const content=`<span class="history-index">${String(move).padStart(2,'0')}</span><span class="history-text"><b>${escape(state.names[e.player])}</b> ${e.action==='challenge'?`challenged ${e.digits}`:e.action==='double'?'doubled down':'dropped a tile'}<small>${e.action==='challenge'?`${e.digits} ÷ ${e.factor} · ${e.quit?'quit':e.success?(e.taxedDigit===undefined?'tiles transferred':`${e.transferredCount} transferred · ${e.taxedDigit} taxed`):'not a factor'}${e.cleanup?.length?' · '+e.cleanup.length+' additional '+(e.cleanup.length===1?'tile':'tiles')+' removed':''}${e.attempts?.length>1?' · '+e.attempts.length+' attempts':''}`:e.moves.map(m=>`${m.digit} at ${coords(m.index)}`).join(' · ')}</small></span><span class="history-badge">${e.action==='challenge'?(e.success?'✓':'×'):e.action==='double'?'+2':'+1'}</span>`;
+  return state.ended?`<li><button class="history-entry history-move" data-review-move="${move}" aria-label="Review move ${move}: ${escape(state.names[e.player])}, ${e.action==='challenge'?'challenge':e.action==='double'?'Double Down':'Single Drop'}" ${reviewMove===move?'aria-current="step"':''}>${content}</button></li>`:`<li class="history-entry">${content}</li>`;
+ }).join('')+(state.ended?`<li><button class="history-entry history-move" data-review-move="0" ${reviewMove===0?'aria-current="step"':''}><span class="history-index">00</span><span class="history-text">Starting position</span></button></li>`:state.history.length?'':'<li class="history-empty">No moves yet.</li>');
+ $('.history-panel').classList.toggle('reviewing',!!state.ended);
 }
-function render(){const taxed=total(state.taxed);$('#taxed-count').textContent=`${taxed} ${taxed===1?'tile':'tiles'} out of play`;$('#taxed-count').title=state.taxed.map((n,d)=>`${d}: ${n}`).join(' · ');$('#taxed-count').hidden=taxed===0;$('#time-out-summary').textContent=state.timeOutRule?`This game: Time Out Rule begins after ${state.timeOutSeconds/60} minutes and requires ${state.timeOutMoves} consecutive moves.`:'Time Out Rule is off for this game.';renderBoard();renderPlayers();renderControls();renderHistory();$('#sound-button .sound-label').textContent=muted?'Unmute':'Mute';$('#sound-icon-detail').innerHTML=muted?'<path d="m16 9 6 6m0-6-6 6"/>':'<path d="M15 8a6 6 0 0 1 0 8M18 5a10 10 0 0 1 0 14"/>';$('#sound-button').setAttribute('aria-label',muted?'Unmute':'Mute');$('#sound-button').setAttribute('title',muted?'Unmute sound':'Mute sound');$('#sound-button').setAttribute('aria-pressed',String(muted));if(state.ended&&!shownEnd)showEnd();}
-function showEnd(){shownEnd=true;sound('win');$('#result-eyebrow').textContent='GAME OVER';$('#result-symbol').textContent='✳';$('#result-title').textContent=`${state.names[state.ended.winner]} wins.`;$('#result-detail').textContent=`Won ${state.ended.reason}. ${state.history.length} moves.`;$('#result-continue').textContent='Back to the board';if(!$('#result-dialog').open)$('#result-dialog').showModal();}
+function renderGameEnd(){
+ const ended=!!state.ended,reviewing=reviewMove!==null;
+ $('#game-end').hidden=!ended||reviewing;
+ $('#game-end-title').textContent=gameResult(state);
+ $('.move-panel').hidden=ended&&!reviewing;
+ $('#game-review-panel').hidden=!ended||!reviewing;
+ $('#game-review-title').textContent='Review Game';
+ $('#game-review-detail').textContent=reviewing?`${reviewMove===0?'Starting position':'After move '+reviewMove} · ${state.history.length} ${state.history.length===1?'move':'moves'}`:gameResult(state);
+ $('#review-navigation').hidden=!reviewing;
+ $('#review-result').hidden=!reviewing;
+ $('#review-first').disabled=$('#review-previous').disabled=reviewMove===0;
+ $('#review-next').disabled=$('#review-last').disabled=reviewMove===state.history.length;
+}
+function selectReview(move,focusHistory=false){
+ if(!state.ended)return;
+ try{reviewSnapshot=reviewPosition(state,move);reviewMove=move;resetDraft();sound('select');render();
+  const selected=$(`#history [data-review-move="${move}"]`),list=$('#history');
+  if(selected){const item=selected.getBoundingClientRect(),bounds=list.getBoundingClientRect();if(item.top<bounds.top)list.scrollTop+=item.top-bounds.top;else if(item.bottom>bounds.bottom)list.scrollTop+=item.bottom-bounds.bottom;if(focusHistory)selected.focus({preventScroll:true});}
+ }catch(err){toast(err.message);}
+}
+function closeReview(){reviewMove=null;reviewSnapshot=null;render();$('#end-review').focus();}
+function render(){const display=viewState(),taxed=total(display.taxed);$('#taxed-count').textContent=`${taxed} ${taxed===1?'tile':'tiles'} out of play`;$('#taxed-count').title=display.taxed.map((n,d)=>`${d}: ${n}`).join(' · ');$('#taxed-count').hidden=taxed===0;$('#time-out-summary').textContent=state.timeOutRule?`This game: Time Out Rule begins after ${state.timeOutSeconds/60} minutes and requires ${state.timeOutMoves} consecutive moves.`:'Time Out Rule is off for this game.';renderBoard();renderPlayers();renderControls();renderHistory();$('#sound-button .sound-label').textContent=muted?'Unmute':'Mute';$('#sound-icon-detail').innerHTML=muted?'<path d="m16 9 6 6m0-6-6 6"/>':'<path d="M15 8a6 6 0 0 1 0 8M18 5a10 10 0 0 1 0 14"/>';$('#sound-button').setAttribute('aria-label',muted?'Unmute':'Mute');$('#sound-button').setAttribute('title',muted?'Unmute sound':'Mute sound');$('#sound-button').setAttribute('aria-pressed',String(muted));if(state.ended&&!shownEnd)showEnd();}
+function showEnd(){shownEnd=true;sound('win');$('#end-review').focus({preventScroll:true});}
 function renderVerdict(){
  const panel=$('#challenge-review');panel.hidden=!verdict;
  if(!verdict)return;
@@ -226,7 +256,11 @@ $('#pause-resume').addEventListener('click',()=>{if(state.started&&state.paused&
 $('#pause-new-game').addEventListener('click',openSetup);
 $('#bot-pause').addEventListener('click',()=>{if(isBotTurn(state)&&state.started&&!state.paused&&!verdict)dispatch({type:'start'});});
 $('#bot-resign').addEventListener('click',()=>$('#resign-button').click());
-$('#result-continue').addEventListener('click',()=>$('#result-dialog').close());
+for(const id of ['end-new-game','review-new-game'])$('#'+id).addEventListener('click',openSetup);
+for(const id of ['end-review'])$('#'+id).addEventListener('click',()=>{selectReview(state.history.length);$('#review-result').focus({preventScroll:true});});
+$('#review-result').addEventListener('click',closeReview);
+$('#history').addEventListener('click',e=>{const button=e.target.closest('[data-review-move]');if(button)selectReview(Number(button.dataset.reviewMove),true);});
+for(const [id,move] of [['review-first',()=>0],['review-previous',()=>Math.max(0,reviewMove-1)],['review-next',()=>Math.min(state.history.length,reviewMove+1)],['review-last',()=>state.history.length]])$('#'+id).addEventListener('click',()=>selectReview(move()));
 function cancelResignation(){resigning=null;sound();renderControls();$(isBotTurn(state)?'#bot-resign':'#resign-button').focus();}
 $('#resign-button').addEventListener('click',()=>{
  if($('#resign-button').disabled)return;
@@ -288,18 +322,18 @@ $('#setup-form').addEventListener('submit',async e=>{
  }
  if(!online&&role!==null)leaveRoom();
  if(online&&role===null){connectRoom(code,next);return;}
- state=next;if(role===null||connection?.open)beginGameCountdown(state);rotation=0;shownEnd=false;verdict=null;action='single';resetDraft();$('#result-dialog').close();$('#setup-dialog').close();save();sendState({fresh:true});render();sound('turn');
+ state=next;if(role===null||connection?.open)beginGameCountdown(state);rotation=0;shownEnd=false;reviewMove=null;reviewSnapshot=null;verdict=null;action='single';resetDraft();$('#setup-dialog').close();save();sendState({fresh:true});render();sound('turn');
 });
 $$('[data-close]').forEach(b=>b.addEventListener('click',()=>b.closest('dialog').close()));
 $('#player-cards').addEventListener('click',e=>{const card=e.target.closest('[data-player]');if(!card)return;expanded=expanded===Number(card.dataset.player)?null:Number(card.dataset.player);renderPlayers();});
 $('#player-cards').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.target.closest('[data-player]')?.click();}});
-document.addEventListener('keydown',e=>{if(e.target.matches('input,select')||$('dialog[open]')||state.startCountdown||(state.started&&state.paused&&!verdict))return;if(resigning!==null){if(e.key==='Escape'){e.preventDefault();cancelResignation();}return;}if(isBotTurn(state))return;if(/^\d$/.test(e.key)){e.preventDefault();if(action==='challenge')appendFactor(e.key);else{digit=Number(e.key);renderControls();sound('select');}}if(action==='challenge'&&e.key==='Backspace'){e.preventDefault();deleteFactorDigit();}if(e.key==='Escape'){resetDraft();render();}});
+document.addEventListener('keydown',e=>{if(reviewMove!==null&&!$('dialog[open]')&&!e.target.matches('input,select')){const moves={ArrowLeft:Math.max(0,reviewMove-1),ArrowRight:Math.min(state.history.length,reviewMove+1),Home:0,End:state.history.length};if(Object.hasOwn(moves,e.key)){e.preventDefault();selectReview(moves[e.key]);}return;}if(state.ended)return;if(e.target.matches('input,select')||$('dialog[open]')||state.startCountdown||(state.started&&state.paused&&!verdict))return;if(resigning!==null){if(e.key==='Escape'){e.preventDefault();cancelResignation();}return;}if(isBotTurn(state))return;if(/^\d$/.test(e.key)){e.preventDefault();if(action==='challenge')appendFactor(e.key);else{digit=Number(e.key);renderControls();sound('select');}}if(action==='challenge'&&e.key==='Backspace'){e.preventDefault();deleteFactorDigit();}if(e.key==='Escape'){resetDraft();render();}});
 
 function roomStatus(message){$('#room-info').textContent=message;}
 function leaveRoom(){
  const oldConnection=connection,oldPeer=peer;
  connection=null;peer=null;role=null;room=null;networkPaused=false;verdict=null;
- oldConnection?.close();oldPeer?.destroy();$('#result-dialog').close();
+ oldConnection?.close();oldPeer?.destroy();
  if(state.startCountdown&&!state.started&&!state.ended)beginGameCountdown(state);
  state.paused=state.started&&!state.ended;state.lastTick=Date.now();$('#connection-status').innerHTML='<i></i> LOCAL GAME';
  $('#room-info').textContent='';const url=new URL(location.href);url.searchParams.delete('room');history.replaceState(null,'',url);
@@ -330,7 +364,7 @@ function bindConnection(conn){
    Object.assign(data.state,timeOutSettings(data.state));
    if(data.state.startCountdown){const countdown=data.state.startCountdown;countdown.resumeAt=Date.now()+Math.max(0,data.startMs);if(state.startCountdown?.revision===countdown.revision&&!data.fresh)countdown.resumeAt=Math.min(state.startCountdown.resumeAt,countdown.resumeAt);}
    state=data.state;state.lastTick=Date.now();
-   if(data.fresh){rotation=0;shownEnd=false;verdict=null;$('#result-dialog').close();}
+   if(data.fresh){rotation=0;shownEnd=false;reviewMove=null;reviewSnapshot=null;verdict=null;}
    if(data.verdict){
     const review={...data.verdict,resumeAt:Date.now()+Math.max(0,data.verdictMs)};
     if(verdict?.revision!==review.revision)showVerdict(review);
@@ -344,7 +378,7 @@ function bindConnection(conn){
 function connectRoom(code=null,next=null){
  if(peer)return;
  role=code?1:0;room=code||`primeria-${crypto.randomUUID().replaceAll('-','').slice(0,14)}`;
- state=next||newGame({boardSize:boardSize(),mode:state.mode,names:state.names,...timeOutSettings(state)});rotation=0;shownEnd=false;verdict=null;action='single';$('#result-dialog').close();resetDraft();render();roomStatus('Connecting…');updateSetupOptions();$('#setup-dialog').scrollTop=0;
+ state=next||newGame({boardSize:boardSize(),mode:state.mode,names:state.names,...timeOutSettings(state)});rotation=0;shownEnd=false;reviewMove=null;reviewSnapshot=null;verdict=null;action='single';resetDraft();render();roomStatus('Connecting…');updateSetupOptions();$('#setup-dialog').scrollTop=0;
  const activePeer=peer=code?new Peer():new Peer(room);
  const timeout=setTimeout(()=>{if(peer===activePeer&&!connection?.open)roomStatus('Still waiting. Ask your friend to join using the invitation link. If connecting fails, try another network or play on one device.');},15000);
  activePeer.on('open',()=>{
@@ -394,7 +428,7 @@ function updateBot(now){
   try{receive(createBot({size:state.boardSize,seed:state.bot.seed^state.revision,strength:state.bot.strength}).choose(state));}catch{botFailed(job);}
  };
  try{
-  botWorker=new Worker(new URL('./bot-worker.js?v=60ef0f581c',import.meta.url),{type:'module'});
+  botWorker=new Worker(new URL('./bot-worker.js?v=5fe03b20eb',import.meta.url),{type:'module'});
   botWorker.onmessage=event=>{if(botJob!==job||event.data.id!==job.id)return;if(event.data.error)fallback();else receive(event.data.result);};
   botWorker.onerror=event=>{event.preventDefault();fallback();};
   botWorker.postMessage({id:job.id,state,key:job.game,seed:state.bot.seed^state.revision});
