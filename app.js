@@ -146,7 +146,7 @@ $('#setup-form').addEventListener('submit',async e=>{e.preventDefault();const da
  if(state.started&&!state.ended&&!await ask('A fresh start?','Replace this game with a fresh board? Your current game will be replaced.'))return;
  state=next;shownEnd=false;verdict=null;action='single';resetDraft();$('#setup-dialog').close();save();sendState({fresh:true});render();sound('turn');toast(`${state.names[state.turn]} has the first move. Press Start game when ready.`);
 });
-for(const id of ['#rules-button','#rules-footer'])$(id).addEventListener('click',()=>{sound();$('#rules-dialog').showModal();});
+$('#rules-button').addEventListener('click',()=>{sound();$('#rules-dialog').showModal();});
 $$('[data-close]').forEach(b=>b.addEventListener('click',()=>b.closest('dialog').close()));
 $('#player-cards').addEventListener('click',e=>{const card=e.target.closest('[data-player]');if(!card)return;expanded=expanded===Number(card.dataset.player)?null:Number(card.dataset.player);renderPlayers();});
 $('#player-cards').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.target.closest('[data-player]')?.click();}});
