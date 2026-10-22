@@ -46,7 +46,7 @@ test('the client cannot override the opponent reading with reverse or rotation f
  const s=target('41');const result=complete(s,{action:'challenge',a:0,b:1,factor:'2',reverse:false,rotation:2},0);
  assert.equal(result.digits,'14');assert.equal(result.taxedDigit,4);
 });
-test('a failed first try locks the number, spends no increment, and resumes the same player after review',()=>{
+test('a failed first attempt locks the number, spends no increment, and resumes the same player after review',()=>{
  const s=target(),entry=complete(s,move('2'),1000);
  assert.equal(entry.retry,true);assert.equal(entry.attemptLimit,2);assert.equal(s.turn,0);assert.equal(s.history.length,0);assert.equal(s.clocks[0],1199);assert.equal(s.challengeAttempt.attempts.length,1);
  const review=beginChallengeReview(s,entry,1000);tick(s,3999);assert.equal(s.clocks[0],1199);
@@ -54,11 +54,11 @@ test('a failed first try locks the number, spends no increment, and resumes the 
  const success=complete(s,move('3'),5000);
  assert.equal(success.success,true);assert.equal(success.attemptNumber,2);assert.equal(success.taxedDigit,1);assert.equal(s.clocks[0],1218);assert.equal(s.turn,1);assert.equal(s.history.length,1);assert.equal(s.history[0].attempts.length,2);assert.equal(s.challengeAttempt,null);
 });
-test('exhausting all tries fails once, with a single increment and history entry',()=>{
+test('exhausting all attempts fails once, with a single increment and history entry',()=>{
  const s=target();complete(s,move('2'),1000);const result=complete(s,move('5'),2000);
  assert.equal(result.success,false);assert.equal(result.retry,undefined);assert.equal(result.retriesRemaining,0);assert.equal(s.turn,1);assert.equal(s.clocks[0],1218);assert.equal(s.history.length,1);assert.equal(s.challengeAttempt,null);assert.equal(total(s.taxed),0);
 });
-test('quitting during Try Failed pauses ends the challenge without charging the paused time',()=>{
+test('quitting during Attempt Fails pauses ends the challenge without charging the paused time',()=>{
  const s=target(),first=complete(s,move('2'),1000);beginChallengeReview(s,first,1000);
  const result=complete(s,{action:'quitChallenge'},2000);
  assert.equal(result.quit,true);assert.equal(result.success,false);assert.equal(s.turn,1);assert.equal(s.clocks[0],1219);assert.equal(s.elapsed,1);assert.equal(s.history.length,1);assert.equal(s.challengeAttempt,null);
@@ -73,7 +73,7 @@ test('a pending challenge forbids placements or a different target',()=>{
  assert.throws(()=>complete(s,{action:'challenge',a:30,b:30,factor:'2'},0),/Finish or quit/);
  assert.equal(s.challengeAttempt.attempts.length,1);
 });
-test('invalid factors do not spend a try',()=>{
+test('invalid factors do not spend a attempt',()=>{
  const s=target();complete(s,move('2'),0);
  for(const factor of ['0','1','7341','x','2.5'])assert.throws(()=>complete(s,move(factor),0));
  assert.equal(s.challengeAttempt.attempts.length,1);assert.equal(s.history.length,0);
@@ -91,7 +91,7 @@ test('retry attempts do not count as extra Time Out Rule moves',()=>{
  const s=target();Object.assign(s,{timeOutRule:true,timeOutSeconds:1,timeOutMoves:3,elapsed:5,leader:0,streak:1});s.piles[1][1]+=10;
  complete(s,move('2'),0);assert.equal(s.streak,1);complete(s,move('3'),0);assert.equal(s.streak,2);
 });
-test('per-digit supply is conserved after legal placements and a successful second try',()=>{
+test('per-digit supply is conserved after legal placements and a successful second attempt',()=>{
  const s=active();complete(s,{action:'single',moves:[{index:0,digit:1}]},0);complete(s,{action:'double',moves:[{index:1,digit:4},{index:2,digit:3}]},0);complete(s,{action:'single',moves:[{index:3,digit:7}]},0);
  complete(s,move('2'),0);complete(s,move('3'),0);
  for(let d=0;d<10;d++)assert.equal(s.piles[0][d]+s.piles[1][d]+s.taxed[d]+s.board.filter(n=>n===d).length,2*PILE[d]);

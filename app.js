@@ -105,13 +105,13 @@ function renderControls(){
    const taxedDigit=state.board[cells.at(-1)];$('#tax-preview').textContent=`If successful: ${cells.length-1} ${cells.length===2?'tile goes':'tiles go'} to your opponent; the final ${taxedDigit} is removed from play.`;$('#tax-preview').hidden=false;
    html=`<div class="reading-fixed"><strong>${reading.digits}</strong><small>${escape(state.names[reading.perspective])}’s reading · ${direction}</small></div>`;
    const used=state.challengeAttempt?.attempts.length||0;
-   $('#attempt-status').textContent=`Try ${used+1} of ${reading.attemptLimit}${used?' · failed: '+state.challengeAttempt.attempts.map(a=>a.factor).join(', '):''}`;
+   $('#attempt-status').textContent=`Attempt ${used+1} of ${reading.attemptLimit}${used?' · failed: '+state.challengeAttempt.attempts.map(a=>a.factor).join(', '):''}`;
   }catch{}
   $('#reading-options').innerHTML=html;
  }
  $('#challenge-quit').hidden=!state.challengeAttempt;$('#challenge-quit').disabled=!!state.ended||(role!==null&&state.turn!==role);
  const ready=action==='challenge'?ends.length===2&&factor.length>0:pending.length===(action==='double'?2:1);
- const button=$('#commit-button');button.innerHTML=`${action==='challenge'?(state.challengeAttempt?'Try factor':'Submit challenge'):action==='double'?'Place two tiles':'Place tile'} <span>↗</span>`;
+ const button=$('#commit-button');button.innerHTML=`${action==='challenge'?(state.challengeAttempt?'Submit attempt':'Submit challenge'):action==='double'?'Place two tiles':'Place tile'} <span>↗</span>`;
  button.disabled=!allowed()||!ready;
  $('#start-button .start-label').textContent=state.ended?'Game Over':!state.started?'Start':state.paused?'Resume':'Pause';$('#start-icon').innerHTML=state.ended?'<rect x="5" y="5" width="14" height="14" rx="1"/>':state.started&&!state.paused?'<path d="M8 4v16M16 4v16"/>':'<path d="m8 4 12 8-12 8Z"/>';$('#start-button').classList.toggle('paused',state.paused);
  $('#start-button').disabled=!!state.ended||!!verdict||(role!==null&&(!connection?.open||(!state.started&&role!==0)));
@@ -122,7 +122,7 @@ function renderControls(){
 }
 function renderHistory(){
  $('#history-count').textContent=`${state.history.length} MOVES`;
- $('#history').innerHTML=state.history.length?state.history.slice().reverse().slice(0,80).map((e,i)=>`<li class="history-entry"><span class="history-index">${String(state.history.length-i).padStart(2,'0')}</span><div class="history-text"><b>${escape(state.names[e.player])}</b> ${e.action==='challenge'?`challenged ${e.digits}`:e.action==='double'?'doubled down':'dropped a tile'}<small>${e.action==='challenge'?`${e.digits} ÷ ${e.factor} · ${e.quit?'quit':e.success?(e.taxedDigit===undefined?'tiles transferred':`${e.transferredCount} transferred · ${e.taxedDigit} taxed`):'not a factor'}${e.attempts?.length>1?' · '+e.attempts.length+' tries':''}`:e.moves.map(m=>`${m.digit} at ${coords(m.index)}`).join(' · ')}</small></div><span class="history-badge">${e.action==='challenge'?(e.success?'✓':'×'):e.action==='double'?'+2':'+1'}</span></li>`).join(''):'<li class="history-empty">Every great game starts with a single tile.</li>';
+ $('#history').innerHTML=state.history.length?state.history.slice().reverse().slice(0,80).map((e,i)=>`<li class="history-entry"><span class="history-index">${String(state.history.length-i).padStart(2,'0')}</span><div class="history-text"><b>${escape(state.names[e.player])}</b> ${e.action==='challenge'?`challenged ${e.digits}`:e.action==='double'?'doubled down':'dropped a tile'}<small>${e.action==='challenge'?`${e.digits} ÷ ${e.factor} · ${e.quit?'quit':e.success?(e.taxedDigit===undefined?'tiles transferred':`${e.transferredCount} transferred · ${e.taxedDigit} taxed`):'not a factor'}${e.attempts?.length>1?' · '+e.attempts.length+' attempts':''}`:e.moves.map(m=>`${m.digit} at ${coords(m.index)}`).join(' · ')}</small></div><span class="history-badge">${e.action==='challenge'?(e.success?'✓':'×'):e.action==='double'?'+2':'+1'}</span></li>`).join(''):'<li class="history-empty">Every great game starts with a single tile.</li>';
 }
 function render(){const taxed=total(state.taxed);$('#taxed-count').textContent=`${taxed} ${taxed===1?'tile':'tiles'} taxed · out of play`;$('#taxed-count').title=state.taxed.map((n,d)=>`${d}: ${n}`).join(' · ');$('#taxed-count').hidden=taxed===0;$('#time-out-summary').textContent=state.timeOutRule?`This game: Time Out Rule begins after ${state.timeOutSeconds/60} minutes and requires ${state.timeOutMoves} consecutive moves.`:'Time Out Rule is off for this game.';renderBoard();renderPlayers();renderControls();renderHistory();$('#sound-button .sound-label').textContent=muted?'Unmute':'Mute';$('#sound-icon-detail').innerHTML=muted?'<path d="m16 9 6 6m0-6-6 6"/>':'<path d="M15 8a6 6 0 0 1 0 8M18 5a10 10 0 0 1 0 14"/>';$('#sound-button').setAttribute('aria-label',muted?'Unmute':'Mute');$('#sound-button').setAttribute('title',muted?'Unmute sound':'Mute sound');$('#sound-button').setAttribute('aria-pressed',String(muted));if(state.ended&&!shownEnd)showEnd();}
 function showEnd(){shownEnd=true;sound('win');$('#result-eyebrow').textContent='A GAME WELL PLAYED';$('#result-symbol').textContent='✳';$('#result-title').textContent=`${state.names[state.ended.winner]} wins.`;$('#result-detail').textContent=`Victory ${state.ended.reason}. ${state.history.length} moves, and a few new possibilities discovered.`;$('#result-continue').textContent='Back to the board';if(!$('#result-dialog').open)$('#result-dialog').showModal();}
@@ -130,10 +130,10 @@ function renderVerdict(){
  const panel=$('#challenge-review');panel.hidden=!verdict;
  if(!verdict)return;
  panel.classList.toggle('failed',!verdict.success);
- $('#challenge-review-title').textContent=verdict.retry?'Try Failed':verdict.success?'Challenge Success':'Challenge Failed';
+ $('#challenge-review-title').textContent=verdict.retry?'Attempt Fails':verdict.success?'Challenge Success':'Challenge Failed';
  $('#review-quit').hidden=!verdict.retry||(role!==null&&role!==state.turn);
  const seconds=challengeReviewSeconds(verdict);
- const message=`${verdict.retry?'Next try':'Moving to next turn'} in ${seconds} ${seconds===1?'second':'seconds'}`;
+ const message=`${verdict.retry?'Next attempt':'Moving to next turn'} in ${seconds} ${seconds===1?'second':'seconds'}`;
  if($('#challenge-countdown').textContent!==message)$('#challenge-countdown').textContent=message;
 }
 function showVerdict(review){verdict=review;sound(review.success?'challenge':'fail');}
