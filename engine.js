@@ -7,7 +7,7 @@ export function getBoardSize(board){
  return size;
 }
 export function isSupportedBoardState(state){return !!state&&BOARD_SIZES.includes(state.boardSize)&&Array.isArray(state.board)&&state.board.length===state.boardSize**2&&Array.isArray(state.taxed)&&state.taxed.length===10&&state.taxed.every(n=>Number.isSafeInteger(n)&&n>=0);}
-export const RULES_VERSION = 4;
+export const RULES_VERSION = 5;
 export const MODES = {blitz:[600,10],rapid:[1200,20],standard:[1800,30],classical:[2700,60],casual:[null,0]};
 export const PILE = [2,5,3,5,3,3,3,5,3,5];
 export const total = pile => pile.reduce((a,b)=>a+b,0);
@@ -107,4 +107,17 @@ export function upgradeGameBoard(state){
     ...entry,...(entry.moves?{moves:entry.moves.map(move=>({...move,index:remap(move.index)}))}:{}),
     ...(entry.cells?{cells:entry.cells.map(remap)}:{})
   }))};
+}
+
+// The host owns the review deadline. Catch up from that deadline if a timer runs late.
+export function beginChallengeReview(s,entry,now=Date.now()){
+  s.paused=true;s.lastTick=now;
+  return {...entry,revision:s.revision,resumeAt:now+3000};
+}
+export function finishChallengeReview(s,review,now=Date.now()){
+  if(!review||s.ended||!s.started||!s.paused||s.revision!==review.revision||now<review.resumeAt)return false;
+  s.paused=false;s.lastTick=review.resumeAt;s.revision++;tick(s,now);return true;
+}
+export function challengeReviewSeconds(review,now=Date.now()){
+  return Math.max(1,Math.ceil((review.resumeAt-now)/1000));
 }

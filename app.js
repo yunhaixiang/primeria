@@ -1,4 +1,4 @@
-import {BOARD_SIZES,isSupportedBoardState,RULES_VERSION,upgradeGameBoard,MODES,PILE,total,newGame,timeOutSettings,tick,placement,adjacent,segment,challenge,complete} from './engine.js?v=cac4d6dd1a';
+import {BOARD_SIZES,isSupportedBoardState,RULES_VERSION,upgradeGameBoard,MODES,PILE,total,newGame,timeOutSettings,tick,placement,adjacent,segment,challenge,complete,beginChallengeReview,finishChallengeReview,challengeReviewSeconds} from './engine.js?v=00ed05c127';
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -60,6 +60,7 @@ function renderPlayers(){
  $('#opponent-rack').innerHTML=state.piles[opponent].map((n,d)=>`<span class="supply-chip" style="--tile-color:${colors[d]}" aria-label="${escape(state.names[opponent])}: digit ${d}, ${n} remaining"><b>${d}</b><small>×${n}</small></span>`).join('');
 }
 function renderControls(){
+ $('#move-options').hidden=!!verdict;renderVerdict();
  const pile=state.piles[role??state.turn].slice();pending.forEach(m=>pile[m.digit]--);
  $('.move-panel h2').textContent=role!==null&&state.turn!==role?'Their move':'Your move';
  $('#rack').innerHTML=pile.map((n,d)=>`<button class="rack-button ${digit===d?'selected':''}" data-digit="${d}" aria-label="Digit ${d}, ${n} remaining" aria-pressed="${digit===d}" ${n===0?'disabled':''}>${tile(d)}<span class="tile-count">${n}</span></button>`).join('');
@@ -92,26 +93,29 @@ function renderHistory(){
 }
 function render(){const taxed=total(state.taxed);$('#taxed-count').textContent=`${taxed} ${taxed===1?'tile':'tiles'} taxed · out of play`;$('#taxed-count').title=state.taxed.map((n,d)=>`${d}: ${n}`).join(' · ');$('#taxed-count').hidden=taxed===0;$('#time-out-summary').textContent=state.timeOutRule?`This game: Time Out Rule begins after ${state.timeOutSeconds/60} minutes and requires ${state.timeOutMoves} consecutive moves.`:'Time Out Rule is off for this game.';renderBoard();renderPlayers();renderControls();renderHistory();$('#sound-button .sound-label').textContent=muted?'Unmute':'Mute';$('#sound-icon-detail').innerHTML=muted?'<path d="m16 9 6 6m0-6-6 6"/>':'<path d="M15 8a6 6 0 0 1 0 8M18 5a10 10 0 0 1 0 14"/>';$('#sound-button').setAttribute('aria-label',muted?'Unmute':'Mute');$('#sound-button').setAttribute('title',muted?'Unmute sound':'Mute sound');$('#sound-button').setAttribute('aria-pressed',String(muted));if(state.ended&&!shownEnd)showEnd();}
 function showEnd(){shownEnd=true;sound('win');$('#result-eyebrow').textContent='A GAME WELL PLAYED';$('#result-symbol').textContent='✳';$('#result-title').textContent=`${state.names[state.ended.winner]} wins.`;$('#result-detail').textContent=`Victory ${state.ended.reason}. ${state.history.length} moves, and a few new possibilities discovered.`;$('#result-continue').textContent='Back to the board';if(!$('#result-dialog').open)$('#result-dialog').showModal();}
-function showVerdict(entry){
- verdict=entry;$('#result-eyebrow').textContent='BOTH CLOCKS ARE PAUSED';$('#result-symbol').textContent=entry.success?'✓':'×';$('#result-title').textContent=entry.success?'Factor found.':'Not this time.';
- $('#result-detail').textContent=entry.success?`${entry.digits} ÷ ${entry.factor} = ${entry.quotient}. ${entry.transferredCount===0?'No tiles move':`${entry.transferredCount} ${entry.transferredCount===1?'tile moves':'tiles move'}`} to ${state.names[1-entry.player]}’s pile. The final digit, ${entry.taxedDigit}, is taxed and removed from play.`:`${entry.digits} ÷ ${entry.factor} leaves remainder ${entry.remainder}. No tiles move. The turn passes to ${state.names[state.turn]}.`;
- $('#result-continue').textContent='Continue to the next turn';if(!$('#result-dialog').open)$('#result-dialog').showModal();sound(entry.success?'challenge':'fail');
+function renderVerdict(){
+ const panel=$('#challenge-review');panel.hidden=!verdict;
+ if(!verdict)return;
+ panel.classList.toggle('failed',!verdict.success);
+ $('#challenge-review-title').textContent=verdict.success?'Challenge Success':'Challenge Failed';
+ const seconds=challengeReviewSeconds(verdict);
+ const message=`Moving to next turn in ${seconds} ${seconds===1?'second':'seconds'}`;
+ if($('#challenge-countdown').textContent!==message)$('#challenge-countdown').textContent=message;
 }
-function sendState(extra={}){if(role===0&&connection?.open)connection.send({type:'state',rulesVersion:RULES_VERSION,state,verdict,...extra});}
+function showVerdict(review){verdict=review;sound(review.success?'challenge':'fail');}
+function sendState(extra={}){if(role===0&&connection?.open)connection.send({type:'state',rulesVersion:RULES_VERSION,state,verdict,verdictMs:verdict?Math.max(0,verdict.resumeAt-Date.now()):0,...extra});}
 function applyCommand(command,actor=role===null?state.turn:role){
  tick(state);
  if(command.type==='start'){
   if(state.ended)throw Error('Start a new game to play again.');
-  if(verdict)throw Error('Review the challenge first.');
+  if(verdict)throw Error('The next turn begins after the countdown.');
   if(!state.started){if(role!==null&&actor!==0)throw Error('The host starts the game.');state.started=true;state.paused=false;}else state.paused=!state.paused;
   state.lastTick=Date.now();state.revision++;sound('turn');
- }else if(command.type==='continue'){
-  if(!verdict)return;verdict=null;state.paused=false;state.lastTick=Date.now();state.revision++;$('#result-dialog').close();
  }else if(command.type==='resign'){
-  if(!state.started||state.ended)throw Error('There is no active game to resign.');state.ended={winner:1-actor,reason:'by resignation'};state.revision++;
+  if(!state.started||state.ended)throw Error('There is no active game to resign.');state.ended={winner:1-actor,reason:'by resignation'};verdict=null;state.revision++;
  }else if(command.type==='move'){
-  if(actor!==state.turn)throw Error('Wait for your turn.');if(verdict)throw Error('Finish reviewing the challenge first.');
-  const entry=complete(state,command.move);if(entry.action==='challenge'){state.paused=true;showVerdict(entry);}else sound('turn');
+  if(actor!==state.turn)throw Error('Wait for your turn.');if(verdict)throw Error('The next turn begins after the countdown.');
+  const entry=complete(state,command.move);if(entry.action==='challenge'&&!state.ended)showVerdict(beginChallengeReview(state,entry));else sound('turn');
  }
  resetDraft();save();sendState();render();
 }
@@ -150,8 +154,7 @@ $('#commit-button').addEventListener('click',()=>{
 $('#rotate-button').addEventListener('click',()=>{rotation=(rotation+1)%4;sound();renderBoard();renderControls();toast(`Board rotated ${rotation*90}°. Coordinates stay with their squares.`);});
 $('#sound-button').addEventListener('click',()=>{muted=!muted;try{localStorage.setItem('primeria.muted',muted);}catch{}sound();render();});
 $('#start-button').addEventListener('click',()=>dispatch({type:'start'}));
-$('#result-continue').addEventListener('click',()=>{if(state.ended){$('#result-dialog').close();return;}dispatch({type:'continue'});});
-$('#result-dialog').addEventListener('cancel',e=>{if(verdict)e.preventDefault();});
+$('#result-continue').addEventListener('click',()=>$('#result-dialog').close());
 $('#resign-button').addEventListener('click',async()=>{
  sound();const who=role??state.turn;if(await ask('Are you sure you wish to resign?',`You are resigning as ${state.names[who]}. ${state.names[1-who]} will win.`, 'Resign'))dispatch({type:'resign'});
 });
@@ -213,7 +216,7 @@ function leaveRoom(){
  $('#room-info').textContent='';const url=new URL(location.href);url.searchParams.delete('room');history.replaceState(null,'',url);
  updateSetupOptions();render();save();
 }
-function disconnected(){if(role===null)return;networkPaused=true;tick(state);state.paused=true;state.lastTick=Date.now();$('#connection-status').innerHTML='<i></i> DISCONNECTED';roomStatus('Connection lost. The game is paused. Leave this room to continue on one device, or create a fresh room.');toast('Connection lost. Both clocks are paused.');render();}
+function disconnected(){if(role===null)return;networkPaused=true;verdict=null;tick(state);state.paused=true;state.lastTick=Date.now();$('#connection-status').innerHTML='<i></i> DISCONNECTED';roomStatus('Connection lost. The game is paused. Leave this room to continue on one device, or create a fresh room.');toast('Connection lost. Both clocks are paused.');render();}
 function bindConnection(conn){
  connection=conn;
  conn.on('open',()=>{
@@ -231,12 +234,17 @@ function bindConnection(conn){
   }
   if(role===0&&data.type==='command'){
    if(data.revision!==state.revision){sendState();return;}
-   try{if(!['move','continue','start','resign'].includes(data.command?.type))return;applyCommand(data.command,1);}catch(err){conn.send({type:'error',message:err.message});sendState();}
+   try{if(!['move','start','resign'].includes(data.command?.type))return;applyCommand(data.command,1);}catch(err){conn.send({type:'error',message:err.message});sendState();}
   }else if(role===1&&data.type==='state'&&isSupportedBoardState(data.state)){
    const oldRevision=state.revision,wasEnded=state.ended,oldVerdict=verdict;
    Object.assign(data.state,timeOutSettings(data.state));state=data.state;state.lastTick=Date.now();
-   if(data.verdict&&!oldVerdict)showVerdict(data.verdict);else if(!data.verdict&&oldVerdict){verdict=null;$('#result-dialog').close();}
-   if(oldRevision!==state.revision||data.fresh){if(data.fresh){rotation=0;shownEnd=false;verdict=null;$('#result-dialog').close();}resetDraft();render();if(!data.verdict&&!state.ended)sound('turn');}else {renderClocks();if(!wasEnded&&state.ended)render();}
+   if(data.fresh){rotation=0;shownEnd=false;verdict=null;$('#result-dialog').close();}
+   if(data.verdict){
+    const review={...data.verdict,resumeAt:Date.now()+Math.max(0,data.verdictMs)};
+    if(verdict?.revision!==review.revision)showVerdict(review);
+    else verdict={...review,resumeAt:Math.min(verdict.resumeAt,review.resumeAt)};
+   }else verdict=null;
+   if(oldRevision!==state.revision||data.fresh||!!oldVerdict!==!!verdict){resetDraft();render();if(!data.verdict&&!state.ended)sound('turn');}else {renderClocks();renderVerdict();if(!wasEnded&&state.ended)render();}
   }else if(data.type==='error')toast(data.message||'Move could not be accepted.');
  });
  conn.on('close',()=>{if(conn===connection)disconnected();});conn.on('error',()=>{if(conn===connection)disconnected();});
@@ -269,6 +277,10 @@ $('#leave-button').addEventListener('click',async()=>{
 });
 setInterval(()=>{
  const now=Date.now();const ended=state.ended;
+ if(verdict&&role!==1&&!networkPaused&&(role===null||connection?.open)&&finishChallengeReview(state,verdict,now)){
+  verdict=null;resetDraft();save();sendState();render();sound('turn');
+ }
+ if(verdict)renderVerdict();
  tick(state,now);if(role===1&&!ended&&state.ended)state.ended=null;renderClocks();
  if(!ended&&state.ended){resetDraft();save();sendState();render();}
  if(role===0&&now-syncAt>1000){sendState();syncAt=now;}
