@@ -5,7 +5,7 @@ const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&g
 const modeName=s=>s[0].toUpperCase()+s.slice(1);
 const colors=Array.from({length:10},(_,i)=>`var(--digit-${i})`);
 const key='primeria.game.rules7.v1';let state=newGame(),action='single',digit=3,pending=[],ends=[],lineChoices=[],challengeAxis='row',rotation=0,muted=false,expanded=null,factor='';
-let peer=null,connection=null,role=null,room=null,networkPaused=false,verdict=null,shownEnd=false,toastTimer,audio,saveAt=0,syncAt=0;
+let peer=null,connection=null,role=null,room=null,networkPaused=false,verdict=null,shownEnd=false,resigning=null,toastTimer,audio,saveAt=0,syncAt=0;
 try{
  for(const slot of [key]){
   try{
@@ -30,8 +30,8 @@ function ask(title,message,confirmLabel='Continue'){return new Promise(resolve=>
 function tile(n){return `<span class="tile" style="--tile-color:${colors[n]}" aria-hidden="true"><span class="tile-number north">${n}</span><span class="tile-number east">${n}</span><span class="tile-number south">${n}</span><span class="tile-number west">${n}</span><span class="tile-center"></span></span>`;}
 function columnLabel(x){return String.fromCharCode(65+x);}
 function coords(index){return `${columnLabel(index%boardSize())}${Math.floor(index/boardSize())+1}`;}
-function allowed(){return !state.ended&&!state.paused&&state.started&&(role===null||(connection?.open&&state.turn===role));}
-function resetDraft(){pending=[];ends=[];lineChoices=[];factor='';clearChallengeHover();if(state.challengeAttempt){action='challenge';ends=[state.challengeAttempt.a,state.challengeAttempt.b];}}
+function allowed(){return resigning===null&&!state.ended&&!state.paused&&state.started&&(role===null||(connection?.open&&state.turn===role));}
+function resetDraft(){resigning=null;pending=[];ends=[];lineChoices=[];factor='';clearChallengeHover();if(state.challengeAttempt){action='challenge';ends=[state.challengeAttempt.a,state.challengeAttempt.b];}}
 function boardIndex(row,col){let x=col,y=row;for(let i=0;i<rotation;i++)[x,y]=[y,boardSize()-1-x];return y*boardSize()+x;}
 function screenPosition(index){let x=index%boardSize(),y=Math.floor(index/boardSize());for(let i=0;i<rotation;i++)[x,y]=[boardSize()-1-y,x];return [x,y];}
 function lineLabel(line){
@@ -85,7 +85,10 @@ function renderPlayers(){
  $('#opponent-rack').innerHTML=state.piles[opponent].map((n,d)=>`<span class="supply-chip" style="--tile-color:${colors[d]}" aria-label="${escape(state.names[opponent])}: digit ${d}, ${n} remaining"><b>${d}</b><small>×${n}</small></span>`).join('');
 }
 function renderControls(){
- $('#move-options').hidden=!!verdict;renderVerdict();
+ if(resigning!==null&&(!state.started||state.ended||(role!==null&&!connection?.open)||(role===null&&state.turn!==resigning)))resigning=null;
+ $('#resign-confirmation').hidden=resigning===null;
+ if(resigning!==null)$('#resign-detail').textContent=`${state.names[1-resigning]} will win the game.`;
+ $('#move-options').hidden=!!verdict||resigning!==null;renderVerdict();
  const pile=state.piles[role??state.turn].slice();pending.forEach(m=>pile[m.digit]--);
  $('.move-panel h2').textContent=role!==null&&state.turn!==role?'Their move':'Your move';
  $('#rack').innerHTML=pile.map((n,d)=>`<button class="rack-button ${digit===d?'selected':''}" data-digit="${d}" aria-label="Digit ${d}, ${n} remaining" aria-pressed="${digit===d}" ${n===0?'disabled':''}>${tile(d)}<span class="tile-count">${n}</span></button>`).join('');
@@ -193,13 +196,18 @@ $('#commit-button').addEventListener('click',()=>{
  dispatch({type:'move',move:action==='challenge'?{action,a:ends[0],b:ends[1],factor:factor}:{action,moves:pending.slice()}});
 });
 for(const id of ['challenge-quit','review-quit'])$('#'+id).addEventListener('click',()=>dispatch({type:'move',move:{action:'quitChallenge'}}));
+$('#rules-button').addEventListener('click',()=>{sound();$('#rules-dialog').showModal();});
 $('#rotate-button').addEventListener('click',()=>{rotation=(rotation+1)%4;sound();renderBoard();renderControls();toast(`Board rotated ${rotation*90}°. Coordinates stay with their squares.`);});
 $('#sound-button').addEventListener('click',()=>{muted=!muted;try{localStorage.setItem('primeria.muted',muted);}catch{}sound();render();});
 $('#start-button').addEventListener('click',()=>dispatch({type:'start'}));
 $('#result-continue').addEventListener('click',()=>$('#result-dialog').close());
-$('#resign-button').addEventListener('click',async()=>{
- sound();const who=role??state.turn;if(await ask('Are you sure you wish to resign?',`You are resigning as ${state.names[who]}. ${state.names[1-who]} will win.`, 'Resign'))dispatch({type:'resign'});
+function cancelResignation(){resigning=null;sound();renderControls();$('#resign-button').focus();}
+$('#resign-button').addEventListener('click',()=>{
+ if($('#resign-button').disabled)return;
+ resigning=role??state.turn;clearChallengeHover();sound();renderControls();$('#resign-cancel').focus();
 });
+$('#resign-cancel').addEventListener('click',cancelResignation);
+$('#resign-confirm').addEventListener('click',()=>{if(resigning===null)return;resigning=null;sound();dispatch({type:'resign'});});
 function updateTimeOutOptions(){const enabled=$('#time-out-rule').checked;$('#time-out-options').hidden=!enabled;$('#time-out-options').disabled=!enabled;$('#time-out-rule').setAttribute('aria-expanded',String(enabled));}
 $('#time-out-rule').addEventListener('change',updateTimeOutOptions);
 function updateSetupOptions(){
@@ -247,7 +255,7 @@ $('#setup-form').addEventListener('submit',async e=>{
 $$('[data-close]').forEach(b=>b.addEventListener('click',()=>b.closest('dialog').close()));
 $('#player-cards').addEventListener('click',e=>{const card=e.target.closest('[data-player]');if(!card)return;expanded=expanded===Number(card.dataset.player)?null:Number(card.dataset.player);renderPlayers();});
 $('#player-cards').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.target.closest('[data-player]')?.click();}});
-document.addEventListener('keydown',e=>{if(e.target.matches('input,select')||$('dialog[open]'))return;if(/^\d$/.test(e.key)){e.preventDefault();if(action==='challenge')appendFactor(e.key);else{digit=Number(e.key);renderControls();sound('select');}}if(action==='challenge'&&e.key==='Backspace'){e.preventDefault();deleteFactorDigit();}if(e.key==='Escape'){resetDraft();render();}});
+document.addEventListener('keydown',e=>{if(e.target.matches('input,select')||$('dialog[open]'))return;if(resigning!==null){if(e.key==='Escape'){e.preventDefault();cancelResignation();}return;}if(/^\d$/.test(e.key)){e.preventDefault();if(action==='challenge')appendFactor(e.key);else{digit=Number(e.key);renderControls();sound('select');}}if(action==='challenge'&&e.key==='Backspace'){e.preventDefault();deleteFactorDigit();}if(e.key==='Escape'){resetDraft();render();}});
 
 function roomStatus(message){$('#room-info').textContent=message;}
 function leaveRoom(){
