@@ -85,12 +85,15 @@ function renderPlayers(){
  $('#opponent-rack').innerHTML=state.piles[opponent].map((n,d)=>`<span class="supply-chip" style="--tile-color:${colors[d]}" aria-label="${escape(state.names[opponent])}: digit ${d}, ${n} remaining"><b>${d}</b><small>×${n}</small></span>`).join('');
 }
 function renderControls(){
+ const paused=state.started&&state.paused&&!state.ended&&!verdict;
+ if(paused)resigning=null;
+ $('#pause-panel').hidden=!paused;$('.move-panel > .section-heading').hidden=paused;
  if(resigning!==null&&(!state.started||state.ended||(role!==null&&!connection?.open)||(role===null&&state.turn!==resigning)))resigning=null;
  $('#resign-confirmation').hidden=resigning===null;
  if(resigning!==null)$('#resign-detail').textContent=`${state.names[1-resigning]} will win the game.`;
- $('#move-options').hidden=!!verdict||resigning!==null;renderVerdict();
+ $('#move-options').hidden=paused||!!verdict||resigning!==null;renderVerdict();
  const pile=state.piles[role??state.turn].slice();pending.forEach(m=>pile[m.digit]--);
- $('.move-panel h2').textContent=role!==null&&state.turn!==role?'Their move':'Your move';
+ $('.move-panel > .section-heading h2').textContent=role!==null&&state.turn!==role?'Their move':'Your move';
  $('#rack').innerHTML=pile.map((n,d)=>`<button class="rack-button ${digit===d?'selected':''}" data-digit="${d}" aria-label="Digit ${d}, ${n} remaining" aria-pressed="${digit===d}" ${n===0?'disabled':''}>${tile(d)}<span class="tile-count">${n}</span></button>`).join('');
  $('#rack-count').textContent=`${total(pile)} remaining`;
  $$('.action-tab[data-action]').forEach(b=>{b.disabled=!!state.challengeAttempt;b.classList.toggle('selected',b.dataset.action===action);b.setAttribute('aria-pressed',b.dataset.action===action);});
@@ -117,6 +120,7 @@ function renderControls(){
  button.disabled=!allowed()||!ready;
  $('#start-button .start-label').textContent=state.ended?'Game Over':!state.started?'Start':state.paused?'Resume':'Pause';$('#start-icon').innerHTML=state.ended?'<rect x="5" y="5" width="14" height="14" rx="1"/>':state.started&&!state.paused?'<path d="M8 4v16M16 4v16"/>':'<path d="m8 4 12 8-12 8Z"/>';$('#start-button').classList.toggle('paused',state.paused);
  $('#start-button').disabled=!!state.ended||!!verdict||(role!==null&&(!connection?.open||(!state.started&&role!==0)));
+ $('#pause-resume').disabled=$('#start-button').disabled;
  $('#resign-button').disabled=!state.started||!!state.ended||(role!==null&&!connection?.open);
  $('#new-button').disabled=false;
  $('#board-note').textContent=state.ended?`${state.names[state.ended.winner]} wins.`:state.started?`${state.names[state.turn]} to play${state.paused?' · paused':''}${state.timeOutRule&&state.elapsed>=state.timeOutSeconds?` · Time Out streak: ${state.streak}/${state.timeOutMoves}`:''}.`:'Press Start to begin.';
@@ -199,6 +203,8 @@ $('#rules-button').addEventListener('click',()=>{sound();$('#rules-dialog').show
 $('#rotate-button').addEventListener('click',()=>{rotation=(rotation+1)%4;sound();renderBoard();renderControls();toast(`Board rotated ${rotation*90}°. Coordinates stay with their squares.`);});
 $('#sound-button').addEventListener('click',()=>{muted=!muted;try{localStorage.setItem('primeria.muted',muted);}catch{}sound();render();});
 $('#start-button').addEventListener('click',()=>dispatch({type:'start'}));
+$('#pause-resume').addEventListener('click',()=>{if(state.started&&state.paused&&!state.ended&&!verdict)dispatch({type:'start'});});
+$('#pause-new-game').addEventListener('click',openSetup);
 $('#result-continue').addEventListener('click',()=>$('#result-dialog').close());
 function cancelResignation(){resigning=null;sound();renderControls();$('#resign-button').focus();}
 $('#resign-button').addEventListener('click',()=>{
@@ -254,7 +260,7 @@ $('#setup-form').addEventListener('submit',async e=>{
 $$('[data-close]').forEach(b=>b.addEventListener('click',()=>b.closest('dialog').close()));
 $('#player-cards').addEventListener('click',e=>{const card=e.target.closest('[data-player]');if(!card)return;expanded=expanded===Number(card.dataset.player)?null:Number(card.dataset.player);renderPlayers();});
 $('#player-cards').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.target.closest('[data-player]')?.click();}});
-document.addEventListener('keydown',e=>{if(e.target.matches('input,select')||$('dialog[open]'))return;if(resigning!==null){if(e.key==='Escape'){e.preventDefault();cancelResignation();}return;}if(/^\d$/.test(e.key)){e.preventDefault();if(action==='challenge')appendFactor(e.key);else{digit=Number(e.key);renderControls();sound('select');}}if(action==='challenge'&&e.key==='Backspace'){e.preventDefault();deleteFactorDigit();}if(e.key==='Escape'){resetDraft();render();}});
+document.addEventListener('keydown',e=>{if(e.target.matches('input,select')||$('dialog[open]')||(state.started&&state.paused&&!verdict))return;if(resigning!==null){if(e.key==='Escape'){e.preventDefault();cancelResignation();}return;}if(/^\d$/.test(e.key)){e.preventDefault();if(action==='challenge')appendFactor(e.key);else{digit=Number(e.key);renderControls();sound('select');}}if(action==='challenge'&&e.key==='Backspace'){e.preventDefault();deleteFactorDigit();}if(e.key==='Escape'){resetDraft();render();}});
 
 function roomStatus(message){$('#room-info').textContent=message;}
 function leaveRoom(){
