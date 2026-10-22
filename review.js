@@ -1,4 +1,4 @@
-import {MODES,PILE} from './engine.js?v=3dfc1a2bbf';
+import {MODES,PILE} from './engine.js?v=3408d8251e';
 
 export function gameResult(game){
  if(!game.ended)return '';

@@ -1,6 +1,6 @@
 export const BOARD_SIZE = 11;
 export const BOARD_CELLS = BOARD_SIZE * BOARD_SIZE;
-export const BOARD_SIZES = [9,11,13];
+export const BOARD_SIZES = [9,11,13,15];
 export function getBoardSize(board){
  const size=Array.isArray(board)?Math.sqrt(board.length):0;
  if(!BOARD_SIZES.includes(size))throw Error('This board size is unsupported.');
@@ -18,7 +18,7 @@ export function timeOutSettings({timeOutRule,hourRule=false,timeOutSeconds=3600,
 }
 export function newGame(options={},now=Date.now()) {
   const {mode='rapid',names=['Player one','Player two'],first=0,boardSize=BOARD_SIZE}=options;
-  if(!BOARD_SIZES.includes(boardSize))throw Error('Choose a 9 × 9, 11 × 11, or 13 × 13 board.');
+  if(!BOARD_SIZES.includes(boardSize))throw Error('Choose a 9 × 9, 11 × 11, 13 × 13, or 15 × 15 board.');
   if (!MODES[mode]) throw Error('Choose a valid time control.');
   return {rulesVersion:RULES_VERSION,challengeAttempt:null,boardSize,board:Array(boardSize*boardSize).fill(null),piles:[PILE.slice(),PILE.slice()],taxed:Array(10).fill(0),names:names.map((n,i)=>String(n).trim().slice(0,24)||`Player ${i+1}`),mode,turn:first===1?1:0,clocks:[MODES[mode][0],MODES[mode][0]],increment:MODES[mode][1],started:false,paused:false,ended:null,lastTick:now,elapsed:0,...timeOutSettings(options),leader:null,streak:0,history:[],lastCells:[],revision:0};
 }

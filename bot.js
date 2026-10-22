@@ -1,4 +1,4 @@
-import * as engine from './engine.js?v=3dfc1a2bbf';
+import * as engine from './engine.js?v=3408d8251e';
 
 export const BOT_LEVELS={
  beginner:{label:'Beginner',description:'Basic divisibility checks and short plans.',speed:1.5,ideas:5,targets:2,replies:1,followups:0,budget:7,eleven:false,primes:[7],maxDigits:2,noise:2.5},
@@ -9,7 +9,7 @@ export function botConfig(state){const b=state?.bot;return b&&b.player===1&&Obje
 export function isBotTurn(state){return !!botConfig(state)&&state.turn===1;}
 // Each check has a mental time cost. No primality oracle or unrestricted factoring.
 export function factorChecks(digits,strength='intermediate'){
- if(!/^\d{1,13}$/.test(digits)||!Object.hasOwn(BOT_LEVELS,strength))throw Error('Invalid bot arithmetic input.');
+ if(!/^\d{1,15}$/.test(digits)||!Object.hasOwn(BOT_LEVELS,strength))throw Error('Invalid bot arithmetic input.');
  const level=BOT_LEVELS[strength],n=BigInt(digits),last=Number(digits.at(-1)),sum=[...digits].reduce((a,d)=>a+Number(d),0);
  const checks=[],add=(factor,cost,test)=>checks.push({factor:String(factor),cost:cost*level.speed,divides:(n===0n||BigInt(factor)<n)&&test,method:factor});
  add(2,.25,last%2===0);add(5,.25,last===0||last===5);add(10,.2,last===0);

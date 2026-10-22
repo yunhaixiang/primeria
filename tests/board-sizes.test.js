@@ -41,7 +41,7 @@ for(const size of BOARD_SIZES){
  });
 }
 test('unsupported new-game sizes are rejected',()=>{
- for(const boardSize of [0,8,10,12,15,9.5,'9',null])assert.throws(()=>newGame({boardSize}),/Choose a/);
+ for(const boardSize of [0,8,10,12,14,16,9.5,'9',null])assert.throws(()=>newGame({boardSize}),/Choose a/);
 });
 test('legacy 13 × 13 saves keep every tile, coordinate, and history entry',()=>{
  const legacy=newGame({boardSize:13});legacy.board[168]=7;legacy.lastCells=[168];legacy.history=[{action:'single',moves:[{index:168,digit:7}]}];delete legacy.boardSize;

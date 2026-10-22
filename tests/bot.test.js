@@ -67,3 +67,9 @@ test('unknown bot levels and invalid board sizes are rejected',()=>{
  assert.throws(()=>createBot({size:11,strength:'oracle'}));assert.throws(()=>createBot({size:10}));
  for(const d of ['','-2','1.2','x'])assert.throws(()=>factorChecks(d));
 });
+
+for(const digits of ['11111111111111','111111111111111'])test(`all bot strengths can assess ${digits.length}-digit numbers on the larger board`,()=>{
+ for(const strength of Object.keys(BOT_LEVELS)){
+  const checks=factorChecks(digits,strength);assert.ok(checks.length>0);assert.ok(checks.every(c=>Number.isFinite(c.cost)));if(digits.length===15)assert.ok(checks.some(c=>c.factor==='3'&&c.divides));
+ }
+});

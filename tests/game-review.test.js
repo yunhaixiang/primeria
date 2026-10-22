@@ -5,7 +5,7 @@ import {gameResult,reviewPosition} from '../review.js';
 import {createBot} from '../bot.js';
 const samePosition=(a,b)=>{for(const key of ['board','piles','taxed','lastCells','turn','clocks'])assert.deepEqual(a[key],b[key],key);};
 function record(s,commands){const snapshots=[structuredClone(s)];for(const command of commands){const entry=complete(s,command,s.lastTick+1000);if(!entry.retry)snapshots.push(structuredClone(s));}return snapshots;}
-for(const size of [9,11,13])test(`${size}: review reproduces placement, taxation and exposed-zero cleanup without changing the game`,()=>{
+for(const size of [9,11,13,15])test(`${size}: review reproduces placement, taxation and exposed-zero cleanup without changing the game`,()=>{
  const s={...newGame({boardSize:size},0),started:true},p=(x,y)=>y*size+x;
  const snapshots=record(s,[
   {action:'single',moves:[{index:p(1,1),digit:5}]},
@@ -26,7 +26,7 @@ for(const quit of [false,true])test(`review preserves ${quit?'quit':'retried suc
  assert.equal(s.history.length,4);assert.equal(s.history.at(-1).attempts.length,quit?1:2);
  for(let n=0;n<snapshots.length;n++)samePosition(reviewPosition(s,n),snapshots[n]);
 });
-for(const size of [9,11,13])test(`${size}: every completed position of a full bot game can be reviewed`,()=>{
+for(const size of [9,11,13,15])test(`${size}: every completed position of a full bot game can be reviewed`,()=>{
  const s={...newGame({boardSize:size},0),started:true},bots=[0,1].map(seat=>createBot({size,seed:32,seat,strength:'intermediate'})),snapshots=[structuredClone(s)];let now=0;
  for(let move=0;move<250&&!s.ended;move++){
   const result=bots[s.turn].choose(s);assert.ok(result.command);now+=result.seconds*1000;

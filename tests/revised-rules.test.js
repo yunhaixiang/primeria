@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {BOARD_SIZES,PILE,total,newGame,placement,challengeNumber,challenge,complete,beginChallengeReview,finishChallengeReview,tick,isSupportedBoardState,RULES_VERSION} from '../engine.js';
 const active=(size=13)=>({...newGame({boardSize:size},0),started:true});
-const target=(digits='1437',player=0)=>{const s=active();s.turn=player;[...digits].forEach((d,i)=>s.board[i]=Number(d));return s;};
+const target=(digits='1437',player=0)=>{const s=active(digits.length>13?15:13);s.turn=player;[...digits].forEach((d,i)=>s.board[i]=Number(d));return s;};
 const move=(factor,a=0,b=3)=>({action:'challenge',a,b,factor});
 test('each player has two zeros, two fives, and 36 independent tiles',()=>{
  const s=newGame();assert.equal(PILE[0],2);assert.equal(PILE[5],2);assert.equal(total(PILE),36);assert.deepEqual(s.piles.map(total),[36,36]);
@@ -39,7 +39,7 @@ for(const size of BOARD_SIZES){
   s.turn=1;assert.equal(challengeNumber(s,...cells).digits,'14');assert.equal(challengeNumber(s,...cells).perspective,1);assert.equal(challenge(s,...cells,'2').success,true);
  });
 }
-for(let digits=1;digits<=13;digits++)test(`${digits} digits allow ${Math.ceil(digits/3)} attempts`,()=>{
+for(let digits=1;digits<=15;digits++)test(`${digits} digits allow ${Math.ceil(digits/3)} attempts`,()=>{
  const s=target('1'.repeat(digits));assert.equal(challengeNumber(s,0,digits-1).attemptLimit,Math.ceil(digits/3));
 });
 for(const player of [0,1])test(`player ${player+1} cannot override its own reading with endpoint order, reverse or rotation flags`,()=>{
@@ -100,7 +100,7 @@ test('per-digit supply is conserved after legal placements and a successful seco
  for(let d=0;d<10;d++)assert.equal(s.piles[0][d]+s.piles[1][d]+s.taxed[d]+s.board.filter(n=>n===d).length,2*PILE[d]);
  assert.equal(total(s.piles[0])+total(s.piles[1])+total(s.taxed)+s.board.filter(n=>n!==null).length,72);
 });
-for(let digits=1;digits<=13;digits++)test(`${digits}-digit failure exhausts exactly its budget without extra turns or increments`,()=>{
+for(let digits=1;digits<=15;digits++)test(`${digits}-digit failure exhausts exactly its budget without extra turns or increments`,()=>{
  const s=target(digits===1?'4':'1'.repeat(digits));const limit=Math.ceil(digits/3);let now=0;
  for(let i=0;i<limit;i++){
   const result=complete(s,{action:'challenge',a:0,b:digits-1,factor:digits===1?'3':'2'},now);

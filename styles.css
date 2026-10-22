@@ -304,7 +304,7 @@ main { padding-top: 16px; }
 /* Board size is chosen with the rest of the new-game settings. */
 .board-size-choice { border: 0; padding: 0; margin: 0 0 22px; }
 .board-size-choice legend { padding: 0; margin-bottom: 10px; font-size: 9px; letter-spacing: 1.4px; font-weight: 600; color: #7d8573; }
-.board-size-options { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; }
+.board-size-options { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 8px; }
 .board-size-options label { position: relative; display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 47px; padding: 11px 8px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; background: #f8f7f0; }
 .board-size-options input { margin: 0; accent-color: var(--green); }
 .board-size-options strong { font-size: 12px; font-weight: 600; white-space: nowrap; }
@@ -393,3 +393,5 @@ main { padding-top: 16px; }
 .history-panel.reviewing ol { max-height: 340px; }
 
 .board-grid .cell:disabled { opacity: 1; cursor: default; }
+
+@media (max-width: 520px) { .board-size-options { grid-template-columns: repeat(2,minmax(0,1fr)); } }

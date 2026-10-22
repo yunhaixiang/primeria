@@ -173,7 +173,7 @@ test('invalid partial and connected-single challenges do not consume a move or t
  assert.deepEqual(s,before);
 });
 
-for(const oldSize of [12,15])test(`larger ${oldSize} by ${oldSize} saved boards are rejected without truncating their tiles`,()=>{
+for(const oldSize of [12,17])test(`larger ${oldSize} by ${oldSize} saved boards are rejected without truncating their tiles`,()=>{
  const s=newGame();s.board=Array(oldSize*oldSize).fill(null);s.board[s.board.length-1]=7;const before=JSON.stringify(s);
  assert.throws(()=>upgradeGameBoard(s),/unsupported/);assert.equal(JSON.stringify(s),before);
 });

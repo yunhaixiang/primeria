@@ -1,7 +1,7 @@
-import {BOARD_SIZES,isSupportedBoardState,RULES_VERSION,upgradeGameBoard,MODES,PILE,total,newGame,timeOutSettings,tick,placement,adjacent,segment,challengeLines,challengeNumber,challenge,complete,beginChallengeReview,finishChallengeReview,challengeReviewSeconds,beginGameCountdown,finishGameCountdown} from './engine.js?v=3dfc1a2bbf';
-import {BOT_LEVELS,botConfig,isBotTurn,createBot} from './bot.js?v=a85499ff34';
+import {BOARD_SIZES,isSupportedBoardState,RULES_VERSION,upgradeGameBoard,MODES,PILE,total,newGame,timeOutSettings,tick,placement,adjacent,segment,challengeLines,challengeNumber,challenge,complete,beginChallengeReview,finishChallengeReview,challengeReviewSeconds,beginGameCountdown,finishGameCountdown} from './engine.js?v=3408d8251e';
+import {BOT_LEVELS,botConfig,isBotTurn,createBot} from './bot.js?v=5a5a68baf1';
 
-import {gameResult,reviewPosition} from './review.js?v=8fec3483a3';
+import {gameResult,reviewPosition} from './review.js?v=4f418d5442';
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -428,7 +428,7 @@ function updateBot(now){
   try{receive(createBot({size:state.boardSize,seed:state.bot.seed^state.revision,strength:state.bot.strength}).choose(state));}catch{botFailed(job);}
  };
  try{
-  botWorker=new Worker(new URL('./bot-worker.js?v=5fe03b20eb',import.meta.url),{type:'module'});
+  botWorker=new Worker(new URL('./bot-worker.js?v=7b0c53eb32',import.meta.url),{type:'module'});
   botWorker.onmessage=event=>{if(botJob!==job||event.data.id!==job.id)return;if(event.data.error)fallback();else receive(event.data.result);};
   botWorker.onerror=event=>{event.preventDefault();fallback();};
   botWorker.postMessage({id:job.id,state,key:job.game,seed:state.bot.seed^state.revision});
