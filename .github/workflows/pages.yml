@@ -25,7 +25,7 @@ jobs:
       - name: Package website
         run: |
           mkdir _site
-          cp index.html styles.css app.js engine.js review.js bot.js bot-worker.js favicon.svg .nojekyll _site/
+          cp index.html styles.css app.js split-view.js engine.js review.js bot.js bot-worker.js favicon.svg .nojekyll _site/
           cp -r vendor _site/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4

@@ -412,3 +412,112 @@ main { padding-top: 16px; }
 
 #rules-dialog .rules-moves > li + li { margin-top: 14px; }
 #rules-dialog .rules-moves ul { margin: 8px 0 0; }
+
+/* Tabletop play: fixed seats around one shared board. */
+.split-facing { display: none; }
+.split-player-panel { min-width: 0; background: var(--panel); border: 1px solid #d7ddce; border-radius: 12px; padding: 16px; scrollbar-width: thin; }
+.split-seat-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.split-seat-label { font-size: 8px; letter-spacing: 1.4px; color: var(--muted); }
+.split-seat-heading h2 { font-family: 'Manrope',sans-serif; font-size: 18px; letter-spacing: -.5px; margin: 4px 0 0; overflow-wrap: anywhere; }
+.split-turn-status { font-size: 9px; color: var(--muted); white-space: nowrap; }
+.split-turn-status.active { color: #315f45; background: #e4ecdb; padding: 6px 8px; border-radius: 20px; }
+.split-mode-label { font-size: 8px; letter-spacing: .8px; color: var(--muted); margin: 12px 0 8px; }
+.split-clocks { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.split-clock-card { padding: 10px 8px; border-radius: 7px; background: #efeee5; min-width: 0; border: 1px solid transparent; }
+.split-clock-card.active { background: #e7eddf; border-color: #bdcbae; }
+.split-clock-card > span { display: block; font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.split-clock { font-family: 'Manrope',sans-serif; font-size: 24px; font-weight: 600; letter-spacing: -.8px; font-variant-numeric: tabular-nums; display: block; margin-top: 3px; }
+.split-clock.low { color: #b15341; }
+.split-session-tools { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; margin: 10px 0 20px; }
+.split-session-tools .outline-button { font-size: 9px; min-height: 40px; padding: 8px 3px; }
+.split-move-heading { display: flex; justify-content: space-between; align-items: center; gap: 5px; }
+.split-move-heading h3 { font-family: 'Manrope',sans-serif; font-size: 14px; margin: 0; }
+.split-move-heading > span { font-size: 8px; color: var(--muted); text-align: right; }
+.split-player-panel .action-tabs { grid-template-columns: repeat(4,minmax(0,1fr)); gap: 4px; margin: 12px 0 18px; }
+.split-player-panel .action-tab { min-height: 48px; padding: 8px 2px; justify-content: center; }
+.split-player-panel .action-tab strong { font-size: 9px; margin: 0; line-height: 1.4; }
+.split-player-panel .tile-rack { gap: 10px 8px; margin-bottom: 16px; }
+.split-player-panel .rack-button .tile-number { font-size: clamp(8px,.9vw,12px); }
+.split-player-panel .rack-heading { margin-top: 16px; font-size: 8px; gap: 4px; }
+.split-player-panel .rack-heading span:last-child { font-size: 9px; }
+.split-player-panel .move-buttons .outline-button { padding: 8px 12px; font-size: 19px; }
+.split-player-panel .move-buttons .primary-button { padding: 10px; font-size: 10px; gap: 6px; }
+.split-player-panel details { border-top: 1px solid var(--line); margin-top: 16px; padding-top: 12px; }
+.split-player-panel summary { cursor: pointer; font-size: 10px; font-weight: 600; min-height: 30px; line-height: 1.5; }
+.split-player-panel summary > span { float: right; color: var(--muted); font-size: 9px; font-weight: 400; }
+.split-inventory-counts { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 7px 4px; padding: 8px 0; }
+.split-inventory-counts .supply-chip { display: flex; align-items: center; justify-content: center; gap: 3px; }
+.split-history ol { list-style: none; padding: 0; margin: 0; max-height: 180px; overflow: auto; scrollbar-width: thin; }
+.split-history .history-entry { gap: 6px; }
+.split-turn-note { margin: 12px 0 0; font-size: 9px; color: var(--muted); line-height: 1.5; }
+.split-message { min-height: 210px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 16px; }
+.split-message h3 { margin: 0; font-size: 19px; font-family: 'Manrope',sans-serif; line-height: 1.4; overflow-wrap: anywhere; }
+.split-message p { margin: 0; font-size: 11px; color: var(--muted); line-height: 1.6; }
+.split-message.failed h3 { color: #9c654d; }
+.split-review-nav { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 5px; width: 100%; }
+.split-review-nav button { padding: 10px 4px; }
+.split-attempts { display: flex; align-items: center; justify-content: space-between; font-size: 9px; gap: 5px; margin: 12px 0; }
+.split-attempts button { font-size: 9px; padding: 8px; }
+.split-player-panel .factor-display-row { gap: 8px; }
+.split-player-panel .factor-display { min-width: 0; overflow-wrap: anywhere; }
+.split-player-panel .factor-keypad { gap: 6px; }
+.split-player-panel .factor-digit { min-height: 40px; }
+.split-player-panel .reading-fixed strong { font-size: 21px; }
+.split-player-panel .challenge-lines { margin: 12px 0; }
+.split-player-panel .challenge-line { font-size: 10px; padding: 10px 6px; }
+.split-player-panel .challenge-line span { font-size: 12px; }
+.split-view main { max-width: 1560px; padding: 18px 18px 0; }
+.split-view .game-layout { grid-template-columns: clamp(200px,23vw,270px) minmax(0,1fr) clamp(200px,23vw,270px); grid-template-areas: 'toolbar toolbar toolbar' 'opponent board player'; gap: 16px; align-items: center; }
+.split-view .board-panel { display: contents; }
+.split-view .board-toolbar { grid-area: toolbar; margin: 0; }
+.split-view .board-actions { flex-wrap: wrap; }
+.split-view .board-surround { grid-area: board; width: 100%; max-width: calc(100dvh - 100px); justify-self: center; padding: 9px; }
+.split-view .board-grid { gap: 2px; grid-template-columns: 16px repeat(var(--board-size,11),minmax(0,1fr)) 16px; grid-template-rows: 16px repeat(var(--board-size,11),minmax(0,1fr)) 16px; }
+.split-view .board-grid .tile-number { font-size: clamp(7px,.85vw,13px); }
+.split-view .axis { font-size: 8px; }
+.split-view .axis.opposite-axis { transform: rotate(180deg); }
+.split-view .board-footer, .split-view .play-panel { display: none; }
+.split-view #split-panel-0 { grid-area: player; }
+.split-view #split-panel-1 { grid-area: opponent; transform: rotate(180deg); }
+.split-view .split-player-panel { max-height: calc(100dvh - 90px); overflow-y: auto; }
+.split-view #split-button { color: #3c674a; box-shadow: 0 2px #8fa77b; }
+.split-view .split-facing { display: block; transform: rotate(180deg); }
+.split-view .start-countdown, .split-view .game-end { display: flex; flex-direction: column; justify-content: space-evenly; align-items: center; gap: 20px; padding: 20px; }
+.split-view .game-end h2 { font-size: clamp(19px,2.2vw,28px); margin-bottom: 16px; }
+.split-view .end-actions { gap: 8px; }
+.split-view .end-actions button { min-width: 100px; min-height: 40px; padding: 10px; font-size: 10px; }
+.split-view .site-footer { margin-top: 20px; }
+.opposite-dialog { transform: rotate(180deg); }
+@media(max-width:1000px) and (min-width:761px){
+ .split-player-panel { padding: 12px; }
+ .split-view .game-layout { grid-template-columns: 200px minmax(0,1fr) 200px; gap: 10px; }
+ .split-view main { padding: 12px 12px 0; }
+}
+@media(max-width:760px), (max-width:1000px) and (orientation:portrait){
+ .split-view .game-layout { grid-template-columns: minmax(0,1fr); grid-template-areas: 'toolbar' 'opponent' 'board' 'player'; gap: 14px; }
+ .split-view .board-toolbar { flex-wrap: wrap; }
+ .split-view .board-actions { gap: 14px; }
+ .split-view .board-surround { max-width: 600px; }
+ .split-view .split-player-panel { max-height: none; width: 100%; max-width: 600px; justify-self: center; }
+ .split-view .tile-rack { grid-template-columns: repeat(10,minmax(0,1fr)); gap: 7px; }
+ .split-view .rack-button .tile-number { font-size: 8px; }
+ .split-view .split-clocks { float: right; width: 48%; margin-left: 12px; }
+ .split-view .split-session-tools { margin-bottom: 16px; }
+ .split-view .split-controls { clear: both; }
+ .split-view .split-message { min-height: 150px; }
+ .split-view .board-grid .tile-number { font-size: clamp(7px,1.8vw,11px); }
+}
+.split-player-panel .rack-button:disabled { opacity: .72; }
+@media(min-width:761px){
+ .split-player-panel { padding: 12px; }
+ .split-session-tools { margin-bottom: 12px; }
+ .split-mode-label { margin-top: 8px; }
+ .split-player-panel details { margin-top: 10px; padding-top: 8px; }
+ .split-player-panel .tile-rack { gap: 7px; margin-bottom: 10px; }
+ .split-player-panel .action-tabs { margin-bottom: 12px; }
+ .split-player-panel .rack-heading { margin-top: 12px; }
+}
+.split-player-panel .challenge-line[aria-pressed=true] { background: #e9edde; border-color: #9fae8d; }
+@media(min-width:761px){
+ .split-history ol { max-height: max(80px,calc(100dvh - 650px)); }
+}
