@@ -59,8 +59,6 @@ function renderControls(){
   html=`<button class="reading-option ${!reverse?'selected':''}" data-reverse="false" aria-pressed="${!reverse}">${forward}<small>${labels[0]}</small></button><button class="reading-option ${reverse?'selected':''}" data-reverse="true" aria-pressed="${reverse}">${backward}<small>${labels[1]}</small></button>`;}catch{}
   $('#reading-options').innerHTML=html;
  }
- let hint=!state.started?'Start the game when both players are ready.':state.ended?`${state.names[state.ended.winner]} wins ${state.ended.reason}.`:state.paused?'The table is paused. Resume when you’re both ready.':role!==null&&!connection?.open?'Waiting for your friend to connect.':role!==null&&state.turn!==role?`${state.names[state.turn]} is thinking. Your turn is next.`:action==='challenge'?(ends.length===2?'Choose a reading direction and propose a factor.':ends.length===1?'Now select the last tile. Select the same tile for one digit.':'Select the first tile of the number you want to challenge.'):pending.length?`${pending.length} of ${action==='double'?2:1} tiles placed. ${action==='double'&&pending.length===1?'Choose your second tile.':'Ready to commit your move.'}`:'Choose a digit, then a square on the board.';
- $('#move-hint').textContent=hint;
  const ready=action==='challenge'?ends.length===2&&$('#factor').value.trim().length>0:pending.length===(action==='double'?2:1);
  const button=$('#commit-button');button.innerHTML=`${action==='challenge'?'Submit challenge':action==='double'?'Place two tiles':'Place tile'} <span>↗</span>`;
  button.disabled=!allowed()||!ready;
