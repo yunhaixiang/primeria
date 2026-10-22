@@ -332,3 +332,11 @@ main { padding-top: 16px; }
 }
 
 #rules-dialog .dialog-heading { justify-content: flex-end; }
+
+/* Avoid reserving space for challenge details before a number is selected. */
+.move-panel:has(#challenge-controls:not([hidden])) .action-tabs { margin-bottom: 8px; }
+#reading-options:empty,
+.challenge-attempts:has(#attempt-status:empty):has(#challenge-quit[hidden]) { display: none; }
+#challenge-controls .reading-options,
+#challenge-controls .tax-preview,
+#challenge-controls .challenge-attempts { margin-bottom: 8px; }
