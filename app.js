@@ -67,7 +67,7 @@ function renderControls(){
  $('#start-button').textContent=state.ended?'Game Over':!state.started?'Start Game':state.paused?'Resume Game':'Pause Game';$('#start-button').classList.toggle('paused',state.paused);
  $('#start-button').disabled=!!state.ended||!!verdict||(role!==null&&(!connection?.open||(!state.started&&role!==0)));
  $('#resign-button').disabled=!state.started||!!state.ended||(role!==null&&!connection?.open);
- $('#new-button').disabled=role===1;$('#online-button').textContent=role===null?'Play Online ↗':'Room Details ↗';
+ $('#new-button').disabled=false;
  $('#board-note').textContent=state.ended?`${state.names[state.ended.winner]} wins. Well played.`:state.started?`${state.names[state.turn]} to play${state.paused?' · paused':''}. ${state.timeOutRule&&state.elapsed>=state.timeOutSeconds?`Time Out streak: ${state.streak}/${state.timeOutMoves}.`:'Make it count.'}`:'A blank board. A world of possibilities.';
  $('#turn-count').textContent=`TURN ${String(state.history.length+1).padStart(2,'0')}`;
 }
@@ -139,12 +139,47 @@ $('#resign-button').addEventListener('click',async()=>{
 });
 function updateTimeOutOptions(){const enabled=$('#time-out-rule').checked;$('#time-out-options').hidden=!enabled;$('#time-out-options').disabled=!enabled;$('#time-out-rule').setAttribute('aria-expanded',String(enabled));}
 $('#time-out-rule').addEventListener('change',updateTimeOutOptions);
-function openSetup(){if(role===1)return toast('The host chooses the next game.');const form=$('#setup-form');form.elements.one.value=state.names[0];form.elements.two.value=state.names[1];form.elements.mode.value=state.mode;form.elements.timeOutRule.checked=state.timeOutRule;form.elements.timeOutMinutes.value=state.timeOutSeconds/60;form.elements.timeOutMoves.value=state.timeOutMoves;updateTimeOutOptions();$('#setup-dialog').showModal();sound();}
+function updateSetupOptions(){
+ const form=$('#setup-form'),online=form.elements.location.value==='online',joining=online&&role===null&&form.elements.roomAction.value==='join';
+ $('#online-options').hidden=!online;
+ $('#room-choice').hidden=role!==null;
+ $('#room-choice').disabled=!online||role!==null;
+ $('#join-options').hidden=!joining;
+ $('#room-code').disabled=!joining;$('#room-code').required=joining;
+ const settings=!(joining||(online&&role===1));
+ $('#game-settings').hidden=!settings;$('#game-settings').disabled=!settings;
+ $('#setup-submit').hidden=online&&role===1;
+ $('#setup-submit').innerHTML=`${!online?'Let’s play':role===0?'Start a new game':joining?'Join game':'Create a room'} <span>↗</span>`;
+ $('#leave-button').hidden=role===null;
+ $('#online-note').textContent=role===1?'You are player two. The host chooses the settings and starts new games.':role===0?'You are player one. New games stay in this room with your friend. Keep this tab open.':'Share an invitation link with your friend. Keep the host’s tab open while playing. Some networks may prevent a connection.';
+ $('#setup-warning').textContent=online&&role===1?'To play on one device, select that option above.':!online&&role!==null?'Starting on one device leaves your online room.':joining?'Your friend’s game settings will be used.':'New games replace the current game.';
+ updateTimeOutOptions();
+}
+function openSetup(){
+ const form=$('#setup-form');form.elements.one.value=state.names[0];form.elements.two.value=state.names[1];form.elements.mode.value=state.mode;form.elements.first.value='random';
+ form.elements.timeOutRule.checked=state.timeOutRule;form.elements.timeOutMinutes.value=state.timeOutSeconds/60;form.elements.timeOutMoves.value=state.timeOutMoves;
+ form.elements.location.value=role===null?'local':'online';updateSetupOptions();$('#setup-dialog').showModal();$('#setup-dialog').scrollTop=0;sound();
+}
+$$('input[name="location"],input[name="roomAction"]').forEach(input=>input.addEventListener('change',()=>{updateSetupOptions();sound('select');}));
 $('#new-button').addEventListener('click',openSetup);
-$('#setup-form').addEventListener('submit',async e=>{e.preventDefault();const data=new FormData(e.target),enabled=data.has('timeOutRule');let next;
- try{next=newGame({mode:data.get('mode'),names:[data.get('one'),data.get('two')],first:data.get('first')==='random'?(crypto.getRandomValues(new Uint8Array(1))[0]%2):Number(data.get('first')),timeOutRule:enabled,timeOutSeconds:enabled?Number(data.get('timeOutMinutes'))*60:state.timeOutSeconds,timeOutMoves:enabled?Number(data.get('timeOutMoves')):state.timeOutMoves});}catch(err){return toast(err.message);}
- if(state.started&&!state.ended&&!await ask('A fresh start?','Replace this game with a fresh board? Your current game will be replaced.'))return;
- state=next;shownEnd=false;verdict=null;action='single';resetDraft();$('#setup-dialog').close();save();sendState({fresh:true});render();sound('turn');toast(`${state.names[state.turn]} has the first move. Press Start game when ready.`);
+$('#setup-form').addEventListener('submit',async e=>{
+ e.preventDefault();const data=new FormData(e.target),online=data.get('location')==='online',joining=online&&role===null&&data.get('roomAction')==='join';
+ if(online&&role===1)return;
+ let code=null,next;
+ if(joining){
+  code=String(data.get('roomCode')||'').trim();try{if(/^https?:/i.test(code))code=new URL(code).searchParams.get('room')||'';}catch{}
+  if(!/^primeria-[a-f0-9]{14}$/.test(code)){toast('Paste a complete invitation link or room code.');$('#room-code').focus();return;}
+ }else{
+  const enabled=data.has('timeOutRule');
+  try{next=newGame({mode:data.get('mode'),names:[data.get('one'),data.get('two')],first:data.get('first')==='random'?(crypto.getRandomValues(new Uint8Array(1))[0]%2):Number(data.get('first')),timeOutRule:enabled,timeOutSeconds:enabled?Number(data.get('timeOutMinutes'))*60:state.timeOutSeconds,timeOutMoves:enabled?Number(data.get('timeOutMoves')):state.timeOutMoves});}catch(err){return toast(err.message);}
+ }
+ if(online&&role===null&&!window.Peer){roomStatus('The online connection library is unavailable. Reload this page, or play on one device.');return;}
+ if((state.started&&!state.ended)||(!online&&role!==null)){
+  if(!await ask('A fresh start?',!online&&role!==null?'Leave your online room and start a fresh game on this device?':'Replace this game with a fresh board? Your current game will be replaced.'))return;
+ }
+ if(!online&&role!==null)leaveRoom();
+ if(online&&role===null){connectRoom(code,next);return;}
+ state=next;shownEnd=false;verdict=null;action='single';resetDraft();$('#result-dialog').close();$('#setup-dialog').close();save();sendState({fresh:true});render();sound('turn');toast(`${state.names[state.turn]} has the first move. Press Start Game when ready.`);
 });
 $('#rules-button').addEventListener('click',()=>{sound();$('#rules-dialog').showModal();});
 $$('[data-close]').forEach(b=>b.addEventListener('click',()=>b.closest('dialog').close()));
@@ -153,17 +188,25 @@ $('#player-cards').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' 
 document.addEventListener('keydown',e=>{if(e.target.matches('input,select')||$('dialog[open]'))return;if(/^\d$/.test(e.key)){digit=Number(e.key);renderControls();sound('select');}if(e.key==='Escape'){resetDraft();render();}});
 
 function roomStatus(message){$('#room-info').textContent=message;}
-function leaveRoom(){connection?.close();peer?.destroy();connection=null;peer=null;role=null;room=null;networkPaused=false;verdict=null;$('#result-dialog').close();state.paused=state.started&&!state.ended;state.lastTick=Date.now();$('#connection-status').innerHTML='<i></i> SHARED TABLE';$('#host-button').hidden=false;$('#leave-button').hidden=true;$('#room-info').textContent='';history.replaceState(null,'',location.pathname);render();save();}
+function leaveRoom(){
+ const oldConnection=connection,oldPeer=peer;
+ connection=null;peer=null;role=null;room=null;networkPaused=false;verdict=null;
+ oldConnection?.close();oldPeer?.destroy();$('#result-dialog').close();
+ state.paused=state.started&&!state.ended;state.lastTick=Date.now();$('#connection-status').innerHTML='<i></i> SHARED TABLE';
+ $('#room-info').textContent='';const url=new URL(location.href);url.searchParams.delete('room');history.replaceState(null,'',url);
+ updateSetupOptions();render();save();
+}
 function disconnected(){if(role===null)return;networkPaused=true;tick(state);state.paused=true;state.lastTick=Date.now();$('#connection-status').innerHTML='<i></i> DISCONNECTED';roomStatus('Connection lost. The game is paused. Leave this room to continue on one device, or create a fresh room.');toast('Connection lost. Both clocks are paused.');render();}
 function bindConnection(conn){
  connection=conn;
  conn.on('open',()=>{
+  if(conn!==connection)return;
   networkPaused=false;$('#connection-status').innerHTML='<i></i> ONLINE · CONNECTED';$('#leave-button').hidden=false;
-  if(role===0){state.paused=state.started;state.lastTick=Date.now();sendState({fresh:true});}else roomStatus('Connected. You are player two. The host chooses the game and starts the clock.');
-  toast('Your friend is at the table.');sound('turn');render();
+  if(role===0){state.paused=state.started;state.lastTick=Date.now();sendState({fresh:true});}else{roomStatus('Connected. You are player two. The host chooses the game and starts the clock.');$('#setup-dialog').close();}
+  updateSetupOptions();toast('Your friend is at the table.');sound('turn');render();
  });
  conn.on('data',data=>{
-  if(!data||typeof data!=='object')return;
+  if(conn!==connection||!data||typeof data!=='object')return;
   if(role===0&&data.type==='command'){
    if(data.revision!==state.revision){sendState();return;}
    try{if(!['move','continue','start','resign'].includes(data.command?.type))return;applyCommand(data.command,1);}catch(err){conn.send({type:'error',message:err.message});sendState();}
@@ -174,33 +217,34 @@ function bindConnection(conn){
    if(oldRevision!==state.revision||data.fresh){if(data.fresh){shownEnd=false;verdict=null;$('#result-dialog').close();}resetDraft();render();if(!data.verdict&&!state.ended)sound('turn');}else {renderClocks();if(!wasEnded&&state.ended)render();}
   }else if(data.type==='error')toast(data.message||'Move could not be accepted.');
  });
- conn.on('close',disconnected);conn.on('error',disconnected);
+ conn.on('close',()=>{if(conn===connection)disconnected();});conn.on('error',()=>{if(conn===connection)disconnected();});
 }
-async function connectRoom(code=null){
- if(!window.Peer){roomStatus('The online connection library is unavailable. Reload this page, or play on one device.');return;}
- if(peer)return toast('Leave the current room before creating or joining another.');
- if(state.started&&!state.ended&&!await ask('Make room for a friend.','Online play starts a fresh game with your selected time control. Replace the current game?'))return;
+function connectRoom(code=null,next=null){
+ if(peer)return;
  role=code?1:0;room=code||`primeria-${crypto.randomUUID().replaceAll('-','').slice(0,14)}`;
- state=newGame({mode:state.mode,names:state.names,...timeOutSettings(state)});shownEnd=false;resetDraft();render();roomStatus('Opening a table…');$('#host-button').hidden=true;$('#leave-button').hidden=false;
- peer=code?new Peer():new Peer(room);
- const timeout=setTimeout(()=>{if(!connection?.open)roomStatus('Still waiting. If you shared a link, ask your friend to join. If connecting fails, try another network or shared-device play.');},15000);
- peer.on('open',()=>{
-  clearTimeout(timeout);
-  if(code){roomStatus('Joining your friend’s table…');bindConnection(peer.connect(code,{reliable:true}));setTimeout(()=>{if(role===1&&!connection?.open)roomStatus('The host has not connected yet. Check that their tab is open, or try another network.');},15000);}
-  else{const url=new URL(location.href);url.searchParams.set('room',room);history.replaceState(null,'',url);$('#room-info').innerHTML=`<strong>Your table is ready.</strong><br>Send this link to your friend:<input id="invite-link" readonly aria-label="Invitation link" value="${escape(url.href)}"><button id="copy-link" class="outline-button">Copy invitation link ↗</button><br><small>Room code: ${room}</small>`;
+ state=next||newGame({mode:state.mode,names:state.names,...timeOutSettings(state)});shownEnd=false;verdict=null;action='single';$('#result-dialog').close();resetDraft();render();roomStatus('Opening a table…');updateSetupOptions();$('#setup-dialog').scrollTop=0;
+ const activePeer=peer=code?new Peer():new Peer(room);
+ const timeout=setTimeout(()=>{if(peer===activePeer&&!connection?.open)roomStatus('Still waiting. Ask your friend to join using the invitation link. If connecting fails, try another network or play on one device.');},15000);
+ activePeer.on('open',()=>{
+  clearTimeout(timeout);if(peer!==activePeer)return;
+  if(code){
+   roomStatus('Joining your friend’s table…');bindConnection(activePeer.connect(code,{reliable:true}));
+   setTimeout(()=>{if(peer===activePeer&&!connection?.open)roomStatus('The host has not connected yet. Check that their tab is open, or try another network.');},15000);
+  }else{
+   const url=new URL(location.href);url.searchParams.set('room',room);history.replaceState(null,'',url);
+   $('#room-info').innerHTML=`<strong>Your table is ready.</strong><p>Send this link to your friend:</p><input id="invite-link" readonly aria-label="Invitation link" value="${escape(url.href)}"><button id="copy-link" type="button" class="outline-button">Copy invitation link ↗</button><small>Room code: ${room}</small>`;
    $('#copy-link').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(url.href);toast('Invitation copied. Send it to your friend.');}catch{$('#invite-link').select();toast('Select and copy the invitation link.');}});
    $('#connection-status').innerHTML='<i></i> ONLINE · WAITING';
   }
  });
- peer.on('connection',incoming=>{if(role!==0||connection){incoming.on('open',()=>incoming.close());return;}bindConnection(incoming);});
- peer.on('error',err=>{clearTimeout(timeout);roomStatus(`Could not connect (${err.type||'network error'}). Leave this room and try again, or play on one device.`);if(connection?.open)disconnected();});
- peer.on('disconnected',()=>{if(!connection?.open)disconnected();});
+ activePeer.on('connection',incoming=>{if(peer!==activePeer||role!==0||connection){incoming.on('open',()=>incoming.close());return;}bindConnection(incoming);});
+ activePeer.on('error',err=>{clearTimeout(timeout);if(peer!==activePeer)return;roomStatus(`Could not connect (${err.type||'network error'}). Leave this room and try again, or play on one device.`);if(connection?.open)disconnected();});
+ activePeer.on('disconnected',()=>{if(peer===activePeer&&!connection?.open)disconnected();});
 }
-$('#online-button').addEventListener('click',()=>{$('#online-dialog').showModal();sound();});
-$('#host-button').addEventListener('click',()=>connectRoom());
-$('#join-button').addEventListener('click',()=>{let code=$('#room-code').value.trim();try{if(code.startsWith('http'))code=new URL(code).searchParams.get('room')||'';}catch{}if(!/^primeria-[a-f0-9]{14}$/.test(code))return toast('Paste a complete invitation link or room code.');connectRoom(code);});
-$('#leave-button').addEventListener('click',()=>{leaveRoom();toast('Back at the shared table.');});
-let urlRoom=new URL(location.href).searchParams.get('room');if(urlRoom){$('#room-code').value=urlRoom;$('#online-dialog').showModal();roomStatus('You’ve been invited. Select Join to take your seat as player two.');}
+$('#leave-button').addEventListener('click',async()=>{
+ if(state.started&&!state.ended&&!await ask('Leave this room?','Disconnect from your friend? You can continue this game on one device, with the clocks paused.'))return;
+ leaveRoom();$('#setup-form').elements.location.value='local';updateSetupOptions();toast('Back at the shared table.');
+});
 setInterval(()=>{
  const now=Date.now();const ended=state.ended;
  tick(state,now);if(role===1&&!ended&&state.ended)state.ended=null;renderClocks();
@@ -209,3 +253,5 @@ setInterval(()=>{
  if(now-saveAt>1000){save();saveAt=now;}
 },100);
 window.addEventListener('pagehide',save);render();
+const urlRoom=new URL(location.href).searchParams.get('room');
+if(urlRoom){openSetup();$('#setup-form').elements.location.value='online';$('#setup-form').elements.roomAction.value='join';$('#room-code').value=urlRoom;updateSetupOptions();roomStatus('You’ve been invited. Select Join game to take your seat as player two.');}

@@ -4,7 +4,7 @@ A two-player board game of prime numbers, invented by [Yunhai Xiang](https://yun
 
 ## Play
 
-Choose **New Game** at the top of the side panel, enter both names, select a clock, and choose who moves first (or flip a coin). Press **Start Game** when both players are ready. The same button changes to **Pause Game** during play and **Resume Game** while paused. Resign and online room controls sit beside it; How to Play, GitHub, and Sound on/off are directly underneath.
+Choose **New Game** at the top of the side panel, choose **On one device** or **Over the internet**, enter both names, select a clock, and choose who moves first (or flip a coin). Press **Start Game** when both players are ready. The same button changes to **Pause Game** during play and **Resume Game** while paused. Resign sits beside it; How to Play, GitHub, and Sound on/off are directly underneath.
 
 - **Single Drop:** select a digit and any vacant square. Zero must share an edge with an existing tile.
 - **Double Down:** select and place two tiles in order. Each must share an edge with an existing tile, including the tile just placed.
@@ -28,7 +28,7 @@ Clocks run while choosing a move or finding a factor. Modal dialogs do not pause
 
 ### Online play
 
-Choose your desired time control first. Select **Play online → Create a private room** and share the invitation link with your friend. Your friend opens it and selects Join. The host is player one, the guest is player two; either may have the first move. Only the host creates new games. Both players can pause, resume, acknowledge a challenge, or resign as themselves.
+Select **New Game → Over the internet → Create a room**, choose the names, time control, and first move, then create the room and share its invitation link. Your friend opens it and selects **Join game**, or chooses **New Game → Over the internet → Join a friend** and pastes the link or room code. Reopen **New Game** to copy the invitation, leave the room, or (as host) start another game in the same room. Choose **On one device** to start a shared-device game. The host is player one, the guest is player two; either may have the first move. Only the host creates new games. Both players can pause, resume, acknowledge a challenge, or resign as themselves.
 
 The host validates moves and maintains the authoritative clocks. No account or application backend is required. PeerJS 1.5.5 is vendored; its public PeerServer handles connection signaling, and game data travels over WebRTC between the browsers. Room IDs use cryptographic randomness and are shared through invitation links. Online play depends on that external signaling service and compatible network conditions; there is no hosted TURN relay, reconnection system, or competitive anti-cheat service. A connection loss pauses both clocks; leave the room to continue at a shared device or create a fresh room. Keep the host tab open and active during a game. Shared-device play needs no signaling service.
 
