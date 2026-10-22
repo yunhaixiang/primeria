@@ -1,12 +1,12 @@
-import {BOARD_SIZE,BOARD_CELLS,RULES_VERSION,upgradeGameBoard,MODES,PILE,total,newGame,timeOutSettings,tick,placement,adjacent,segment,challenge,complete} from './engine.js?v=08b150e811';
+import {BOARD_SIZE,BOARD_CELLS,RULES_VERSION,upgradeGameBoard,MODES,PILE,total,newGame,timeOutSettings,tick,placement,adjacent,segment,challenge,complete} from './engine.js?v=5d7dda263a';
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const modeName=s=>s[0].toUpperCase()+s.slice(1);
 const colors=Array.from({length:10},(_,i)=>`var(--digit-${i})`);
-const key='primeria.game.13x13.v1';let state=newGame(),action='single',digit=3,pending=[],ends=[],reverse=false,rotation=0,muted=false,expanded=null,factor='';
+const key='primeria.game.11x11.v1';let state=newGame(),action='single',digit=3,pending=[],ends=[],reverse=false,rotation=0,muted=false,expanded=null,factor='';
 let peer=null,connection=null,role=null,room=null,networkPaused=false,verdict=null,shownEnd=false,toastTimer,audio,saveAt=0,syncAt=0;
-try{const saved=JSON.parse(localStorage.getItem(key)??localStorage.getItem('primeria.game.v1'));if([1,2].includes(saved?.version)&&[100,144,BOARD_CELLS].includes(saved.state?.board?.length)&&MODES[saved.state.mode]&&saved.state.piles?.length===2){Object.assign(saved.state,timeOutSettings(saved.state));state=upgradeGameBoard(saved.state);state.paused=state.started&&!state.ended;state.lastTick=Date.now();}muted=localStorage.getItem('primeria.muted')==='true';}catch{}
+try{const saved=JSON.parse(localStorage.getItem(key)??localStorage.getItem('primeria.game.v1'));if([1,2].includes(saved?.version)&&[100,BOARD_CELLS].includes(saved.state?.board?.length)&&MODES[saved.state.mode]&&saved.state.piles?.length===2){Object.assign(saved.state,timeOutSettings(saved.state));state=upgradeGameBoard(saved.state);state.paused=state.started&&!state.ended;state.lastTick=Date.now();}muted=localStorage.getItem('primeria.muted')==='true';}catch{}
 function save(){if(role!==null)return;try{localStorage.setItem(key,JSON.stringify({version:2,state}));}catch{}}
 function sound(kind='click'){
  if(muted)return;try{audio??=new (window.AudioContext||window.webkitAudioContext)();if(audio.state==='suspended')audio.resume();const now=audio.currentTime;

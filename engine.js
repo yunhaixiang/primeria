@@ -1,4 +1,4 @@
-export const BOARD_SIZE = 13;
+export const BOARD_SIZE = 11;
 export const BOARD_CELLS = BOARD_SIZE * BOARD_SIZE;
 export const RULES_VERSION = 2;
 export const MODES = {blitz:[600,10],rapid:[1200,20],standard:[1800,30],classical:[2700,60],casual:[null,0]};
@@ -77,7 +77,7 @@ export function complete(s,command,now=Date.now()){
 // Expand the former board without moving a tile to a different coordinate.
 export function upgradeGameBoard(state){
   if(state.board.length===BOARD_CELLS)return state;
-  const oldSize=state.board.length===100?10:state.board.length===144?12:null;
+  const oldSize=state.board.length===100?10:null;
   if(!oldSize)throw Error('This saved board size is unsupported.');
   const remap=index=>Math.floor(index/oldSize)*BOARD_SIZE+index%oldSize;
   const board=Array(BOARD_CELLS).fill(null);
