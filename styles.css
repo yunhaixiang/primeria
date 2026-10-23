@@ -647,3 +647,8 @@ main { padding-top: 16px; }
 }
 .phone-layout .play-panel .factor-digit { min-height: 44px; font-size: 18px; }
 .phone-layout .play-panel .factor-backspace { width: 44px; min-height: 44px; }
+
+/* Preserve the original rhombus footprint and faint one-pixel stroke. */
+.tile-center.shaped{border:0;border-radius:0;transform:none}
+.tile-center.shaped svg{position:absolute;left:50%;top:50%;width:141.421356%;height:141.421356%;transform:translate(-50%,-50%);overflow:visible;fill:none;stroke:#3a4a3b38;stroke-width:1}
+.tile-center.shaped svg>*{vector-effect:non-scaling-stroke}

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Regenerate Primeria's printable kit. Requires reportlab; run from any folder."""
 from collections import Counter
+from math import sqrt
 from pathlib import Path
 import re
 
@@ -181,6 +182,30 @@ def full_board(size):
     c.save()
 
 
+def tile_center(c, x, y, digit):
+    c.saveState()
+    c.translate(x, y)
+    c.setStrokeColor(blend(INK, .55))
+    c.setLineWidth(.4)
+    radius = 1.15*sqrt(2)*mm
+    if digit in (0, 5):
+        c.rotate(45)
+        c.rect(-1.15*mm, -1.15*mm, 2.3*mm, 2.3*mm, stroke=1, fill=0)
+    elif digit % 2 == 0:
+        c.circle(0, 0, radius, stroke=1, fill=0)
+    else:
+        inset = .48*mm
+        points = [(0,radius),(inset,inset),(radius,0),(inset,-inset),
+                  (0,-radius),(-inset,-inset),(-radius,0),(-inset,inset)]
+        path = c.beginPath()
+        path.moveTo(*points[0])
+        for point in points[1:]:
+            path.lineTo(*point)
+        path.close()
+        c.drawPath(path, stroke=1, fill=0)
+    c.restoreState()
+
+
 def tile_sheet():
     w, h = letter
     c = pdf('tiles-two-player-set.pdf', letter, 'Primeria - reusable 36-tile sheet - print two copies')
@@ -196,14 +221,8 @@ def tile_sheet():
         c.setStrokeColor(HexColor('#67776b'))
         c.setLineWidth(.35)
         c.roundRect(x, y, TILE, TILE, TILE_RADIUS, stroke=1, fill=1)
-        four_digits(c, x, y, TILE, digit, 13)
-        c.saveState()
-        c.translate(x+TILE/2, y+TILE/2)
-        c.rotate(45)
-        c.setStrokeColor(blend(INK, .55))
-        c.setLineWidth(.4)
-        c.rect(-1.15*mm, -1.15*mm, 2.3*mm, 2.3*mm, stroke=1, fill=0)
-        c.restoreState()
+        four_digits(c, x, y, TILE, digit, 17)
+        tile_center(c, x+TILE/2, y+TILE/2, digit)
     text(c, w/2, 53*mm, 'Cut along the rounded outlines (2 mm corner radius). Discard the white gutters.', 8, align='center')
     text(c, w/2, 47*mm, 'Numbers read from all four sides. Underlines identify 6 and 9.', 8, align='center')
     text(c, w/2, 41*mm, 'Both players use identical tiles; tiles can transfer during challenges.', 8, align='center')
