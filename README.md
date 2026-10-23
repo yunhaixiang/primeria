@@ -22,7 +22,7 @@ Players take turns making moves. Flip a coin to decide which player plays first.
 
 Two tiles are **adjacent** if their squares share an edge. Diagonal contact does not count. A tile is **isolated** if it has no adjacent tiles.
 
-**Special Rule for Zero**: At the end of a turn, no 0-tile may be isolated or lie at either end of a number. If, as a result of removing tiles from a challenge, a 0-tile becomes the first or last square in a connected row or column, or becomes isolated without any adjacent tiles, then that 0-tile is immediately removed from the board and put away in neither player's pile.
+**Special Rule for Zero**: At the end of a turn, no 0-tile may be isolated or lie at either end of a number. For Double Down, this restriction is checked after both tiles have been placed. Additionally, if, as a result of removing tiles from a challenge, a 0-tile becomes the first or last square in an uninterrupted horizontal or vertical run of tiles, or becomes isolated, then that 0-tile is immediately removed from the board and put away, in neither player's pile.
 
 ## Winning
 
