@@ -196,7 +196,7 @@ def tile_sheet():
         c.setStrokeColor(HexColor('#67776b'))
         c.setLineWidth(.35)
         c.roundRect(x, y, TILE, TILE, TILE_RADIUS, stroke=1, fill=1)
-        four_digits(c, x, y, TILE, digit, 17)
+        four_digits(c, x, y, TILE, digit, 20)
     text(c, w/2, 53*mm, 'Cut along the rounded outlines (2 mm corner radius). Discard the white gutters.', 8, align='center')
     text(c, w/2, 47*mm, 'Numbers read from all four sides. Underlines identify 6 and 9.', 8, align='center')
     text(c, w/2, 41*mm, 'Both players use identical tiles; tiles can transfer during challenges.', 8, align='center')
