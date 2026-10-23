@@ -1,22 +1,25 @@
 import * as engine from './engine.js?v=0fb93642b8';
 
 export const BOT_LEVELS={
- beginner:{label:'Beginner',description:'Basic divisibility checks and short plans.',speed:1.5,ideas:5,targets:2,replies:1,followups:0,budget:7,eleven:false,primes:[7],maxDigits:2,noise:2.5},
- intermediate:{label:'Intermediate',description:'Checks 3, 9, 11, 7 and 13; considers replies.',speed:1,ideas:10,targets:4,replies:2,followups:0,budget:12,eleven:true,primes:[7,13],maxDigits:9,noise:.6},
+ beginner:{label:'Beginner',description:'Quick small-prime checks and short plans.',speed:1.5,ideas:5,targets:2,replies:1,followups:0,budget:7,eleven:true,primes:[7,13],maxDigits:15,noise:2.5},
+ intermediate:{label:'Intermediate',description:'Quick small-prime checks; considers replies.',speed:1,ideas:10,targets:4,replies:2,followups:0,budget:12,eleven:true,primes:[7,13],maxDigits:15,noise:.6},
  advanced:{label:'Advanced',description:'More small-prime checks and deeper planning.',speed:.7,ideas:18,targets:7,replies:4,followups:2,budget:18,eleven:true,primes:[7,13,17,19,23,29,31],maxDigits:13,noise:.15}
 };
 export function botConfig(state){const b=state?.bot;return b&&b.player===1&&Object.hasOwn(BOT_LEVELS,b.strength)&&typeof b.id==='string'&&b.id.length>0&&b.id.length<100&&Number.isInteger(b.seed)&&b.seed>=0&&b.seed<=0xffffffff?b:null;}
 export function isBotTurn(state){return !!botConfig(state)&&state.turn===1;}
-// Each check has a mental time cost. No primality oracle or unrestricted factoring.
+// Website bots and simulations share these assumed mental costs (seconds),
+// not measured human timings. Cheap tests work at every board length and level.
+// Larger-prime trial divisions remain slower; there is no primality oracle.
+export const ARITHMETIC_MODEL='quick-small-primes-v1';
 export function factorChecks(digits,strength='intermediate'){
  if(!/^\d{1,15}$/.test(digits)||!Object.hasOwn(BOT_LEVELS,strength))throw Error('Invalid bot arithmetic input.');
  const level=BOT_LEVELS[strength],n=BigInt(digits),last=Number(digits.at(-1)),sum=[...digits].reduce((a,d)=>a+Number(d),0);
- const checks=[],add=(factor,cost,test)=>checks.push({factor:String(factor),cost:cost*level.speed,divides:(n===0n||BigInt(factor)<n)&&test,method:factor});
- add(2,.25,last%2===0);add(5,.25,last===0||last===5);add(10,.2,last===0);
- add(4,last%2===0?.4:.04,Number(digits.slice(-2))%4===0);add(8,last%2===0?.65:.04,Number(digits.slice(-3))%8===0);
- add(3,.4+digits.length*.15,sum%3===0);add(9,.15,sum%9===0);add(6,.15,last%2===0&&sum%3===0);
- if(level.eleven)add(11,.5+digits.length*.2,[...digits].reduce((a,d,i)=>a+(i%2?-1:1)*Number(d),0)%11===0);
- if(digits.length<=level.maxDigits)for(const p of level.primes)add(p,.8+digits.length*(p<=13?.45:.65),n%BigInt(p)===0n);
+ const checks=[],add=(factor,cost,test)=>checks.push({factor:String(factor),cost:cost*level.speed,divides:(n===0n||BigInt(factor)<n)&&test,method:factor,quick:factor<=13});
+ add(2,.03,last%2===0);add(5,.03,last===0||last===5);add(10,.02,last===0);
+ add(4,last%2===0?.05:.01,Number(digits.slice(-2))%4===0);add(8,last%2===0?.08:.01,Number(digits.slice(-3))%8===0);
+ add(3,.06+digits.length*.008,sum%3===0);add(9,.02,sum%9===0);add(6,.01,last%2===0&&sum%3===0);
+ if(level.eleven)add(11,.08+digits.length*.012,[...digits].reduce((a,d,i)=>a+(i%2?-1:1)*Number(d),0)%11===0);
+ for(const p of level.primes)if(p<=13||digits.length<=level.maxDigits)add(p,p<=13?.12+digits.length*.025:.8+digits.length*.65,n%BigInt(p)===0n);
  return checks;
 }
 export const STYLES={balanced:{risk:1.2,opponentWeight:1.15,inventory:.8,temperature:.25}};
@@ -156,8 +159,9 @@ function createPlanner(engine,{size,seed,seat,style='balanced',level='intermedia
   if(!next.ended&&command.moves){
    const local=wholeRuns(next.board,size).filter(c=>c.some(i=>command.moves.some(m=>m.index===i))).sort((a,b)=>b.length-a.length);
    for(const cells of local){
-    const text=reading(next.board,cells,next.turn),ending=factorChecks(text,level).slice(0,3).find(c=>c.divides);
-    if(ending){exposure=Math.max(exposure,cells.length-1);threats.push({action:'challenge',a:cells[0],b:cells.at(-1),factor:ending.factor});}
+    // Cheap small-factor traps remain visible even late in a planning budget.
+    const text=reading(next.board,cells,next.turn),easy=factorChecks(text,level).find(c=>c.quick&&c.divides);
+    if(easy){exposure=Math.max(exposure,cells.length-1);threats.push({action:'challenge',a:cells[0],b:cells.at(-1),factor:easy.factor});}
     if(punished.has(pattern(text)))memoryPenalty+=3;
     if(ctx.seconds>=limit){unverified++;continue;}
     const misses=ctx.unfinishedChecks,f=inspect(next.board,cells,ctx,limit,next.turn);
