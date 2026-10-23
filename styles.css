@@ -368,7 +368,10 @@ main { padding-top: 16px; }
  .bot-strength-options label { padding: 11px 3px; gap: 4px; }
 }
 
-.start-countdown { position: absolute; inset: 0; z-index: 8; display: flex; align-items: center; justify-content: center; padding: 24px; border-radius: inherit; background: #102d27ce; backdrop-filter: blur(1.5px); }
+.quick-start, .start-countdown { position: absolute; inset: 0; z-index: 8; display: flex; align-items: center; justify-content: center; padding: 24px; border-radius: inherit; background: #102d27ce; backdrop-filter: blur(1.5px); }
+.quick-start .primary-button { width: auto; min-width: 160px; min-height: 50px; justify-content: center; padding: 14px 28px; background: #eeeedd; color: #234a3f; font-size: 15px; font-weight: 650; box-shadow: 0 5px 20px #071e2440; }
+.quick-start .primary-button:hover { background: #fffef4; }
+.quick-start .primary-button:focus-visible { outline-color: #f3d689; }
 .start-countdown p { margin: 0; color: #faf8ee; font-size: clamp(19px, 2.5vw, 32px); font-weight: 600; letter-spacing: -.6px; line-height: 1.5; text-align: center; font-variant-numeric: tabular-nums; }
 
 /* End-of-game result and local move-by-move review. */
@@ -482,7 +485,7 @@ main { padding-top: 16px; }
 .split-view .split-player-panel { max-height: calc(100dvh - 90px); overflow-y: auto; }
 .split-view #split-button { color: #3c674a; box-shadow: 0 2px #8fa77b; }
 .split-view .split-facing { display: block; transform: rotate(180deg); }
-.split-view .start-countdown, .split-view .game-end { display: flex; flex-direction: column; justify-content: space-evenly; align-items: center; gap: 20px; padding: 20px; }
+.split-view .quick-start, .split-view .start-countdown, .split-view .game-end { display: flex; flex-direction: column; justify-content: space-evenly; align-items: center; gap: 20px; padding: 20px; }
 .split-view .game-end h2 { font-size: clamp(19px,2.2vw,28px); margin-bottom: 16px; }
 .split-view .end-actions { gap: 8px; }
 .split-view .end-actions button { min-width: 100px; min-height: 40px; padding: 10px; font-size: 10px; }

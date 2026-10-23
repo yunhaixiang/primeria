@@ -102,9 +102,11 @@ function renderPlayers(){
  const opponent=1-viewer();$('#opponent-name').textContent=`${state.names[opponent].toUpperCase()}’S PILE`;
  $('#opponent-rack').innerHTML=display.piles[opponent].map((n,d)=>`<span class="supply-chip" style="--tile-color:${colors[d]}" aria-label="${escape(state.names[opponent])}: digit ${d}, ${n} remaining"><b>${d}</b><small>×${n}</small></span>`).join('');
 }
+function canQuickStart(){return role===null&&!state.started&&!state.ended&&!state.startCountdown&&!new URL(location.href).searchParams.has('room');}
 function renderStartCountdown(){
  const countdown=state.startCountdown,visible=!!countdown&&!state.started&&!state.ended&&!networkPaused;
- $('#start-countdown').hidden=!visible;$('#board').inert=visible||(!!state.ended&&reviewMove===null);
+ const quickStart=canQuickStart();$('#quick-start').hidden=!quickStart;
+ $('#start-countdown').hidden=!visible;$('#board').inert=quickStart||visible||(!!state.ended&&reviewMove===null);
  if(visible){
   const seconds=challengeReviewSeconds(countdown),message=`Game Starts in ${seconds} ${seconds===1?'Second':'Seconds'}`;
   for(const text of [$('#start-countdown-text'),$('#split-start-countdown-text')])if(text.textContent!==message)text.textContent=message;
@@ -172,7 +174,7 @@ function renderControls(){
  $('#pause-resume').disabled=$('#start-button').disabled;
  $('#resign-button').disabled=!state.started||!!state.ended||(role!==null&&!connection?.open);
  $('#new-button').disabled=false;
- $('#board-note').textContent=reviewMove!==null?`Review · ${reviewMove===0?'Starting position':`After move ${reviewMove}`} of ${state.history.length}`:state.ended?gameResult(state):state.started?`${state.names[state.turn]==='You'?'Your turn':state.names[state.turn]+' to play'}${state.paused?' · paused':''}${state.timeOutRule&&state.elapsed>=state.timeOutSeconds?` · Tie-breaker streak: ${state.streak}/${state.timeOutMoves}`:''}.`:networkPaused?'Connection lost.':state.startCountdown?'Starting game…':role!==null?'Waiting for your opponent.':'Create a new game to begin.';
+ $('#board-note').textContent=reviewMove!==null?`Review · ${reviewMove===0?'Starting position':`After move ${reviewMove}`} of ${state.history.length}`:state.ended?gameResult(state):state.started?`${state.names[state.turn]==='You'?'Your turn':state.names[state.turn]+' to play'}${state.paused?' · paused':''}${state.timeOutRule&&state.elapsed>=state.timeOutSeconds?` · Tie-breaker streak: ${state.streak}/${state.timeOutMoves}`:''}.`:networkPaused?'Connection lost.':state.startCountdown?'Starting game…':role!==null?'Waiting for your opponent.':`Quick Start · ${modeName(state.mode)} · ${boardSize()} × ${boardSize()}.`;
  $('#turn-count').textContent=reviewMove!==null?`MOVE ${String(reviewMove).padStart(2,'0')}`:`TURN ${String(state.history.length+1).padStart(2,'0')}`;
  renderSplitPanels();
 }
@@ -280,6 +282,10 @@ for(const id of ['challenge-quit','review-quit'])$('#'+id).addEventListener('cli
 $('#rules-button').addEventListener('click',()=>{orientDialogs();sound();$('#rules-dialog').showModal();});
 $('#rotate-button').addEventListener('click',()=>{rotation=(rotation+1)%4;sound();renderBoard();renderControls();toast(`Board rotated ${rotation*90}°. Coordinates stay with their squares.`);});
 $('#sound-button').addEventListener('click',()=>{muted=!muted;try{localStorage.setItem('primeria.muted',muted);}catch{}sound();render();});
+$$('[data-quick-start]').forEach(button=>button.addEventListener('click',()=>{
+ if(!canQuickStart())return;
+ beginGameCountdown(state);resetDraft();save();render();sound('turn');
+}));
 $('#start-button').addEventListener('click',()=>dispatch({type:'start'}));
 $('#pause-resume').addEventListener('click',()=>{if(state.started&&state.paused&&!state.ended&&!verdict)dispatch({type:'start'});});
 $('#pause-new-game').addEventListener('click',openSetup);
