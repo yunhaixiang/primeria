@@ -1,4 +1,4 @@
-import * as engine from './engine.js?v=539ebfebba';
+import * as engine from './engine.js?v=0fb93642b8';
 
 export const BOT_LEVELS={
  beginner:{label:'Beginner',description:'Basic divisibility checks and short plans.',speed:1.5,ideas:5,targets:2,replies:1,followups:0,budget:7,eleven:false,primes:[7],maxDigits:2,noise:2.5},
@@ -87,13 +87,7 @@ function createPlanner(engine,{size,seed,seat,style='balanced',level='intermedia
   return null;
  }
  function secondSquares(board,first){
-  const result=[],x=first%size,y=Math.floor(first/size);
-  for(const [dx,dy]of [[1,0],[-1,0],[0,1],[0,-1]]){
-   let nx=x+dx,ny=y+dy;
-   while(nx>=0&&nx<size&&ny>=0&&ny<size&&board[ny*size+nx]!==null){nx+=dx;ny+=dy;}
-   if(nx>=0&&nx<size&&ny>=0&&ny<size)result.push(ny*size+nx);
-  }
-  return result;
+  return neighbors(first,size).filter(i=>board[i]===null);
  }
  function winningPlacement(state){
   const pile=state.piles[state.turn],count=engine.total(pile);if(count>2)return null;
@@ -128,13 +122,6 @@ function createPlanner(engine,{size,seed,seat,style='balanced',level='intermedia
      return ax>=0&&ax<size&&ay>=0&&ay<size&&bx>=0&&bx<size&&by>=0&&by<size&&board[by*size+bx]===null&&[1,3,7,9].includes(board[ay*size+ax]);
     });
     if(directions.length){const [dx,dy]=pick(directions);moves=[{index,digit},{index:(y+dy)*size+x+dx,digit:pick(oddGuards)}];}
-   }else if(template===1&&frontier.length&&engine.total(pile)>=2){
-    // Put two guards around an already isolated difficult tile when possible.
-    const anchors=board.map((d,i)=>d!==null&&!engine.adjacent(board,i)?i:-1).filter(i=>i>=0);
-    const anchor=pick(anchors),axis=random()<.5?1:size;
-    if(anchor!==undefined){const a=anchor-axis,b=anchor+axis;
-     if(a>=0&&b<board.length&&(axis!==1||Math.floor(a/size)===Math.floor(b/size))&&board[a]===null&&board[b]===null&&oddGuards.length)moves=[{index:a,digit:pick(oddGuards)},{index:b,digit:pick(oddGuards)}];
-    }
    }
    if(!moves.length&&frontier.length&&engine.total(pile)>=2&&template<3){
     const index=pick(frontier),digit=pick(weighted),copy=board.slice();copy[index]=digit;

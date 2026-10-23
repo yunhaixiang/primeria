@@ -7,7 +7,7 @@ export function getBoardSize(board){
  return size;
 }
 export function isSupportedBoardState(state){return !!state&&state.rulesVersion===RULES_VERSION&&validChallengeAttempt(state)&&BOARD_SIZES.includes(state.boardSize)&&Array.isArray(state.board)&&state.board.length===state.boardSize**2&&Array.isArray(state.taxed)&&state.taxed.length===10&&state.taxed.every(n=>Number.isSafeInteger(n)&&n>=0);}
-export const RULES_VERSION = 10;
+export const RULES_VERSION = 11;
 export const MODES = {blitz:[600,10],rapid:[1200,20],standard:[1800,30],classical:[2700,60],casual:[null,0]};
 export const PILE = [2,5,3,5,3,2,3,5,3,5];
 export const total = pile => pile.reduce((a,b)=>a+b,0);
@@ -30,7 +30,7 @@ export function tick(s,now=Date.now()) {
 }
 export function adjacent(board,index){const size=getBoardSize(board),x=index%size,y=Math.floor(index/size);return [[x-1,y],[x+1,y],[x,y-1],[x,y+1]].some(([a,b])=>a>=0&&a<size&&b>=0&&b<size&&board[b*size+a]!==null);}
 export function placement(s,action,moves,partial=false){
-  const boardCells=s.board.length;getBoardSize(s.board);
+  const boardCells=s.board.length,size=getBoardSize(s.board);
   const count=action==='single'?1:action==='double'?2:0;
   if(!count||moves.length<1||moves.length>count||(!partial&&moves.length!==count))throw Error(`Place ${count||'one or two'} tiles to complete this move.`);
   const board=s.board.slice(),pile=s.piles[s.turn].slice();
@@ -42,7 +42,7 @@ export function placement(s,action,moves,partial=false){
     board[m.index]=m.digit;pile[m.digit]--;
   }
   if(moves.length===count){
-    if(action==='double'&&!challengeLines(board,moves[0].index).some(line=>line.cells.includes(moves[1].index)))throw Error('Both Double Down tiles must belong to the same uninterrupted row or column.');
+    if(action==='double'&&Math.abs(moves[0].index%size-moves[1].index%size)+Math.abs(Math.floor(moves[0].index/size)-Math.floor(moves[1].index/size))!==1)throw Error('The second Double Down tile must touch the first along an edge.');
     const affected=new Set();
     for(const m of moves)for(const line of challengeLines(board,m.index))for(const i of line.cells)if(board[i]===0)affected.add(i);
     for(const i of affected)for(const line of challengeLines(board,i))if(line.cells.length>1&&(line.cells[0]===i||line.cells.at(-1)===i))throw Error('Zero cannot begin or end a number after your move.');
@@ -154,7 +154,7 @@ export function complete(s,command,now=Date.now()){
 // Expand the former board without moving a tile to a different coordinate.
 export function upgradeGameBoard(state){
   // Earlier moves remain reviewable; resumed games use the current placement rule.
-  if(state.rulesVersion===9)state={...state,rulesVersion:RULES_VERSION};
+  if([9,10].includes(state.rulesVersion))state={...state,rulesVersion:RULES_VERSION};
   if(state.challengeAttempt===undefined)state={...state,challengeAttempt:null};
   const size=Math.sqrt(state.board.length);
   if(BOARD_SIZES.includes(size)){
