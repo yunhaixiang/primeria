@@ -67,4 +67,4 @@ The following divisibility tests can help you find factors quickly:
 
 6. A number is a multiple of 13 if and only if subtracting 9 times its last digit from the number formed by the remaining digits gives a multiple of 13.
 
-7. A number is a multiple of 7, 11, or 13 if and only if the alternating sum of its three-digit blocks, formed starting from the right, is a multiple of 7, 11, or 13, respectively.
+7. A number is a multiple of 7, 11, or 13 if and only if the alternating sum of its three-digit blocks, formed starting from the ones digit, is a multiple of 7, 11, or 13, respectively.
