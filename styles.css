@@ -643,7 +643,7 @@ main { padding-top: 16px; }
 
 /* Match the 20 pt printed tiles, with a small optical increase for screen rendering. */
 .tile{container-type:inline-size}
-.tile-number{font-size:30.280092cqw;left:50%;top:50%;transform:translate(-50%,-50%) rotate(var(--number-angle)) translateY(calc(-43cqw + .5em))}
+.tile-number{font-size:30.280092cqw;left:50%;top:50%;transform:translate(-50%,-50%) rotate(var(--number-angle)) translateY(calc(-48.5cqw + .5em))}
 
 /* The underline rotates with each numeral, distinguishing 6 from 9 in every direction. */
 .tile.orientation-mark .tile-number::after{content:"";position:absolute;left:20%;top:calc(100% - .04em);width:60%;height:.105em;background:currentColor;opacity:.23}

@@ -120,7 +120,8 @@ def numeral(c, x, y, digit, angle, size, color=INK):
 
 def four_digits(c, x, y, side, digit, size, color=INK):
     center = side / 2
-    inset = 2.1*mm
+    # Halve the visible gap, including the font's cap-height allowance.
+    inset = 1.05*mm - size*.01
     numeral(c, x+center, y+side-inset-size*.74, digit, 0, size, color)
     numeral(c, x+center, y+inset+size*.74, digit, 180, size, color)
     numeral(c, x+inset+size*.74, y+center, digit, 90, size, color)
