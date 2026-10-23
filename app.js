@@ -43,7 +43,7 @@ function ask(title,message,confirmLabel='Continue'){return new Promise(resolve=>
 function tile(n){
  const shape=n===0||n===5?'rhombus':n%2===0?'circle':'star';
  const mark=shape==='circle'?'<circle cx="50" cy="50" r="49.5"/>':shape==='star'?'<path d="M50 .5 64.6 35.4 99.5 50 64.6 64.6 50 99.5 35.4 64.6 .5 50 35.4 35.4Z"/>':'';
- return `<span class="tile" style="--tile-color:${colors[n]}" aria-hidden="true"><span class="tile-number north">${n}</span><span class="tile-number east">${n}</span><span class="tile-number south">${n}</span><span class="tile-number west">${n}</span><span class="tile-center${mark?' shaped':''}">${mark?`<svg viewBox="0 0 100 100" aria-hidden="true">${mark}</svg>`:''}</span></span>`;
+ return `<span class="tile" style="--tile-color:${colors[n]}" aria-hidden="true"><span class="tile-number north">${n}</span><span class="tile-number east">${n}</span><span class="tile-number south">${n}</span><span class="tile-number west">${n}</span><span class="tile-center${mark?` shaped ${shape}`:''}">${mark?`<svg viewBox="0 0 100 100" aria-hidden="true">${mark}</svg>`:''}</span></span>`;
 }
 function columnLabel(x){return String.fromCharCode(65+x);}
 function coords(index){return `${columnLabel(index%boardSize())}${Math.floor(index/boardSize())+1}`;}

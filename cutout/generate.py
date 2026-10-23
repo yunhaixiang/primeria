@@ -192,9 +192,11 @@ def tile_center(c, x, y, digit):
         c.rotate(45)
         c.rect(-1.15*mm, -1.15*mm, 2.3*mm, 2.3*mm, stroke=1, fill=0)
     elif digit % 2 == 0:
-        c.circle(0, 0, radius, stroke=1, fill=0)
+        c.circle(0, 0, radius*.8, stroke=1, fill=0)
     else:
-        inset = .48*mm
+        # Match perceived size rather than giving each shape the same bounding box.
+        radius *= .9
+        inset = .48*mm*.9
         points = [(0,radius),(inset,inset),(radius,0),(inset,-inset),
                   (0,-radius),(-inset,-inset),(-radius,0),(-inset,inset)]
         path = c.beginPath()
