@@ -10,19 +10,17 @@ The game is played on a square board with 9 × 9, 11 × 11, 13 × 13, or 15 × 1
 
 Players take turns making moves. Flip a coin to decide which player plays first. At each turn, the player chooses from one of three kinds of moves.
 
-1. **Single Drop**: the player places one of their tiles on any empty square.
+1. **Single Drop**: The player places one of their tiles on any empty square.
 
 2. **Double Down**: Place two tiles, one at a time. Each tile must be placed adjacent to a tile already on the board when it is placed. The second tile may be placed adjacent to the first.
 
-3. **Challenge**: Challenge a complete, uninterrupted horizontal or vertical run of tiles. Read the number from left to right or top to bottom, from the challenger’s perspective. An attempt at a challenge is to write down a factor of the number, other than 1 or itself, and then verify it with a calculator. The longer the number, the more attempts the challenger gets: 1 ~ 3 digits get 1 attempt, 4 ~ 6 digits get 2 attempts, 7 ~ 9 digits get 3 attempts, and so on.
+3. **Challenge**: Declare a number on the board to challenge, formed by an uninterrupted horizontal or vertical run of tiles, read from left to right or top to bottom, from the challenger’s perspective. The challenger gets one or more attempts to challenge this number depending on its length: 1 ~ 3 digits get 1 attempt, 4 ~ 6 digits get 2 attempts, 7 ~ 9 digits get 3 attempts, and so on. An attempt consists of a proposal of a factor of the number, other than 1 or itself. Depending on whether the game is being played over the board or on a screen, either the challenger verifies the factor with a calculator, or the computer checks it automatically. The clock does not stop during calculator verification.
 
     - If an attempt succeeds: the number is removed from the board, and all but its ones digit is put into the opponent’s pile. The ones digit is put away, in neither player’s pile.
 
     - If all attempts fail: the number remains on the board, no tile is placed this turn, and the game moves on to the next turn.
 
 Two tiles are **adjacent** if their squares share an edge. Diagonal contact does not count. A tile is **isolated** if it has no adjacent tiles.
-
-The zero tile works slightly differently than others.
 
 **Special Rule for Zero**: At the end of a turn, no 0-tile may be isolated or lie at either end of a number. If, as a result of removing tiles from a challenge, a 0-tile becomes the first or last square in a connected row or column, or becomes isolated without any adjacent tiles, then that 0-tile is immediately removed from the board and put away in neither player's pile.
 
