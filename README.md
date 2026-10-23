@@ -10,7 +10,7 @@ The game is played on a square board with 9 × 9, 11 × 11, 13 × 13, or 15 × 1
 
 Players take turns making moves. Flip a coin to decide which player plays first. At each turn, the player chooses from one of three kinds of moves.
 
-1. **Single Drop**: The player places one of their tiles on any empty square.
+1. **Single Drop**: Place one tile on any empty square.
 
 2. **Double Down**: Place two tiles, one at a time. Each tile must be placed adjacent to a tile already on the board when it is placed. The second tile may be placed adjacent to the first.
 
