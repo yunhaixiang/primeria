@@ -12,21 +12,21 @@ The game is played on a square board with 9 × 9, 11 × 11, 13 × 13, or 15 × 1
 
 ## Moves
 
+During the game, tiles will be placed on the squares. Two tiles are **adjacent** if their squares share an edge. Diagonal contact does not count. A tile is **isolated** if it has no adjacent tiles. A **number** is a complete, uninterrupted horizontal or vertical run of one or more tiles, read from left to right or top to bottom from the current player’s perspective.
+
 Players take turns making moves. Flip a coin to decide which player plays first. At each turn, the player chooses from one of three kinds of moves.
 
 1. **Single Drop**: Place one tile on any empty square.
 
 2. **Double Down**: Place two tiles, one at a time. Each tile must be placed adjacent to a tile already on the board when it is placed. In particular, the second tile may be placed adjacent to the first.
 
-3. **Challenge**: Declare a number on the board to challenge, formed by an uninterrupted horizontal or vertical run of tiles, read from left to right or top to bottom, from the challenger’s perspective. The challenger gets one or more attempts to challenge this number depending on its length: 1 ~ 3 digits get 1 attempt, 4 ~ 6 digits get 2 attempts, 7 ~ 9 digits get 3 attempts, and so on. An attempt consists of a proposal of a factor of the number, other than 1 or itself, and then, depending on whether the game is being played over the board or on a screen, either the challenger verifies the factor with a calculator, or the computer checks it automatically. The clock does not stop during calculator verification.
+3. **Challenge**: Declare a number on the board to challenge. The challenger gets one or more attempts to challenge this number depending on its length: 1 ~ 3 digits get 1 attempt, 4 ~ 6 digits get 2 attempts, 7 ~ 9 digits get 3 attempts, and so on. An attempt consists of proposing a factor of the number, other than 1 or itself. Depending on whether the game is being played over the board or on a screen, either the challenger verifies the factor with a calculator, or the computer checks it automatically. The clock does not stop during calculator verification.
 
-    - If an attempt succeeds: the number is removed from the board, and all but its ones digit is put into the opponent’s pile. The ones digit is put away, in neither player’s pile.
+    - If an attempt succeeds: the number is removed from the board, and all but its ones digit is put into the opponent’s pile. The ones digit is discarded. Discarded tiles are removed from play and placed in neither player’s pile.
 
     - If all attempts fail: the number remains on the board, no tile is placed this turn, and the game moves on to the next turn.
 
-Two tiles are **adjacent** if their squares share an edge. Diagonal contact does not count. A tile is **isolated** if it has no adjacent tiles.
-
-**Special Rule for Zero**: At the end of a turn, no 0-tile may be isolated or lie at either end of a number. For Double Down, this restriction is checked after both tiles have been placed. Additionally, if, as a result of removing tiles from a challenge, a 0-tile becomes the first or last square in an uninterrupted horizontal or vertical run of tiles, or becomes isolated, then that 0-tile is immediately removed from the board and put away, in neither player's pile.
+**Special Rule for Zero**: At the end of a turn, no 0-tile may be isolated or lie at either end of any number. If removing tiles in a successful Challenge leaves a 0-tile isolated or at either end of any number, immediately remove it from the board and discard it.
 
 ## Winning
 
@@ -38,7 +38,7 @@ There are three ways to win a game (and one optional way).
 
 3. Resignation: a player wins by their opponent resigning the game.
 
-4. (Optional Rule) Tie-breaker: After the selected time limit is reached, a player wins by having fewer tiles than their opponent after 10 consecutive completed turns, counting both players’ turns. Equal pile sizes reset the count.
+4. (Optional Rule) Tie-breaker: Once the selected time limit is reached, a player wins if they have fewer tiles than their opponent at the end of each of 10 consecutive completed turns, counting both players’ turns. Equal pile sizes reset the count.
 
 ## Time Controls
 
@@ -53,7 +53,7 @@ Players can choose one of the following time controls.
 
 ## Tips
 
-A good strategy is to make use of the following facts:
+The following divisibility tests can help you find factors quickly:
 
 1. A number is a multiple of 2 if and only if it ends in 0, 2, 4, 6, or 8.
 
