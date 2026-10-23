@@ -1,4 +1,4 @@
-import * as engine from './engine.js?v=a715b1f2ae';
+import * as engine from './engine.js?v=539ebfebba';
 
 export const BOT_LEVELS={
  beginner:{label:'Beginner',description:'Basic divisibility checks and short plans.',speed:1.5,ideas:5,targets:2,replies:1,followups:0,budget:7,eleven:false,primes:[7],maxDigits:2,noise:2.5},
@@ -86,6 +86,15 @@ function createPlanner(engine,{size,seed,seat,style='balanced',level='intermedia
   }
   return null;
  }
+ function secondSquares(board,first){
+  const result=[],x=first%size,y=Math.floor(first/size);
+  for(const [dx,dy]of [[1,0],[-1,0],[0,1],[0,-1]]){
+   let nx=x+dx,ny=y+dy;
+   while(nx>=0&&nx<size&&ny>=0&&ny<size&&board[ny*size+nx]!==null){nx+=dx;ny+=dy;}
+   if(nx>=0&&nx<size&&ny>=0&&ny<size)result.push(ny*size+nx);
+  }
+  return result;
+ }
  function winningPlacement(state){
   const pile=state.piles[state.turn],count=engine.total(pile);if(count>2)return null;
   const digits=pile.flatMap((n,d)=>Array(n).fill(d));
@@ -95,7 +104,7 @@ function createPlanner(engine,{size,seed,seat,style='balanced',level='intermedia
    const edge=empty.filter(i=>engine.adjacent(state.board,i));
    for(const index of edge.slice(0,12))for(const order of [digits,digits.slice().reverse()]){
     const board=state.board.slice();board[index]=order[0];
-    const seconds=[...new Set([...neighbors(index,size).filter(i=>board[i]===null),...edge.filter(i=>i!==index)])].slice(0,12);
+    const seconds=secondSquares(board,index);
     for(const next of seconds){const command={action:'double',moves:[{index,digit:order[0]},{index:next,digit:order[1]}]};try{engine.placement(state,command.action,command.moves);return command;}catch{}}
    }
   }
@@ -129,7 +138,7 @@ function createPlanner(engine,{size,seed,seat,style='balanced',level='intermedia
    }
    if(!moves.length&&frontier.length&&engine.total(pile)>=2&&template<3){
     const index=pick(frontier),digit=pick(weighted),copy=board.slice();copy[index]=digit;
-    const next=random()<.75?neighbors(index,size).filter(i=>copy[i]===null):frontier.filter(i=>i!==index);
+    const next=secondSquares(copy,index);
     if(next.length)moves=[{index,digit},{index:pick(next),digit:pick(weighted)}];
    }
    if(!moves.length){

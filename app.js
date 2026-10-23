@@ -1,27 +1,27 @@
-import {BOARD_SIZES,isSupportedBoardState,RULES_VERSION,upgradeGameBoard,MODES,PILE,total,newGame,timeOutSettings,tick,placement,adjacent,segment,challengeLines,challengeNumber,challenge,complete,beginChallengeReview,finishChallengeReview,challengeReviewSeconds,beginGameCountdown,finishGameCountdown} from './engine.js?v=a715b1f2ae';
-import {BOT_LEVELS,botConfig,isBotTurn,createBot} from './bot.js?v=a74288f309';
+import {BOARD_SIZES,isSupportedBoardState,RULES_VERSION,upgradeGameBoard,MODES,PILE,total,newGame,timeOutSettings,tick,placement,adjacent,segment,challengeLines,challengeNumber,challenge,complete,beginChallengeReview,finishChallengeReview,challengeReviewSeconds,beginGameCountdown,finishGameCountdown} from './engine.js?v=539ebfebba';
+import {BOT_LEVELS,botConfig,isBotTurn,createBot} from './bot.js?v=fd113304ef';
 
-import {gameResult,reviewPosition} from './review.js?v=7c6df222da';
+import {gameResult,reviewPosition} from './review.js?v=2297f2cb0e';
 
-import {splitPanelHTML,splitPermissions} from './split-view.js?v=3a672cac32';
+import {splitPanelHTML,splitPermissions} from './split-view.js?v=ef3effe058';
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const modeName=s=>s[0].toUpperCase()+s.slice(1);
 const colors=Array.from({length:10},(_,i)=>`var(--digit-${i})`);
 const ONLINE_VERSION=2;
-const key='primeria.game.rules9.v1';let state=newGame(),action='single',digit=3,pending=[],ends=[],lineChoices=[],challengeAxis='row',rotation=0,muted=false,expanded=null,factor='';
+const key='primeria.game.rules10.v1';let state=newGame(),action='single',digit=3,pending=[],ends=[],lineChoices=[],challengeAxis='row',rotation=0,muted=false,expanded=null,factor='';
 const phoneLayout=matchMedia('(max-width:600px), (max-width:1000px) and (max-height:500px)');
 let boardZoom=false,splitLastTurn=null;const splitPhoneOpen=[false,false];
 let splitView=false,splitPreference=false;const splitHistoryOpen=[false,false],splitInventoryOpen=[false,false];
 let peer=null,connection=null,role=null,room=null,networkPaused=false,verdict=null,shownEnd=false,reviewMove=null,reviewSnapshot=null,resigning=null,toastTimer,audio,saveAt=0,syncAt=0,botWorker=null,botJob=null,botCounter=0;
 try{
- for(const slot of [key]){
+ for(const slot of [key,'primeria.game.rules9.v1']){
   try{
    const saved=JSON.parse(localStorage.getItem(slot));
-   if(saved?.version!==9||!MODES[saved.state?.mode]||saved.state.piles?.length!==2||!isSupportedBoardState(saved.state))continue;
+   if(![9,10].includes(saved?.version)||!MODES[saved.state?.mode]||saved.state.piles?.length!==2)continue;
    if(saved.state.bot&&!botConfig(saved.state))continue;
-   const restored=upgradeGameBoard(saved.state);Object.assign(restored,timeOutSettings(restored));
+   const restored=upgradeGameBoard(saved.state);if(!isSupportedBoardState(restored))continue;Object.assign(restored,timeOutSettings(restored));
    state=restored;if(state.startCountdown&&!state.started&&!state.ended)beginGameCountdown(state);state.paused=state.started&&!state.ended;state.lastTick=Date.now();break;
   }catch{}
  }
@@ -32,7 +32,7 @@ function viewState(){return reviewSnapshot??state;}
 function viewer(){return role??(botConfig(state)?0:viewState().turn);}
 function boardSize(){return state.boardSize;}
 
-function save(){if(role!==null)return;try{localStorage.setItem(key,JSON.stringify({version:9,state}));}catch{}}
+function save(){if(role!==null)return;try{localStorage.setItem(key,JSON.stringify({version:10,state}));}catch{}}
 function sound(kind='click'){
  if(muted)return;try{audio??=new (window.AudioContext||window.webkitAudioContext)();if(audio.state==='suspended')audio.resume();const now=audio.currentTime;
  const notes={click:[520],select:[650],place:[440,660],turn:[392,523],challenge:[330,440,660],fail:[260,196],win:[392,494,587,784]};
@@ -503,7 +503,7 @@ function updateBot(now){
   try{receive(createBot({size:state.boardSize,seed:state.bot.seed^state.revision,strength:state.bot.strength}).choose(state));}catch{botFailed(job);}
  };
  try{
-  botWorker=new Worker(new URL('./bot-worker.js?v=d5fc3d2fca',import.meta.url),{type:'module'});
+  botWorker=new Worker(new URL('./bot-worker.js?v=e6b347c887',import.meta.url),{type:'module'});
   botWorker.onmessage=event=>{if(botJob!==job||event.data.id!==job.id)return;if(event.data.error)fallback();else receive(event.data.result);};
   botWorker.onerror=event=>{event.preventDefault();fallback();};
   botWorker.postMessage({id:job.id,state,key:job.game,seed:state.bot.seed^state.revision});
