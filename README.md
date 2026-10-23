@@ -22,7 +22,7 @@ Two players take turns to place tiles on the squares. Flip a coin to decide whic
 
 The zero tile works slightly differently than others.
 
-**Special Rule for Zero**: After each turn, no 0-tile can be placed in the first or last square in a connected row or column, nor a square without any adjacent tiles. If, as a result of removing tiles from a challenge, a 0-tile becomes the first or last square in a connected row or column or an isolated tile without any adjacent tiles, then that 0-tile is immediately removed from the board and put away in neither player’s pile.
+**Special Rule for Zero**: After each turn, no 0-tile can be placed in the first or last square in a connected row or column, nor a square without any adjacent tiles. If, as a result of removing tiles from a challenge, a 0-tile becomes the first or last square in a connected row or column, or becomes isolated without any adjacent tiles, then that 0-tile is immediately removed from the board and put away in neither player's pile.
 
 ## Winning
 
