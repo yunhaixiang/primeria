@@ -1,4 +1,4 @@
-import * as engine from './engine.js?v=0fb93642b8';
+import * as engine from './engine.js?v=998c113a1e';
 
 export const BOT_LEVELS={
  beginner:{label:'Beginner',description:'Scans every number for small factors; short plans.',speed:1.5,ideas:5,targets:2,replies:1,followups:0,budget:7,eleven:true,primes:[7,13],maxDigits:15,noise:2.5},
@@ -106,7 +106,9 @@ function createPlanner(engine,{size,seed,seat,style='balanced',level='intermedia
   return null;
  }
  function secondSquares(board,first){
-  return neighbors(first,size).filter(i=>board[i]===null);
+  const near=neighbors(first,size).filter(i=>board[i]===null);
+  const frontier=board.map((d,i)=>d===null&&engine.adjacent(board,i)?i:-1).filter(i=>i>=0);
+  return [...new Set([...near,...frontier])];
  }
  function winningPlacement(state){
   const pile=state.piles[state.turn],count=engine.total(pile);if(count>2)return null;
@@ -144,7 +146,8 @@ function createPlanner(engine,{size,seed,seat,style='balanced',level='intermedia
    }
    if(!moves.length&&frontier.length&&engine.total(pile)>=2&&template<3){
     const index=pick(frontier),digit=pick(weighted),copy=board.slice();copy[index]=digit;
-    const next=secondSquares(copy,index);
+    const legal=secondSquares(copy,index),near=neighbors(index,size).filter(i=>copy[i]===null),favorNear=random()<.75;
+    const next=favorNear&&near.length?near:legal;
     if(next.length)moves=[{index,digit},{index:pick(next),digit:pick(weighted)}];
    }
    if(!moves.length){

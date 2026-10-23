@@ -1,4 +1,4 @@
-import {MODES,total,challengeNumber} from './engine.js?v=0fb93642b8';
+import {MODES,total,challengeNumber} from './engine.js?v=998c113a1e';
 
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export function splitPermissions(s,seat,{role=null,connected=true,botPlayer=null,verdict=null,resigning=null,networkPaused=false,reviewMove=null}={}){

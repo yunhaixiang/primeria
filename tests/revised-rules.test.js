@@ -27,7 +27,7 @@ for(const size of BOARD_SIZES){
   const s=active(size),center=square(3,3),above=square(3,2),below=square(3,4);
   s.board[center-1]=1;s.board[center]=0;s.board[center+1]=7;
   assert.throws(()=>placement(s,'single',[{index:above,digit:3}]),/begin or end/);
-  assert.throws(()=>placement(s,'double',[{index:above,digit:3},{index:below,digit:1}]),/second Double Down tile must touch/);
+  assert.doesNotThrow(()=>placement(s,'double',[{index:above,digit:3},{index:below,digit:1}]));
   s.board[below]=1;
   assert.doesNotThrow(()=>placement(s,'double',[{index:above,digit:3},{index:above-size,digit:7}]));
  });

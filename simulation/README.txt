@@ -12,3 +12,5 @@ The whole-board scan has one fixed assumed cost:0.25seconds times level speed, o
 Strength differences remain in placement ideas, strategy, search depth, noise, handling time and larger-prime calculations. Those calculations and move planning retain their own budgets. There is no unrestricted factoring or primality oracle.
 
 Earlier research snapshots/reports in the chat workspace retain their original source and timings. For new rule comparisons, use this same model on every side and change only Double Down legality and legal square enumeration. Old game-length figures are not recalculated merely by changing the current bot.
+
+Current Double Down rule: each tile touches a tile already present when placed; the second may touch the first or attach elsewhere. Generic bot candidates favor a neighboring second square75% of the time, otherwise sample all legal second squares; the latter pool also includes neighbors. This matches the primary adjacent-to-existing policy in the full-board-scan three-rule study. All full-board small-prime scanning remains enabled.
