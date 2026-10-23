@@ -46,7 +46,6 @@ Players can choose one of the following time controls.
 | Rapid | 20 minutes | 20 seconds |
 | Standard | 30 minutes | 30 seconds |
 | Classical | 45 minutes | 60 seconds |
-| Casual | Unlimited | — |
 
 ## Tips
 
