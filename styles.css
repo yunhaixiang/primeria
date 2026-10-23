@@ -644,3 +644,6 @@ main { padding-top: 16px; }
 /* 20 pt on a 24 mm printed tile: scale the same proportions to every screen tile. */
 .tile{container-type:inline-size}
 .tile-number{font-size:29.398148cqw}
+
+/* The underline rotates with each numeral, distinguishing 6 from 9 in every direction. */
+.tile.orientation-mark .tile-number{text-decoration-line:underline;text-decoration-thickness:max(.5px,.03em);text-underline-offset:.075em;text-decoration-skip-ink:none}

@@ -40,7 +40,7 @@ function sound(kind='click'){
 }
 function toast(message){$('#toast').textContent=message;$('#toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('#toast').hidden=true,4000);}
 function ask(title,message,confirmLabel='Continue'){return new Promise(resolve=>{const d=$('#confirm-dialog');$('#confirm-title').textContent=title;$('#confirm-detail').textContent=message;$('#confirm-yes').innerHTML=`${escape(confirmLabel)} <span>↗</span>`;const finish=value=>{d.close();$('#confirm-yes').onclick=null;$('#confirm-no').onclick=null;d.oncancel=null;resolve(value);};$('#confirm-yes').onclick=()=>finish(true);$('#confirm-no').onclick=()=>finish(false);d.oncancel=e=>{e.preventDefault();finish(false);};d.showModal();});}
-function tile(n){return `<span class="tile" style="--tile-color:${colors[n]}" aria-hidden="true"><span class="tile-number north">${n}</span><span class="tile-number east">${n}</span><span class="tile-number south">${n}</span><span class="tile-number west">${n}</span></span>`;}
+function tile(n){return `<span class="tile${n===6||n===9?' orientation-mark':''}" style="--tile-color:${colors[n]}" aria-hidden="true"><span class="tile-number north">${n}</span><span class="tile-number east">${n}</span><span class="tile-number south">${n}</span><span class="tile-number west">${n}</span></span>`;}
 function columnLabel(x){return String.fromCharCode(65+x);}
 function coords(index){return `${columnLabel(index%boardSize())}${Math.floor(index/boardSize())+1}`;}
 function allowed(){return !state.startCountdown&&!isBotTurn(state)&&resigning===null&&!state.ended&&!state.paused&&state.started&&(role===null||(connection?.open&&state.turn===role));}
