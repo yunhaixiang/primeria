@@ -16,7 +16,7 @@ Players take turns making moves. Flip a coin to decide which player plays first.
 
 1. **Single Drop**: Place one tile on any empty square.
 
-2. **Double Down**: Place two tiles, one at a time. Each tile must be placed adjacent to a tile already on the board when it is placed. The second tile may be placed adjacent to the first.
+2. **Double Down**: Place two tiles, one at a time. Each tile must be placed adjacent to a tile already on the board when it is placed. In particular, the second tile may be placed adjacent to the first.
 
 3. **Challenge**: Declare a number on the board to challenge, formed by an uninterrupted horizontal or vertical run of tiles, read from left to right or top to bottom, from the challenger’s perspective. The challenger gets one or more attempts to challenge this number depending on its length: 1 ~ 3 digits get 1 attempt, 4 ~ 6 digits get 2 attempts, 7 ~ 9 digits get 3 attempts, and so on. An attempt consists of a proposal of a factor of the number, other than 1 or itself, and then, depending on whether the game is being played over the board or on a screen, either the challenger verifies the factor with a calculator, or the computer checks it automatically. The clock does not stop during calculator verification.
 
