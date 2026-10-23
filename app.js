@@ -1,5 +1,5 @@
 import {BOARD_SIZES,isSupportedBoardState,RULES_VERSION,upgradeGameBoard,MODES,PILE,total,newGame,timeOutSettings,tick,placement,adjacent,segment,challengeLines,challengeNumber,challenge,complete,beginChallengeReview,finishChallengeReview,challengeReviewSeconds,beginGameCountdown,finishGameCountdown} from './engine.js?v=0fb93642b8';
-import {BOT_LEVELS,botConfig,isBotTurn,createBot} from './bot.js?v=4550fc67ac';
+import {BOT_LEVELS,botConfig,isBotTurn,createBot} from './bot.js?v=cef8f36159';
 
 import {gameResult,reviewPosition} from './review.js?v=ff200acd81';
 
@@ -503,7 +503,7 @@ function updateBot(now){
   try{receive(createBot({size:state.boardSize,seed:state.bot.seed^state.revision,strength:state.bot.strength}).choose(state));}catch{botFailed(job);}
  };
  try{
-  botWorker=new Worker(new URL('./bot-worker.js?v=6957a21420',import.meta.url),{type:'module'});
+  botWorker=new Worker(new URL('./bot-worker.js?v=7850e79a53',import.meta.url),{type:'module'});
   botWorker.onmessage=event=>{if(botJob!==job||event.data.id!==job.id)return;if(event.data.error)fallback();else receive(event.data.result);};
   botWorker.onerror=event=>{event.preventDefault();fallback();};
   botWorker.postMessage({id:job.id,state,key:job.game,seed:state.bot.seed^state.revision});

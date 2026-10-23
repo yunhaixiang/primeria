@@ -1,16 +1,18 @@
 import * as engine from './engine.js?v=0fb93642b8';
 
 export const BOT_LEVELS={
- beginner:{label:'Beginner',description:'Quick small-prime checks and short plans.',speed:1.5,ideas:5,targets:2,replies:1,followups:0,budget:7,eleven:true,primes:[7,13],maxDigits:15,noise:2.5},
- intermediate:{label:'Intermediate',description:'Quick small-prime checks; considers replies.',speed:1,ideas:10,targets:4,replies:2,followups:0,budget:12,eleven:true,primes:[7,13],maxDigits:15,noise:.6},
- advanced:{label:'Advanced',description:'More small-prime checks and deeper planning.',speed:.7,ideas:18,targets:7,replies:4,followups:2,budget:18,eleven:true,primes:[7,13,17,19,23,29,31],maxDigits:13,noise:.15}
+ beginner:{label:'Beginner',description:'Scans every number for small factors; short plans.',speed:1.5,ideas:5,targets:2,replies:1,followups:0,budget:7,eleven:true,primes:[7,13],maxDigits:15,noise:2.5},
+ intermediate:{label:'Intermediate',description:'Scans every number for small factors; considers replies.',speed:1,ideas:10,targets:4,replies:2,followups:0,budget:12,eleven:true,primes:[7,13],maxDigits:15,noise:.6},
+ advanced:{label:'Advanced',description:'Full-board small-factor scan and deeper planning.',speed:.7,ideas:18,targets:7,replies:4,followups:2,budget:18,eleven:true,primes:[7,13,17,19,23,29,31],maxDigits:13,noise:.15}
 };
 export function botConfig(state){const b=state?.bot;return b&&b.player===1&&Object.hasOwn(BOT_LEVELS,b.strength)&&typeof b.id==='string'&&b.id.length>0&&b.id.length<100&&Number.isInteger(b.seed)&&b.seed>=0&&b.seed<=0xffffffff?b:null;}
 export function isBotTurn(state){return !!botConfig(state)&&state.turn===1;}
 // Website bots and simulations share these assumed mental costs (seconds),
 // not measured human timings. Cheap tests work at every board length and level.
 // Larger-prime trial divisions remain slower; there is no primality oracle.
-export const ARITHMETIC_MODEL='quick-small-primes-v1';
+export const ARITHMETIC_MODEL='quick-small-primes-full-scan-v2';
+export const SMALL_PRIMES=Object.freeze([2,3,5,7,11,13]);
+export const FULL_SCAN_SECONDS=.25;
 export function factorChecks(digits,strength='intermediate'){
  if(!/^\d{1,15}$/.test(digits)||!Object.hasOwn(BOT_LEVELS,strength))throw Error('Invalid bot arithmetic input.');
  const level=BOT_LEVELS[strength],n=BigInt(digits),last=Number(digits.at(-1)),sum=[...digits].reduce((a,d)=>a+Number(d),0);
@@ -45,6 +47,20 @@ const neighbors=(i,S)=>[i%S?i-1:-1,i%S<S-1?i+1:-1,i>=S?i-S:-1,i<S*(S-1)?i+S:-1].
 const hard=p=>[0,4,6,8].reduce((s,d)=>s+p[d],0);
 const guards=p=>[1,3,7,9].reduce((s,d)=>s+p[d],0);
 const reading=(board,cells,perspective=0)=>(perspective===1?cells.slice().reverse():cells).map(i=>board[i]).join('');
+// Every complete legal target is examined; no target-count or clock cutoff.
+export function scanSmallFactors(board,perspective=0){
+ const size=engine.getBoardSize(board);
+ if(![0,1].includes(perspective))throw Error('Choose a player perspective.');
+ return wholeRuns(board,size).map(cells=>{
+  const digits=reading(board,cells,perspective),n=BigInt(digits);
+  const factors=SMALL_PRIMES.filter(p=>(n===0n||BigInt(p)<n)&&n%BigInt(p)===0n).map(String);
+  return {cells,digits,factors};
+ });
+}
+function smallChallenge(target,excluded=[]){
+ const factor=target?.factors.find(f=>!excluded.includes(f));
+ return factor?{action:'challenge',a:target.cells[0],b:target.cells.at(-1),factor,cells:target.cells,digits:target.digits,source:'full-board small-prime scan'}:null;
+}
 const pattern=text=>text;
 function branch(engine,state,command){
  const next={...state,board:state.board.slice(),piles:state.piles.map(p=>p.slice()),taxed:state.taxed?.slice(),clocks:state.clocks.slice(),history:state.history.slice(),lastCells:state.lastCells.slice()};
@@ -156,6 +172,11 @@ function createPlanner(engine,{size,seed,seat,style='balanced',level='intermedia
  }
  function assessed(state,command,ctx,limit=ctx.budget){
   const next=branch(engine,state,command),threats=[];let exposure=0,unverified=0,memoryPenalty=0;
+  if(!next.ended){
+   // Opponent replies also see small factors anywhere on the board.
+   const all=scanSmallFactors(next.board,next.turn).filter(t=>t.factors.length).sort((a,b)=>b.cells.length-a.cells.length);
+   threats.push(...all.map(t=>smallChallenge(t)));
+  }
   if(!next.ended&&command.moves){
    const local=wholeRuns(next.board,size).filter(c=>c.some(i=>command.moves.some(m=>m.index===i))).sort((a,b)=>b.length-a.length);
    for(const cells of local){
@@ -175,19 +196,25 @@ function createPlanner(engine,{size,seed,seat,style='balanced',level='intermedia
   observe(state);
   const root=state.turn,clock=state.clocks[root],pressure=clock!==null&&clock<90;
   const budget=clock!==null&&clock<10?.8:clock!==null&&clock<30?2:clock!==null&&clock<90?4:skill.budget*(.85+random()*.3);
-  const ctx={seconds:Math.min(budget*.2,1+random()),budget,cacheHits:0,unfinishedChecks:0,replies:0,followups:0};
+  const scanned=scanSmallFactors(state.board,root);
+  const scanSeconds=scanned.length?FULL_SCAN_SECONDS*skill.speed:0;
+  const ctx={seconds:Math.min(budget*.2,1+random())+scanSeconds,budget,cacheHits:0,unfinishedChecks:0,replies:0,followups:0,smallPrimeRunsScanned:scanned.length,smallPrimeTargets:scanned.filter(t=>t.factors.length).length,scanSeconds};
   if(state.challengeAttempt){
-   const p=state.challengeAttempt,attempt=inspect(state.board,p.cells,ctx,ctx.budget,seat,p.attempts.map(a=>a.factor));
-   return {command:attempt||{action:'quitChallenge'},seconds:Math.max(.5,Math.min(budget,ctx.seconds)),trace:{retry:true}};
+   const p=state.challengeAttempt,excluded=p.attempts.map(a=>a.factor);
+   const target=scanned.find(t=>t.cells.length===p.cells.length&&t.cells.every((i,k)=>i===p.cells[k]));
+   const attempt=smallChallenge(target,excluded)||inspect(state.board,p.cells,ctx,ctx.budget,seat,excluded);
+   return {command:attempt||{action:'quitChallenge'},seconds:Math.max(.5,Math.min(budget,ctx.seconds)),trace:{...ctx,retry:true}};
   }
   if(state.board.every(d=>d===null)){
    const choices=[1,2,3,5,7].filter(d=>state.piles[seat][d]>0);
-   if(choices.length){const center=Math.floor(size/2),index=center*size+center;return {command:{action:'single',moves:[{index,digit:pick(choices)}]},seconds:1.2+random()*1.5,trace:{opening:true}};}
+   if(choices.length){const center=Math.floor(size/2),index=center*size+center;return {command:{action:'single',moves:[{index,digit:pick(choices)}]},seconds:1.2+random()*1.5,trace:{...ctx,opening:true}};}
   }
   const immediate=winningPlacement(state);
   if(immediate)return {command:immediate,seconds:ctx.seconds+1,trace:{...ctx,style,level,pressure,immediateWin:true,considered:1}};
   const candidates=[];
-  const targets=wholeRuns(state.board,size).map(c=>({cells:c,rank:(c.some(i=>state.lastCells.includes(i))?100:0)+c.length*2+random()})).sort((a,b)=>b.rank-a.rank).slice(0,pressure?1:skill.targets);
+  // Every cheap factor enters the choice; only harder factoring has attention limits.
+  for(const target of scanned){const f=smallChallenge(target);if(f)candidates.push(assessed(state,f,ctx));}
+  const targets=scanned.filter(t=>!t.factors.length).map(({cells})=>({cells,rank:(cells.some(i=>state.lastCells.includes(i))?100:0)+cells.length*2+random()})).sort((a,b)=>b.rank-a.rank).slice(0,pressure?1:skill.targets);
   for(const {cells}of targets){const f=inspect(state.board,cells,ctx,Math.min(budget*.45,ctx.budget));if(f)candidates.push(assessed(state,f,ctx));}
   const commands=generate(state,pressure?Math.max(3,Math.floor(skill.ideas/2)):skill.ideas,ctx);
   for(const command of commands)candidates.push(assessed(state,command,ctx,budget*.65));
@@ -195,9 +222,9 @@ function createPlanner(engine,{size,seed,seat,style='balanced',level='intermedia
    // If placement is blocked, a player may spend a challenge on a plausible factor.
    for(const cells of wholeRuns(state.board,size)){
     const text=reading(state.board,cells,seat),n=BigInt(text);
-    if(n>2n||n===0n)return {command:{action:'challenge',a:cells[0],b:cells.at(-1),factor:'2'},seconds:Math.max(.5,budget),trace:{speculative:true}};
+    if(n>2n||n===0n)return {command:{action:'challenge',a:cells[0],b:cells.at(-1),factor:'2'},seconds:Math.max(.5,budget),trace:{...ctx,speculative:true}};
    }
-   return {command:null,seconds:1,trace:{noLegalMove:true}};
+   return {command:null,seconds:1,trace:{...ctx,noLegalMove:true}};
   }
   for(const c of candidates){
    c.score=evaluate(c.next,root)-temperament.risk*(c.exposure*3+c.unverified*.6)-c.memoryPenalty;
@@ -236,8 +263,8 @@ function createPlanner(engine,{size,seed,seat,style='balanced',level='intermedia
   // captures nor any placement type is required to appear a prescribed amount.
   examined.sort((a,b)=>b.score-a.score);
   const selected=examined[0];
-  // Occasional arithmetic slips on longer calculations; subsequent attempts can recover.
-  if(selected.command.action==='challenge'&&selected.command.digits?.length>=4&&random()<(level==='beginner'?.08:level==='intermediate'?.025:.005)){
+  // Automatic small-prime scan results are exact; slips affect harder factors only.
+  if(selected.command.action==='challenge'&&Number(selected.command.factor)>13&&selected.command.digits?.length>=4&&random()<(level==='beginner'?.08:level==='intermediate'?.025:.005)){
    const next=BigInt(selected.command.factor)+1n;
    if(next<BigInt(selected.command.digits))selected.command={...selected.command,factor:String(next)};
   }
