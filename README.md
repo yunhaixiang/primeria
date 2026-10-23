@@ -4,6 +4,8 @@ Primeria is a two-player board game invented by [Yunhai Xiang](https://yunhaimat
 
 [Click here to play](https://yunhaixiang.github.io/primeria/).
 
+For a physical set, see the [cutout folder](cutout/), which contains printable A2 boards in all four sizes, rounded tiles, and tile plates. The [printing instructions](cutout/README.md) explain the paper sizes, materials, and cutting process.
+
 ## Set-up
 
 The game is played on a square board with 9 × 9, 11 × 11, 13 × 13, or 15 × 15 squares. Each player starts with a pile of 36 tiles labelled with digits 0 ~ 9. Each player gets 2 copies of 0 and 5 each, 3 copies of 2, 4, 6, and 8 each, and 5 copies of 1, 3, 7, and 9 each.
