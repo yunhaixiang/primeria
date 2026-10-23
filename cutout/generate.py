@@ -111,9 +111,10 @@ def numeral(c, x, y, digit, angle, size, color=INK):
     # These underlines distinguish 6 and 9 from every viewing direction.
     if digit in (6, 9):
         c.setStrokeColor(color)
-        c.setLineWidth(.6)
+        c.setStrokeAlpha(.35)
+        c.setLineWidth(size*.075)
         half = pdfmetrics.stringWidth(str(digit), 'Display', size) / 2
-        c.line(-half, -1.5, half, -1.5)
+        c.line(-half, -size*.14, half, -size*.14)
     c.restoreState()
 
 
