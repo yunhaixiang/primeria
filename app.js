@@ -13,7 +13,7 @@ const ONLINE_VERSION=2;
 const key='primeria.game.rules9.v1';let state=newGame(),action='single',digit=3,pending=[],ends=[],lineChoices=[],challengeAxis='row',rotation=0,muted=false,expanded=null,factor='';
 const phoneLayout=matchMedia('(max-width:600px), (max-width:1000px) and (max-height:500px)');
 let boardZoom=false,splitLastTurn=null;const splitPhoneOpen=[false,false];
-let splitView=false;const splitHistoryOpen=[false,false],splitInventoryOpen=[false,false];
+let splitView=false,splitPreference=false;const splitHistoryOpen=[false,false],splitInventoryOpen=[false,false];
 let peer=null,connection=null,role=null,room=null,networkPaused=false,verdict=null,shownEnd=false,reviewMove=null,reviewSnapshot=null,resigning=null,toastTimer,audio,saveAt=0,syncAt=0,botWorker=null,botJob=null,botCounter=0;
 try{
  for(const slot of [key]){
@@ -25,7 +25,7 @@ try{
    state=restored;if(state.startCountdown&&!state.started&&!state.ended)beginGameCountdown(state);state.paused=state.started&&!state.ended;state.lastTick=Date.now();break;
   }catch{}
  }
- splitView=localStorage.getItem('primeria.splitView')==='true';
+ splitPreference=localStorage.getItem('primeria.splitView')==='true';
  muted=localStorage.getItem('primeria.muted')==='true';
 }catch{}
 function viewState(){return reviewSnapshot??state;}
@@ -110,6 +110,7 @@ function renderStartCountdown(){
   for(const text of [$('#start-countdown-text'),$('#split-start-countdown-text')])if(text.textContent!==message)text.textContent=message;
  }
 }
+function splitViewAvailable(){return role===null&&!botConfig(state);}
 function splitContext(seat){return {seat,display:viewState(),tile,formatTime,action,digit,pending,ends,lineChoices,challengeAxis,factor,verdict,resigning,reviewMove,panelOpen:splitPhoneOpen[seat],historyOpen:splitHistoryOpen[seat],inventoryOpen:splitInventoryOpen[seat],lineLabel,result:gameResult(state),role,connected:!!connection?.open,botPlayer:botConfig(state)?.player??null,networkPaused};}
 function orientDialogs(seat=0){$$('dialog').forEach(d=>d.classList.toggle('opposite-dialog',splitView&&seat===1));}
 function renderSplitPanels(){
@@ -126,6 +127,7 @@ function renderSplitPanels(){
  renderClocks();renderVerdict();
 }
 function renderControls(){
+ const canSplit=splitViewAvailable();splitView=canSplit&&splitPreference;$('#split-button').hidden=!canSplit;$('#split-button').disabled=!canSplit;if(!canSplit)orientDialogs();
  renderStartCountdown();renderGameEnd();
  const paused=state.started&&state.paused&&!state.ended&&!verdict;
  if(paused)resigning=null;
@@ -304,7 +306,7 @@ $('#board-zoom-button').addEventListener('click',()=>{
  if(cell){const tileRect=cell.getBoundingClientRect(),bounds=surround.getBoundingClientRect();surround.scrollLeft+=tileRect.left-bounds.left-(surround.clientWidth-tileRect.width)/2;surround.scrollTop+=tileRect.top-bounds.top-(surround.clientHeight-tileRect.height)/2;}
  else{surround.scrollLeft=(surround.scrollWidth-surround.clientWidth)/2;surround.scrollTop=(surround.scrollHeight-surround.clientHeight)/2;}
 });
-$('#split-button').addEventListener('click',()=>{splitView=!splitView;try{localStorage.setItem('primeria.splitView',String(splitView));}catch{}orientDialogs();sound();render();});
+$('#split-button').addEventListener('click',()=>{if(!splitViewAvailable())return;splitPreference=!splitView;splitView=splitPreference;try{localStorage.setItem('primeria.splitView',String(splitPreference));}catch{}orientDialogs();sound();render();});
 for(const panel of $$('.split-player-panel')){
  panel.addEventListener('toggle',e=>{const seat=Number(panel.dataset.seat);if(e.target.matches('.split-history'))splitHistoryOpen[seat]=e.target.open;if(e.target.matches('.split-inventory'))splitInventoryOpen[seat]=e.target.open;},true);
  panel.addEventListener('click',e=>{
