@@ -20,6 +20,8 @@ Players take turns making moves. Flip a coin to decide which player plays first.
 
     - If all attempts fail: the number remains on the board, no tile is placed this turn, and the game moves on to the next turn.
 
+Two tiles are **adjacent** if their squares share an edge. Diagonal contact does not count. A tile is **isolated** if it has no adjacent tiles.
+
 The zero tile works slightly differently than others.
 
 **Special Rule for Zero**: At the end of a turn, no 0-tile may be isolated or lie at either end of a number. If, as a result of removing tiles from a challenge, a 0-tile becomes the first or last square in a connected row or column, or becomes isolated without any adjacent tiles, then that 0-tile is immediately removed from the board and put away in neither player's pile.
