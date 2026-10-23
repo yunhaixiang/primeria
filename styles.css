@@ -641,9 +641,9 @@ main { padding-top: 16px; }
 .phone-layout .play-panel .factor-digit { min-height: 44px; font-size: 18px; }
 .phone-layout .play-panel .factor-backspace { width: 44px; min-height: 44px; }
 
-/* 20 pt on a 24 mm printed tile: scale the same proportions to every screen tile. */
+/* Match the 20 pt printed tiles, with a small optical increase for screen rendering. */
 .tile{container-type:inline-size}
-.tile-number{font-size:29.398148cqw;left:50%;top:50%;transform:translate(-50%,-50%) rotate(var(--number-angle)) translateY(calc(-43cqw + .5em))}
+.tile-number{font-size:30.280092cqw;left:50%;top:50%;transform:translate(-50%,-50%) rotate(var(--number-angle)) translateY(calc(-43cqw + .5em))}
 
 /* The underline rotates with each numeral, distinguishing 6 from 9 in every direction. */
-.tile.orientation-mark .tile-number{text-decoration-line:underline;text-decoration-thickness:.075em;text-decoration-color:rgb(40 61 54 / .35);text-underline-offset:.14em;text-decoration-skip-ink:none}
+.tile.orientation-mark .tile-number::after{content:"";position:absolute;left:20%;top:calc(100% - .04em);width:60%;height:.105em;background:currentColor;opacity:.23}
