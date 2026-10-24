@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {newGame,complete,beginChallengeReview,finishChallengeReview,tick,MODES,PILE} from '../engine.js';
+import {newGame,complete,challenge,beginChallengeReview,finishChallengeReview,tick,MODES,PILE} from '../engine.js';
 import {gameResult,reviewPosition} from '../review.js';
 import {createBot} from '../bot.js';
 const samePosition=(a,b)=>{for(const key of ['board','piles','taxed','lastCells','turn','clocks'])assert.deepEqual(a[key],b[key],key);};
@@ -20,10 +20,13 @@ for(const size of [9,11,13,15])test(`${size}: review reproduces placement, taxat
  assert.deepEqual(s,before);
  const review=reviewPosition(s,2);review.board[0]=8;review.piles[0][0]=99;review.taxed[0]=99;review.clocks[0]=0;assert.deepEqual(s,before);
 });
-for(const quit of [false,true])test(`review preserves ${quit?'quit':'retried successful'} challenges as a single completed turn`,()=>{
+for(const quit of [false,true])test(`legacy ${quit?'quit':'multi-attempt successful'} challenges retain their recorded replay`,()=>{
  const s={...newGame({},0),started:true};
- const snapshots=record(s,[{action:'single',moves:[{index:0,digit:1}]},{action:'double',moves:[{index:1,digit:4},{index:2,digit:3}]},{action:'single',moves:[{index:3,digit:7}]},{action:'challenge',a:0,b:3,factor:'2'},quit?{action:'quitChallenge'}:{action:'challenge',a:0,b:3,factor:'3'}]);
- assert.equal(s.history.length,4);assert.equal(s.history.at(-1).attempts.length,quit?1:2);
+ const commands=[{action:'single',moves:[{index:0,digit:1}]},{action:'double',moves:[{index:1,digit:4},{index:2,digit:3}]},{action:'single',moves:[{index:3,digit:7}]}];
+ const snapshots=record(s,commands),failed=challenge(s,0,3,'2');
+ const entry=complete(s,{action:'challenge',a:0,b:3,factor:quit?'2':'3'},s.lastTick+1000);
+ if(quit)entry.quit=true;else entry.attempts.unshift({factor:'2',success:false,quotient:failed.quotient,remainder:failed.remainder});
+ snapshots.push(structuredClone(s));assert.equal(s.history.length,4);assert.equal(entry.attempts.length,quit?1:2);
  for(let n=0;n<snapshots.length;n++)samePosition(reviewPosition(s,n),snapshots[n]);
 });
 for(const size of [9,11,13,15])test(`${size}: every completed position of a full bot game can be reviewed`,()=>{

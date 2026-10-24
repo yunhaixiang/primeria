@@ -1,4 +1,4 @@
-import * as engine from './engine.js?v=3eb394a65f';
+import * as engine from './engine.js?v=0981ea2d5b';
 
 export const BOT_LEVELS={
  beginner:{label:'Beginner',description:'Scans every number for small factors; short plans.',speed:1.5,ideas:5,targets:2,depth:1,width:2,rootWidth:5,nodes:100,budget:7,eleven:true,primes:[7,13],maxDigits:15,noise:2.5},
@@ -279,7 +279,7 @@ function createPlanner(engine,{size,seed,seat,style='balanced',level='intermedia
     const signature=command.action==='challenge'?'c:'+command.a+':'+command.b+':'+command.reverse:JSON.stringify(command.moves);
     if(unique.has(signature))continue;unique.add(signature);
     try{
-     const next=branch(engine,s,command);if(next.challengeAttempt)continue;
+     const next=branch(engine,s,command);
      const immediate=next.ended?null:win(next);
      const value=immediate?(next.turn===root?100000:-100000):score(next);
      children.push({command,next,value});stats.searchGenerated++;
@@ -376,12 +376,6 @@ function createPlanner(engine,{size,seed,seat,style='balanced',level='intermedia
   const scanned=[...scanSmallFactors(state.board,0),...scanSmallFactors(state.board,1)];
   const scanSeconds=scanned.length?FULL_SCAN_SECONDS*skill.speed:0;
   const ctx={seconds:Math.min(budget*.2,1+random())+scanSeconds,budget,cacheHits:0,unfinishedChecks:0,replies:0,followups:0,smallPrimeRunsScanned:scanned.length,smallPrimeTargets:scanned.filter(t=>t.factors.length).length,scanSeconds};
-  if(state.challengeAttempt){
-   const p=state.challengeAttempt,excluded=p.attempts.map(a=>a.factor);
-   const target=scanned.find(t=>t.reverse===p.reverse&&t.cells.length===p.cells.length&&t.cells.every((i,k)=>i===p.cells[k]));
-   const attempt=smallChallenge(target,excluded)||inspect(state.board,p.cells,ctx,ctx.budget,p.reverse?1:0,excluded);
-   return {command:attempt||{action:'quitChallenge'},seconds:Math.max(.5,Math.min(budget,ctx.seconds)),trace:{...ctx,retry:true}};
-  }
   if(state.board.every(d=>d===null)){
    const choices=[1,2,3,5,7].filter(d=>state.piles[seat][d]>0);
    if(choices.length){const center=Math.floor(size/2),index=center*size+center;return {command:{action:'single',moves:[{index,digit:pick(choices)}]},seconds:1.2+random()*1.5,trace:{...ctx,opening:true}};}

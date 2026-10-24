@@ -47,17 +47,16 @@ test('bot challenges the entire number in either chosen direction',()=>{
  const c=engine.challenge(s,result.command.a,result.command.b,result.command.factor,result.command.reverse);
  assert.ok(['123','321'].includes(c.digits));assert.equal(c.success,true);assert.deepEqual(c.cells,[0,1,2]);
 });
-test('a locked challenge resumes with a new factor, never with a placement',()=>{
+test('after a failed challenge, the next bot can independently find a factor',()=>{
  const s=active();[1,4,3,7].forEach((d,i)=>s.board[i]=d);
- const first=engine.complete(s,{action:'challenge',a:0,b:3,factor:'2'},0);assert.ok(first.retry);
- const result=createBot({size:11,seed:1,strength:'advanced'}).choose(s);
+ const first=engine.complete(s,{action:'challenge',a:0,b:3,factor:'2'},0);assert.equal(first.success,false);assert.equal(s.turn,0);
+ const result=createBot({size:11,seat:0,seed:1,strength:'advanced'}).choose(s);
  assert.equal(result.command.action,'challenge');assert.equal(result.command.factor,'3');
- const end=engine.complete(s,result.command,0);assert.equal(end.success,true);assert.equal(end.attemptNumber,2);assert.equal(s.history.length,1);
+ const end=engine.complete(s,result.command,0);assert.equal(end.success,true);assert.equal(s.history.length,2);assert.deepEqual(s.history.map(e=>e.attempts.length),[1,1]);
 });
-test('bot quits a locked challenge if its mental checks cannot find another factor',()=>{
+test('a bot plans a normal turn after the other player fails on a prime',()=>{
  const s=active();[1,0,0,9].forEach((d,i)=>s.board[i]=d);engine.complete(s,{action:'challenge',a:0,b:3,factor:'2'},0);
- const result=createBot({size:11,seed:1,strength:'beginner'}).choose(s);assert.equal(result.command.action,'quitChallenge');
- engine.complete(s,result.command,0);assert.equal(s.turn,0);assert.equal(s.challengeAttempt,null);
+ const result=createBot({size:11,seat:0,seed:1,strength:'beginner'}).choose(s);assert.notEqual(result.command.action,'quitChallenge');assert.doesNotThrow(()=>engine.complete(s,result.command,0));assert.equal(s.turn,1);
 });
 test('bot hurries its planned thinking under time pressure',()=>{
  const s=active();s.board[0]=1;s.clocks[1]=3;

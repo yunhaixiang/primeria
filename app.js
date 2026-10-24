@@ -1,26 +1,26 @@
-import {BOARD_SIZES,isSupportedBoardState,RULES_VERSION,upgradeGameBoard,MODES,PILE,total,newGame,timeOutSettings,tick,placement,adjacent,segment,challengeLines,challengeNumber,challenge,complete,beginChallengeReview,finishChallengeReview,challengeReviewSeconds,beginGameCountdown,finishGameCountdown} from './engine.js?v=3eb394a65f';
-import {BOT_LEVELS,botConfig,isBotTurn,createBot} from './bot.js?v=5ef7133d02';
+import {BOARD_SIZES,isSupportedBoardState,RULES_VERSION,upgradeGameBoard,MODES,PILE,total,newGame,timeOutSettings,tick,placement,adjacent,segment,challengeLines,challengeNumber,challenge,complete,beginChallengeReview,finishChallengeReview,challengeReviewSeconds,beginGameCountdown,finishGameCountdown} from './engine.js?v=0981ea2d5b';
+import {BOT_LEVELS,botConfig,isBotTurn,createBot} from './bot.js?v=8a49f49262';
 
-import {gameResult,reviewPosition} from './review.js?v=2f70a57f69';
+import {gameResult,reviewPosition} from './review.js?v=47d2587a64';
 
-import {splitPanelHTML,splitPermissions} from './split-view.js?v=218253eb75';
-import {pointedChallenge as resolveChallengePointer,challengeReadingChoices} from './challenge-selection.js?v=af22244d3a';
+import {splitPanelHTML,splitPermissions} from './split-view.js?v=5d0f7be226';
+import {pointedChallenge as resolveChallengePointer,challengeReadingChoices} from './challenge-selection.js?v=231cdb762c';
 
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const modeName=s=>s[0].toUpperCase()+s.slice(1);
 const colors=Array.from({length:10},(_,i)=>`var(--digit-${i})`);
 const ONLINE_VERSION=2;
-const key='primeria.game.rules14.v1';let state=newGame(),action='single',digit=3,pending=[],ends=[],lineChoices=[],challengeAxis='row',readingReverse=null,rotation=0,muted=false,expanded=null,factor='';
+const key='primeria.game.rules15.v1';let state=newGame(),action='single',digit=3,pending=[],ends=[],lineChoices=[],challengeAxis='row',readingReverse=null,rotation=0,muted=false,expanded=null,factor='';
 const phoneLayout=matchMedia('(max-width:600px), (max-width:1000px) and (max-height:500px)');
 let boardZoom=false,splitLastTurn=null;const splitPhoneOpen=[false,false];
 let splitView=false,splitPreference=false;const splitHistoryOpen=[false,false],splitInventoryOpen=[false,false];
 let peer=null,connection=null,role=null,room=null,networkPaused=false,verdict=null,shownEnd=false,reviewMove=null,reviewSnapshot=null,resigning=null,toastTimer,audio,saveAt=0,syncAt=0,botWorker=null,botJob=null,botCounter=0;
 try{
- for(const slot of [key,'primeria.game.rules13.v1','primeria.game.rules12.v1','primeria.game.rules11.v1','primeria.game.rules10.v1','primeria.game.rules9.v1']){
+ for(const slot of [key,'primeria.game.rules14.v1','primeria.game.rules13.v1','primeria.game.rules12.v1','primeria.game.rules11.v1','primeria.game.rules10.v1','primeria.game.rules9.v1']){
   try{
    const saved=JSON.parse(localStorage.getItem(slot));
-   if(![9,10,11,12,13,14].includes(saved?.version)||!MODES[saved.state?.mode]||saved.state.piles?.length!==2)continue;
+   if(![9,10,11,12,13,14,15].includes(saved?.version)||!MODES[saved.state?.mode]||saved.state.piles?.length!==2)continue;
    if(saved.state.bot&&!botConfig(saved.state))continue;
    const restored=upgradeGameBoard(saved.state);if(!isSupportedBoardState(restored))continue;Object.assign(restored,timeOutSettings(restored));
    state=restored;if(state.startCountdown&&!state.started&&!state.ended)beginGameCountdown(state);state.paused=state.started&&!state.ended;state.lastTick=Date.now();break;
@@ -45,7 +45,7 @@ function tile(n){return `<span class="tile${n===6||n===9?' orientation-mark':''}
 function columnLabel(x){return String.fromCharCode(65+x);}
 function coords(index){return `${columnLabel(index%boardSize())}${Math.floor(index/boardSize())+1}`;}
 function allowed(){return !state.startCountdown&&!isBotTurn(state)&&resigning===null&&!state.ended&&!state.paused&&state.started&&(role===null||(connection?.open&&state.turn===role));}
-function resetDraft(){cancelBot();resigning=null;pending=[];ends=[];lineChoices=[];readingReverse=null;factor='';clearChallengeHover();if(state.challengeAttempt&&!state.ended){action='challenge';ends=[state.challengeAttempt.a,state.challengeAttempt.b];readingReverse=state.challengeAttempt.reverse;}}
+function resetDraft(){cancelBot();resigning=null;pending=[];ends=[];lineChoices=[];readingReverse=null;factor='';clearChallengeHover();}
 function boardIndex(row,col){let x=col,y=row;for(let i=0;i<rotation;i++)[x,y]=[y,boardSize()-1-x];return y*boardSize()+x;}
 function screenPosition(index){let x=index%boardSize(),y=Math.floor(index/boardSize());for(let i=0;i<rotation;i++)[x,y]=[boardSize()-1-y,x];return [x,y];}
 function lineLabel(line){
@@ -62,7 +62,7 @@ function pointedChallenge(index,event){
 }
 function clearChallengeHover(){ $$('.cell.challenge-hover, .cell.challenge-ambiguous').forEach(c=>{c.classList.remove('challenge-hover','challenge-ambiguous');c.removeAttribute('aria-disabled');}); }
 function previewChallenge(event){
- if(action!=='challenge'||state.challengeAttempt||!allowed()||event.pointerType==='touch')return clearChallengeHover();
+ if(action!=='challenge'||!allowed()||event.pointerType==='touch')return clearChallengeHover();
  const cell=event.target.closest('[data-index]');
  if(!cell)return clearChallengeHover();
  const {line}=pointedChallenge(Number(cell.dataset.index),event.type==='focusin'?null:event),cells=new Set(line?.cells||[]);
@@ -74,7 +74,7 @@ function chooseChallenge(line,choices){
  if(!line)return;
  ends=[line.cells[0],line.cells.at(-1)];lineChoices=choices;challengeAxis=line.axis;readingReverse=line.cells.length===1?false:null;factor='';clearChallengeHover();sound('select');
 }
-function chooseReading(reverse){if(state.challengeAttempt||!allowed())return;readingReverse=reverse;factor='';sound('select');renderControls();}
+function chooseReading(reverse){if(!allowed())return;readingReverse=reverse;factor='';sound('select');renderControls();}
 function renderBoard(){
  if(state.ended&&reviewMove===null)boardZoom=false;
  const surround=$('.board-surround');surround.classList.toggle('board-zoomed',phoneLayout.matches&&boardZoom);
@@ -148,26 +148,23 @@ function renderControls(){
  $('.move-panel > .section-heading h2').textContent=state.turn!==viewer()?'Their move':'Your move';
  $('#rack').innerHTML=pile.map((n,d)=>`<button class="rack-button ${digit===d?'selected':''}" data-digit="${d}" aria-label="Digit ${d}, ${n} remaining" aria-pressed="${digit===d}" ${n===0?'disabled':''}>${tile(d)}<span class="tile-count">${n}</span></button>`).join('');
  $('#rack-count').textContent=`${total(pile)} remaining`;
- $$('.action-tab[data-action]').forEach(b=>{b.disabled=!!state.challengeAttempt||isBotTurn(state);b.classList.toggle('selected',b.dataset.action===action);b.setAttribute('aria-pressed',b.dataset.action===action);});
+ $$('.action-tab[data-action]').forEach(b=>{b.disabled=!!isBotTurn(state);b.classList.toggle('selected',b.dataset.action===action);b.setAttribute('aria-pressed',b.dataset.action===action);});
  $('#placement-controls').hidden=action==='challenge';$('#challenge-controls').hidden=action!=='challenge';
  $('#undo-button').disabled=!(pending.length||ends.length||factor.length);
  $('#factor').textContent=factor||'—';$('#factor').classList.toggle('empty',!factor);$('#factor-backspace').disabled=!factor;
  if(action==='challenge'){
   $('#challenge-lines').hidden=lineChoices.length<2;
   $('#challenge-lines').innerHTML=lineChoices.length<2?'':lineChoices.map(line=>`<button class="challenge-line ${line.axis===challengeAxis?'selected':''}" data-challenge-line="${line.axis}" aria-pressed="${line.axis===challengeAxis}" aria-label="Select ${lineLabel(line).toLowerCase()} ${challengeNumber(state,line.cells[0],line.cells.at(-1)).digits}">${lineLabel(line)}<span>${challengeNumber(state,line.cells[0],line.cells.at(-1)).digits}</span></button>`).join('');
-  let html='';$('#attempt-status').textContent='';
+  let html='';
   if(ends.length===2)try{
-   const choices=challengeReadingChoices(state,ends,rotation),reading=choices[0];
-   html=choices.map(choice=>`<button type="button" class="reading-choice ${choice.reverse===readingReverse?'selected':''}" data-reading-reverse="${choice.reverse}" aria-pressed="${choice.reverse===readingReverse}" ${!allowed()||state.challengeAttempt?'disabled':''}><strong>${choice.digits}</strong><small>${choice.label}</small></button>`).join('');
+   const choices=challengeReadingChoices(state,ends,rotation);
+   html=choices.map(choice=>`<button type="button" class="reading-choice ${choice.reverse===readingReverse?'selected':''}" data-reading-reverse="${choice.reverse}" aria-pressed="${choice.reverse===readingReverse}" ${!allowed()?'disabled':''}><strong>${choice.digits}</strong><small>${choice.label}</small></button>`).join('');
    if(readingReverse===null)html='<p class="reading-prompt">Choose a reading direction.</p>'+html;
-   const used=state.challengeAttempt?.attempts.length||0;
-   $('#attempt-status').textContent=`Attempt ${used+1} of ${reading.attemptLimit}${used?' · failed: '+state.challengeAttempt.attempts.map(a=>a.factor).join(', '):''}`;
   }catch{}
   $('#reading-options').innerHTML=html;
  }
- $('#challenge-quit').hidden=!state.challengeAttempt;$('#challenge-quit').disabled=!!state.ended||(role!==null&&state.turn!==role);
  const ready=action==='challenge'?ends.length===2&&typeof readingReverse==='boolean'&&factor.length>0:pending.length===(action==='double'?2:1);
- const button=$('#commit-button');button.innerHTML=`${action==='challenge'?(state.challengeAttempt?'Submit attempt':'Submit challenge'):action==='double'?'Place two tiles':'Place tile'} <span>↗</span>`;
+ const button=$('#commit-button');button.innerHTML=`${action==='challenge'?'Submit challenge':action==='double'?'Place two tiles':'Place tile'} <span>↗</span>`;
  button.disabled=!allowed()||!ready;
  $('#phone-commit-button').hidden=!splitView||!ready||!allowed();$('#phone-commit-button').textContent=action==='challenge'?'Submit factor':action==='double'?'Place two tiles':'Place tile';
  $('#start-button').hidden=!state.started||!!state.ended;
@@ -216,10 +213,9 @@ function renderVerdict(){
  const panel=$('#challenge-review');panel.hidden=!verdict;
  if(!verdict)return;
  panel.classList.toggle('failed',!verdict.success);
- $('#challenge-review-title').textContent=verdict.retry?'Attempt Fails':verdict.success?'Challenge Success':'Challenge Failed';
- $('#review-quit').hidden=!verdict.retry||(role!==null&&role!==state.turn);
+ $('#challenge-review-title').textContent=verdict.success?'Challenge Success':'Challenge Failed';
  const seconds=challengeReviewSeconds(verdict);
- const message=`${verdict.retry?'Next attempt':'Moving to next turn'} in ${seconds} ${seconds===1?'second':'seconds'}`;
+ const message=`Moving to next turn in ${seconds} ${seconds===1?'second':'seconds'}`;
  for(const text of [$('#challenge-countdown'),...$$('[data-split-countdown]')])if(text.textContent!==message)text.textContent=message;
 }
 function showVerdict(review){verdict=review;if(phoneLayout.matches)splitPhoneOpen[review.player]=true;sound(review.success?'challenge':'fail');}
@@ -235,7 +231,7 @@ function applyCommand(command,actor=viewer()){
  }else if(command.type==='resign'){
   if(!state.started||state.ended)throw Error('There is no active game to resign.');state.ended={winner:1-actor,reason:'by resignation'};state.challengeAttempt=null;verdict=null;state.revision++;
  }else if(command.type==='move'){
-  if(actor!==state.turn)throw Error('Wait for your turn.');if(verdict&&command.move.action!=='quitChallenge')throw Error('Wait for the countdown.');
+  if(actor!==state.turn)throw Error('Wait for your turn.');if(verdict)throw Error('Wait for the countdown.');
   const entry=complete(state,command.move);if(entry.action==='challenge'&&!state.ended)showVerdict(beginChallengeReview(state,entry));else sound('turn');
  }
  resetDraft();save();sendState();render();
@@ -247,7 +243,6 @@ function dispatch(command){
 $('#board').addEventListener('click',e=>{
  const cell=e.target.closest('[data-index]');if(!cell)return;if(!allowed())return toast(state.paused?'Resume the game first.':!state.started?'The game has not started yet.':'Wait for your turn.');const index=Number(cell.dataset.index);
  if(action==='challenge'){
-  if(state.challengeAttempt)return toast('Finish or quit the current challenge before selecting another number.');
   if(state.board[index]===null)return toast('Select a tile on the board.');
   const {line,choices}=pointedChallenge(index,e.detail?e:null);
   if(!line){clearChallengeHover();return toast('Point toward the row or column side of the intersection, or select another tile in the number.');}
@@ -264,7 +259,7 @@ $('#board').addEventListener('pointerleave',clearChallengeHover);
 $('#board').addEventListener('focusin',previewChallenge);
 $('#board').addEventListener('focusout',clearChallengeHover);
 $('#challenge-lines').addEventListener('click',e=>{
- const button=e.target.closest('[data-challenge-line]');if(!button||state.challengeAttempt||!allowed())return;
+ const button=e.target.closest('[data-challenge-line]');if(!button||!allowed())return;
  const line=lineChoices.find(c=>c.axis===button.dataset.challengeLine);if(!line||line.axis===challengeAxis)return;
  chooseChallenge(line,lineChoices);renderBoard();renderControls();
 });
@@ -283,7 +278,6 @@ function commitMove(){
  dispatch({type:'move',move:action==='challenge'?{action,a:ends[0],b:ends[1],reverse:readingReverse,factor:factor}:{action,moves:pending.slice()}});
 }
 $('#commit-button').addEventListener('click',commitMove);
-for(const id of ['challenge-quit','review-quit'])$('#'+id).addEventListener('click',()=>dispatch({type:'move',move:{action:'quitChallenge'}}));
 $('#rules-button').addEventListener('click',()=>{orientDialogs();sound();$('#rules-dialog').showModal();});
 $('#rotate-button').addEventListener('click',()=>{rotation=(rotation+1)%4;sound();renderBoard();renderControls();toast(`Board rotated ${rotation*90}°. Coordinates stay with their squares.`);});
 $('#sound-button').addEventListener('click',()=>{muted=!muted;try{localStorage.setItem('primeria.muted',muted);}catch{}sound();render();});
@@ -332,14 +326,13 @@ for(const panel of $$('.split-player-panel')){
   if(command==='history')return selectReview(Number(button.dataset.move));
   const reviewTargets={'review-first':0,'review-previous':Math.max(0,reviewMove-1),'review-next':Math.min(state.history.length,reviewMove+1),'review-last':state.history.length};
   if(Object.hasOwn(reviewTargets,command))return selectReview(reviewTargets[command]);
-  if(command==='quit'){if(permissions.canQuit)dispatch({type:'move',move:{action:'quitChallenge'}});return;}
   if(command==='resign'){if(permissions.canResign){resigning=seat;clearChallengeHover();sound();renderControls();}return;}
   if(command==='cancel-resign'){if(resigning===seat){resigning=null;sound();renderControls();}return;}
   if(command==='confirm-resign'){if(resigning===seat&&permissions.canResign){resigning=null;sound();dispatch({type:'resign'});}return;}
   if(!permissions.canMove)return;
-  if(command==='action'&&!state.challengeAttempt){action=button.dataset.value;resetDraft();sound();renderBoard();renderControls();}
+  if(command==='action'){action=button.dataset.value;resetDraft();sound();renderBoard();renderControls();}
   if(command==='digit'){digit=Number(button.dataset.value);sound('select');renderControls();renderBoard();}
-  if(command==='line'&&!state.challengeAttempt){const line=lineChoices.find(l=>l.axis===button.dataset.value);if(line){chooseChallenge(line,lineChoices);renderBoard();renderControls();}}
+  if(command==='line'){const line=lineChoices.find(l=>l.axis===button.dataset.value);if(line){chooseChallenge(line,lineChoices);renderBoard();renderControls();}}
   if(command==='reading')chooseReading(button.dataset.value==='true');
   if(command==='factor')appendFactor(button.dataset.value);
   if(command==='delete')deleteFactorDigit();
@@ -509,7 +502,7 @@ function updateBot(now){
   try{receive(createBot({size:state.boardSize,seed:state.bot.seed^state.revision,strength:state.bot.strength}).choose(state));}catch{botFailed(job);}
  };
  try{
-  botWorker=new Worker(new URL('./bot-worker.js?v=9867236854',import.meta.url),{type:'module'});
+  botWorker=new Worker(new URL('./bot-worker.js?v=f8d68a105c',import.meta.url),{type:'module'});
   botWorker.onmessage=event=>{if(botJob!==job||event.data.id!==job.id)return;if(event.data.error)fallback();else receive(event.data.result);};
   botWorker.onerror=event=>{event.preventDefault();fallback();};
   botWorker.postMessage({id:job.id,state,key:job.game,seed:state.bot.seed^state.revision});
@@ -520,7 +513,7 @@ setInterval(()=>{
  if(state.startCountdown&&role!==1&&!networkPaused&&(role===null||connection?.open)&&finishGameCountdown(state,now)){resetDraft();save();sendState();render();sound('turn');}
  if(state.startCountdown)renderStartCountdown();
  if(verdict&&role!==1&&!networkPaused&&(role===null||connection?.open)&&finishChallengeReview(state,verdict,now)){
-  if(!verdict.retry)splitPhoneOpen[verdict.player]=false;verdict=null;resetDraft();save();sendState();render();sound('turn');
+  splitPhoneOpen[verdict.player]=false;verdict=null;resetDraft();save();sendState();render();sound('turn');
  }
  if(verdict)renderVerdict();
  tick(state,now);if(role===1&&!ended&&state.ended)state.ended=null;renderClocks();

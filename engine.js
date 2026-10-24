@@ -6,8 +6,8 @@ export function getBoardSize(board){
  if(!BOARD_SIZES.includes(size))throw Error('This board size is unsupported.');
  return size;
 }
-export function isSupportedBoardState(state){return !!state&&state.rulesVersion===RULES_VERSION&&validChallengeAttempt(state)&&BOARD_SIZES.includes(state.boardSize)&&Array.isArray(state.board)&&state.board.length===state.boardSize**2&&Array.isArray(state.taxed)&&state.taxed.length===10&&state.taxed.every(n=>Number.isSafeInteger(n)&&n>=0);}
-export const RULES_VERSION = 14;
+export function isSupportedBoardState(state){return !!state&&state.rulesVersion===RULES_VERSION&&state.challengeAttempt===null&&BOARD_SIZES.includes(state.boardSize)&&Array.isArray(state.board)&&state.board.length===state.boardSize**2&&Array.isArray(state.taxed)&&state.taxed.length===10&&state.taxed.every(n=>Number.isSafeInteger(n)&&n>=0);}
+export const RULES_VERSION = 15;
 export const MODES = {blitz:[600,10],rapid:[1200,20],standard:[1800,30],classical:[2700,60],casual:[null,0]};
 export const PILE = [2,5,3,5,3,2,3,5,3,5];
 export const total = pile => pile.reduce((a,b)=>a+b,0);
@@ -98,7 +98,7 @@ function removeExposedTiles(s){
 export function challengeNumber(s,a,b,reverse=false){
   if(typeof reverse!=='boolean')throw Error('Choose a reading direction.');
   const cells=segment(s.board,a,b),readingCells=reverse?cells.slice().reverse():cells.slice();
-  return {cells,readingCells,digits:readingCells.map(i=>s.board[i]).join(''),reverse,attemptLimit:Math.ceil(cells.length/3)};
+  return {cells,readingCells,digits:readingCells.map(i=>s.board[i]).join(''),reverse};
 }
 export function challenge(s,a,b,factor,reverse=false){
   const reading=challengeNumber(s,a,b,reverse);
@@ -108,31 +108,15 @@ export function challenge(s,a,b,factor,reverse=false){
   if(f<=1n||(n!==0n&&f>=n))throw Error('Use a nontrivial factor: greater than 1 and smaller than the number.');
   return {...reading,factor:String(f),success:n%f===0n,quotient:String(n/f),remainder:String(n%f)};
 }
-function validChallengeAttempt(s){
-  const p=s.challengeAttempt;if(p===null)return true;if(!p||p.player!==s.turn||!Array.isArray(p.attempts)||!p.attempts.length||!Array.isArray(p.cells))return false;
-  if(typeof p.reverse!=='boolean')return false;
-  try{const n=challengeNumber(s,p.a,p.b,p.reverse);return n.digits===p.digits&&n.attemptLimit===p.attemptLimit&&p.attempts.length<p.attemptLimit&&JSON.stringify(n.cells)===JSON.stringify(p.cells)&&p.attempts.every(a=>{const result=challenge(s,p.a,p.b,a.factor,p.reverse);return a.success===false&&!result.success&&result.remainder===a.remainder&&result.quotient===a.quotient;});}catch{return false;}
-}
 export function complete(s,command,now=Date.now()){
   tick(s,now);if(s.ended)throw Error('This game is over.');
-  const quitting=command.action==='quitChallenge'&&!!s.challengeAttempt;
-  if(!s.started||(s.paused&&!quitting))throw Error('Start or resume the game first.');
-  const actor=s.turn,ongoing=s.challengeAttempt;let entry;
-  if(command.action==='challenge'||quitting){
-    let c;
-    if(quitting){c={...challengeNumber(s,ongoing.a,ongoing.b,ongoing.reverse),...ongoing.attempts.at(-1),success:false};s.paused=false;}
-    else{
-      c=challenge(s,command.a,command.b,command.factor,command.reverse??false);
-      if(ongoing&&(JSON.stringify(c.cells)!==JSON.stringify(ongoing.cells)||c.digits!==ongoing.digits||c.reverse!==ongoing.reverse))throw Error('Finish or quit the current challenge before selecting another number or reading direction.');
-    }
+  if(!s.started||s.paused)throw Error('Start or resume the game first.');
+  const actor=s.turn;let entry;
+  if(command.action==='challenge'){
+    const c=challenge(s,command.a,command.b,command.factor,command.reverse??false);
     const attempt={factor:c.factor,success:c.success,quotient:c.quotient,remainder:c.remainder};
-    const attempts=quitting?ongoing.attempts.slice():[...(ongoing?.attempts||[]),attempt];
-    entry={action:'challenge',player:actor,...c,attempts,attemptNumber:attempts.length,retriesRemaining:c.attemptLimit-attempts.length,...(quitting?{quit:true}:{})};
+    entry={action:'challenge',player:actor,...c,attempts:[attempt]};
     s.lastCells=c.cells;
-    if(!c.success&&!quitting&&attempts.length<c.attemptLimit){
-      s.challengeAttempt={player:actor,a:c.cells[0],b:c.cells.at(-1),reverse:c.reverse,cells:c.cells,digits:c.digits,attemptLimit:c.attemptLimit,attempts};
-      s.revision++;return {...entry,retry:true};
-    }
     if(c.success){
       const taxedCells=[...new Set([c.readingCells[0],c.readingCells.at(-1)])],taxedDigits=taxedCells.map(i=>s.board[i]);
       for(const i of c.cells){if(taxedCells.includes(i))s.taxed[s.board[i]]++;else s.piles[1-actor][s.board[i]]++;s.board[i]=null;}
@@ -140,7 +124,6 @@ export function complete(s,command,now=Date.now()){
     }
     s.challengeAttempt=null;
   }else{
-    if(ongoing)throw Error('Finish or quit the current challenge before making another move.');
     const p=placement(s,command.action,command.moves);s.board=p.board;s.piles[actor]=p.pile;s.lastCells=command.moves.map(m=>m.index);
     entry={action:command.action,player:actor,moves:command.moves};
   }
@@ -156,7 +139,19 @@ export function complete(s,command,now=Date.now()){
 // Expand the former board without moving a tile to a different coordinate.
 export function upgradeGameBoard(state){
   // Earlier moves remain reviewable; resumed games use the current placement rule.
-  if([9,10,11,12,13].includes(state.rulesVersion))state={...state,rulesVersion:RULES_VERSION,challengeAttempt:state.challengeAttempt?{...state.challengeAttempt,reverse:state.challengeAttempt.reverse??state.challengeAttempt.player===1}:null};
+  if([9,10,11,12,13,14].includes(state.rulesVersion)){
+    state={...state,rulesVersion:RULES_VERSION};
+    // A legacy failed attempt now completes its turn; do not grant another try.
+    if(state.challengeAttempt&&!state.ended){
+      const p=state.challengeAttempt,reverse=p.reverse??p.player===1,reading=challengeNumber(state,p.a,p.b,reverse);
+      if(p.player!==state.turn||!Array.isArray(p.attempts)||!p.attempts.length||p.attemptLimit!==Math.ceil(reading.cells.length/3)||p.attempts.length>=p.attemptLimit||p.digits!==reading.digits||JSON.stringify(p.cells)!==JSON.stringify(reading.cells)||!p.attempts.every(a=>{const c=challenge(state,p.a,p.b,a.factor,reverse);return a.success===false&&!c.success&&a.quotient===c.quotient&&a.remainder===c.remainder;}))throw Error('The saved challenge is invalid.');
+      const paused=state.paused;
+      state={...state,paused:false,challengeAttempt:null,clocks:state.clocks.slice(),history:state.history.slice()};
+      const entry=complete(state,{action:'challenge',a:p.a,b:p.b,reverse,factor:p.attempts.at(-1).factor},state.lastTick);
+      entry.attempts=p.attempts.map(a=>({...a}));state.paused=paused;
+    }
+    state={...state,challengeAttempt:null};
+  }
   if(state.challengeAttempt===undefined)state={...state,challengeAttempt:null};
   const size=Math.sqrt(state.board.length);
   if(BOARD_SIZES.includes(size)){

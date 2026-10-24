@@ -1,4 +1,4 @@
-import {challengeLines,challengeNumber,getBoardSize} from './engine.js?v=3eb394a65f';
+import {challengeLines,challengeNumber,getBoardSize} from './engine.js?v=0981ea2d5b';
 
 // An intersection has no default axis: only a clear pointer direction selects it.
 export function pointedChallenge(board,index,{rotation=0,dx=null,dy=null,tolerance=2}={}){

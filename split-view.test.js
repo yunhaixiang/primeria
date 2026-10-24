@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {newGame,complete} from './engine.js?v=3eb394a65f';
-import {splitPermissions,splitPanelHTML} from './split-view.js?v=218253eb75';
+import {newGame,complete} from './engine.js?v=0981ea2d5b';
+import {splitPermissions,splitPanelHTML} from './split-view.js?v=5d0f7be226';
 const active=()=>{const s=newGame({first:0});s.started=true;return s;};
 const options=seat=>({seat,tile:d=>`<span>${d}</span>`,formatTime:t=>String(t)});
 test('split seats allow only the current human to draft a move',()=>{
@@ -23,12 +23,12 @@ test('paused, opening, ended, disconnected and review boards prevent drafting',(
  assert.equal(splitPermissions(active(),0,{reviewMove:0}).canMove,false);
  assert.equal(splitPermissions(active(),0,{resigning:0}).canMove,false);
 });
-test('a failed attempt countdown allows only its challenger to quit',()=>{
- const s=active();s.challengeAttempt={};s.paused=true;
- assert.equal(splitPermissions(s,0,{verdict:{retry:true}}).canQuit,true);
- assert.equal(splitPermissions(s,1,{verdict:{retry:true}}).canQuit,false);
- assert.equal(splitPermissions(s,0,{verdict:{retry:true}}).canMove,false);
- assert.equal(splitPermissions(s,0,{verdict:{retry:false}}).canQuit,false);
+test('challenge verdicts block drafting and offer no retry or quit controls',()=>{
+ const s=active();s.paused=true;const verdict={success:false};
+ for(const seat of [0,1]){
+  assert.equal(splitPermissions(s,seat,{verdict}).canMove,false);
+  const html=splitPanelHTML(s,{...options(seat),verdict});assert.match(html,/Challenge Failed/);assert.doesNotMatch(html,/Quit Challenge|Attempt Fails|Next attempt/);
+ }
 });
 test('each panel keeps its own inventory, escapes names, and has no duplicate IDs',()=>{
  const s=active();s.names=['<one>','two'];s.piles[0][3]=2;s.piles[1][3]=4;
@@ -66,12 +66,11 @@ test('phone panel toggles control their own accessible body without changing per
  }
  assert.equal(splitPermissions(s,1).canMove,false);
 });
-test('split challenge submission requires direction and retries disable direction changes',()=>{
+test('split challenge submission requires a direction and shows no attempt counter',()=>{
  const s=active();[1,0,0,3].forEach((d,i)=>s.board[i]=d);
  let html=splitPanelHTML(s,{...options(0),action:'challenge',ends:[0,3],factor:'2'});assert.match(html,/data-split-command="commit" disabled/);
  html=splitPanelHTML(s,{...options(0),action:'challenge',ends:[0,3],factor:'2',readingReverse:true});assert.doesNotMatch(html,/data-split-command="commit" disabled/);
- complete(s,{action:'challenge',a:0,b:3,reverse:true,factor:'2'},0);
- html=splitPanelHTML(s,{...options(0),action:'challenge',ends:[0,3],factor:'7',readingReverse:true});assert.match(html,/reading-choice selected[^>]*data-value="true"[^>]*disabled/);
+ assert.doesNotMatch(html,/Attempt [0-9]|Quit Challenge|Submit attempt/);
 });
 
 test('opposite-facing panel labels describe reading from that player’s side',()=>{

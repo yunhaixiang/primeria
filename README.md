@@ -20,11 +20,11 @@ Players take turns making moves. Flip a coin to decide which player plays first.
 
 2. **Double Down**: Place two tiles, one at a time. Each tile must be placed adjacent to a tile already on the board when it is placed. After the move, both new tiles must belong to the same complete uninterrupted horizontal or vertical run.
 
-3. **Challenge**: Declare a number on the board and choose which direction to read it for the challenge. The chosen number and reading direction stay fixed for all attempts in that challenge. The challenger gets one or more attempts to challenge this number depending on its length: 1 ~ 3 digits get 1 attempt, 4 ~ 6 digits get 2 attempts, 7 ~ 9 digits get 3 attempts, and so on. An attempt consists of proposing a factor of the number, other than 1 or itself. Depending on whether the game is being played over the board or on a screen, either the challenger verifies the factor with a calculator, or the computer checks it automatically. The clock does not stop during calculator verification.
+3. **Challenge**: Declare a number on the board to *challenge*: a challenge consists of proposing a factor of the number, other than 1 or itself, and then verifying it with a calculator (verification is automatic on a virtual board).
 
-    - If an attempt succeeds: the number is removed from the board. Its first and last tiles are discarded, and all remaining tiles are put into the opponent’s pile. For a one-tile number, that tile is discarded once. Discarded tiles are removed from play and placed in neither player’s pile.
+    - If challenge succeeds: the number is removed from the board. Its first and last tiles are discarded, and all remaining tiles are put into the opponent’s pile. Discarded tiles are removed from play and placed in neither player’s pile.
 
-    - If all attempts fail: the number remains on the board, no tile is placed this turn, and the game moves on to the next turn.
+    - If challenge fails: the number remains on the board, no tile is placed this turn, and the game moves on to the next turn.
 
 **Special Rule for Zero**: At the end of a turn, no 0-tile may be isolated or lie at either end of any number. If removing tiles in a successful Challenge leaves a 0-tile isolated or at either end of any number, immediately remove it from the board and discard it.
 

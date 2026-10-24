@@ -39,12 +39,11 @@ for(const size of BOARD_SIZES){
   const entry=complete(s,{action:'challenge',a:p(5,5),b:p(6,5),factor:'3'},0);
   assert.deepEqual(entry.cleanup,[]);assert.equal(s.board[p(2,1)],0);assert.equal(s.board[p(0,1)],5);assert.equal(s.board[p(7,7)],7);conserved(s);
  });
- test(`${size}: failed attempts and quitting never remove additional tiles`,()=>{
+ test(`${size}: a failed challenge never removes additional tiles`,()=>{
   const s=active(size),p=(x,y)=>y*size+x;
   seed(s,[[p(0,1),5],[p(1,1),1],[p(2,1),0],[p(3,1),3],...[1,4,3,7].map((d,i)=>[p(i+1,5),d])]);
   const board=s.board.slice(),piles=s.piles.map(pile=>pile.slice());
-  const retry=complete(s,{action:'challenge',a:p(1,5),b:p(4,5),factor:'2'},0);assert.equal(retry.retry,true);
-  const quit=complete(s,{action:'quitChallenge'},0);assert.equal(quit.success,false);assert.equal(quit.cleanup,undefined);
+  const entry=complete(s,{action:'challenge',a:p(1,5),b:p(4,5),factor:'2'},0);assert.equal(entry.success,false);assert.equal(entry.cleanup,undefined);assert.equal(s.turn,1);assert.equal(s.history.length,1);
   assert.deepEqual(s.board,board);assert.deepEqual(s.piles,piles);assert.deepEqual(s.taxed,Array(10).fill(0));conserved(s);
  });
 }

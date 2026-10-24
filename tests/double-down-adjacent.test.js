@@ -69,7 +69,7 @@ for(const size of BOARD_SIZES){
   else{assert.equal(result.command.action,'double');complete(s,result.command,0);assert.equal(s.ended.winner,0);}
  });
 }
-for(const version of [9,10,11,12,13])test(`local rule-${version} saves migrate without changing board, piles or recorded moves`,()=>{
+for(const version of [9,10,11,12,13,14])test(`local rule-${version} saves migrate without changing board, piles or recorded moves`,()=>{
  const legacy={...newGame({boardSize:9},0),started:true,rulesVersion:version};complete(legacy,{action:'single',moves:[{index:0,digit:1}]},0);
  const before=structuredClone(legacy);assert.equal(isSupportedBoardState(legacy),false);const restored=upgradeGameBoard(legacy);
  assert.equal(restored.rulesVersion,RULES_VERSION);assert.ok(isSupportedBoardState(restored));

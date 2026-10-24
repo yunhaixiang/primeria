@@ -34,10 +34,10 @@ test('the scanner uses the requested reading direction and excludes prime number
  assert.deepEqual(a.find(t=>t.digits==='41').factors,[]);assert.deepEqual(b.find(t=>t.digits==='14').factors,['2','7']);
  assert.deepEqual(a.find(t=>t.digits==='7').factors,[]);assert.deepEqual(a.find(t=>t.digits==='1').factors,[]);
 });
-test('a locked challenge uses another known small factor without switching targets',()=>{
+test('the next player can challenge a number after a failed proposal',()=>{
  const s={...newGame({boardSize:9},0),started:true};[1,0,0,1].forEach((d,i)=>s.board[i]=d);
- const first=complete(s,{action:'challenge',a:0,b:3,factor:'2'},0);assert.ok(first.retry);
- const plan=createBot({size:9,seat:0,strength:'beginner',seed:4}).choose(s);
+ const first=complete(s,{action:'challenge',a:0,b:3,factor:'2'},0);assert.equal(first.success,false);assert.equal(s.turn,1);
+ const plan=createBot({size:9,seat:1,strength:'beginner',seed:4}).choose(s);
  assert.equal(plan.command.action,'challenge');assert.equal(plan.command.factor,'7');
  assert.deepEqual(plan.command.cells,[0,1,2,3]);assert.equal(complete(s,plan.command,0).success,true);
 });
