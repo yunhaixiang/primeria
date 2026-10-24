@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {BOARD_SIZES,getBoardSize,isSupportedBoardState,newGame,placement,segment,challenge as checkChallenge,complete,total,upgradeGameBoard} from '../engine.js';
-// Exercise both fixed player perspectives without an arbitrary reading-direction option.
-const challenge=(s,a,b,reverse,factor)=>checkChallenge({...s,turn:reverse?1:0},a,b,factor);
+// Both reading directions are independent of the player and endpoint order.
+const challenge=(s,a,b,reverse,factor)=>checkChallenge(s,a,b,factor,reverse);
 
 for(const size of BOARD_SIZES){
  const square=(x,y)=>y*size+x;
@@ -30,7 +30,7 @@ for(const size of BOARD_SIZES){
    assert.throws(()=>segment(s.board,cells[1],cells.at(-1)),/whole uninterrupted/);
    assert.throws(()=>segment(s.board,cells[0],cells[0]),/isolated/);
    const before=total(s.piles[1]);complete(s,{action:'challenge',a:cells[0],b:cells.at(-1),reverse:false,factor:'3'},0);
-   assert.equal(total(s.piles[1]),before+size-1);assert.equal(s.board.filter(n=>n!==null).length,0);
+   assert.equal(total(s.piles[1]),before+size-2);assert.equal(s.board.filter(n=>n!==null).length,0);
   }
  });
  test(`${size} × ${size}: board state validation rejects inconsistent online dimensions`,()=>{

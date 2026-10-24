@@ -12,7 +12,7 @@ The game is played on a square board with 9 × 9, 11 × 11, 13 × 13, or 15 × 1
 
 ## Moves
 
-During the game, tiles will be placed on the squares. Two tiles are **adjacent** if their squares share an edge. Diagonal contact does not count. A tile is **isolated** if it has no adjacent tiles. A **number** is a complete, uninterrupted horizontal or vertical run of one or more tiles, read from left to right or top to bottom from the current player’s perspective.
+During the game, tiles will be placed on the squares. Two tiles are **adjacent** if their squares share an edge. Diagonal contact does not count. A tile is **isolated** if it has no adjacent tiles. By a **number**, we mean a number formed by a complete uninterrupted horizontal or vertical run of one or more tiles, viewed from any direction: top to bottom, bottom to top, left to right, or right to left.
 
 Players take turns making moves. Flip a coin to decide which player plays first. At each turn, the player chooses from one of three kinds of moves.
 
@@ -20,9 +20,9 @@ Players take turns making moves. Flip a coin to decide which player plays first.
 
 2. **Double Down**: Place two tiles, one at a time. Each tile must be placed adjacent to a tile already on the board when it is placed. In particular, the second tile may be placed adjacent to the first.
 
-3. **Challenge**: Declare a number on the board to challenge. The challenger gets one or more attempts to challenge this number depending on its length: 1 ~ 3 digits get 1 attempt, 4 ~ 6 digits get 2 attempts, 7 ~ 9 digits get 3 attempts, and so on. An attempt consists of proposing a factor of the number, other than 1 or itself. Depending on whether the game is being played over the board or on a screen, either the challenger verifies the factor with a calculator, or the computer checks it automatically. The clock does not stop during calculator verification.
+3. **Challenge**: Declare a number on the board and choose which direction to read it for the challenge. The chosen number and reading direction stay fixed for all attempts in that challenge. The challenger gets one or more attempts to challenge this number depending on its length: 1 ~ 3 digits get 1 attempt, 4 ~ 6 digits get 2 attempts, 7 ~ 9 digits get 3 attempts, and so on. An attempt consists of proposing a factor of the number, other than 1 or itself. Depending on whether the game is being played over the board or on a screen, either the challenger verifies the factor with a calculator, or the computer checks it automatically. The clock does not stop during calculator verification.
 
-    - If an attempt succeeds: the number is removed from the board, and all but its ones digit is put into the opponent’s pile. The ones digit is discarded. Discarded tiles are removed from play and placed in neither player’s pile.
+    - If an attempt succeeds: the number is removed from the board. Its first and last tiles are discarded, and all remaining tiles are put into the opponent’s pile. For a one-tile number, that tile is discarded once. Discarded tiles are removed from play and placed in neither player’s pile.
 
     - If all attempts fail: the number remains on the board, no tile is placed this turn, and the game moves on to the next turn.
 

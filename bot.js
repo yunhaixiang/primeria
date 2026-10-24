@@ -1,9 +1,9 @@
-import * as engine from './engine.js?v=998c113a1e';
+import * as engine from './engine.js?v=8fbacc9628';
 
 export const BOT_LEVELS={
- beginner:{label:'Beginner',description:'Scans every number for small factors; short plans.',speed:1.5,ideas:5,targets:2,replies:1,followups:0,budget:7,eleven:true,primes:[7,13],maxDigits:15,noise:2.5},
- intermediate:{label:'Intermediate',description:'Scans every number for small factors; considers replies.',speed:1,ideas:10,targets:4,replies:2,followups:0,budget:12,eleven:true,primes:[7,13],maxDigits:15,noise:.6},
- advanced:{label:'Advanced',description:'Full-board small-factor scan and deeper planning.',speed:.7,ideas:18,targets:7,replies:4,followups:2,budget:18,eleven:true,primes:[7,13,17,19,23,29,31],maxDigits:13,noise:.15}
+ beginner:{label:'Beginner',description:'Scans every number for small factors; short plans.',speed:1.5,ideas:5,targets:2,depth:1,width:2,rootWidth:5,nodes:100,budget:7,eleven:true,primes:[7,13],maxDigits:15,noise:2.5},
+ intermediate:{label:'Intermediate',description:'Scans both reading directions and plans up to three turns ahead.',speed:1,ideas:12,targets:4,depth:3,width:3,rootWidth:8,nodes:650,budget:12,eleven:true,primes:[7,13],maxDigits:15,noise:.6},
+ advanced:{label:'Advanced',description:'Checks either reading direction and plans up to five turns ahead.',speed:.7,ideas:28,targets:7,depth:5,width:4,rootWidth:12,nodes:2400,budget:18,eleven:true,primes:[7,13,17,19,23,29,31],maxDigits:13,noise:.15}
 };
 export function botConfig(state){const b=state?.bot;return b&&b.player===1&&Object.hasOwn(BOT_LEVELS,b.strength)&&typeof b.id==='string'&&b.id.length>0&&b.id.length<100&&Number.isInteger(b.seed)&&b.seed>=0&&b.seed<=0xffffffff?b:null;}
 export function isBotTurn(state){return !!botConfig(state)&&state.turn===1;}
@@ -11,6 +11,7 @@ export function isBotTurn(state){return !!botConfig(state)&&state.turn===1;}
 // not measured human timings. Cheap tests work at every board length and level.
 // Larger-prime trial divisions remain slower; there is no primality oracle.
 export const ARITHMETIC_MODEL='quick-small-primes-full-scan-v2';
+export const SEARCH_MODEL='any-orientation-two-endpoint-minimax-v3';
 export const SMALL_PRIMES=Object.freeze([2,3,5,7,11,13]);
 export const FULL_SCAN_SECONDS=.25;
 export function factorChecks(digits,strength='intermediate'){
@@ -54,12 +55,12 @@ export function scanSmallFactors(board,perspective=0){
  return wholeRuns(board,size).map(cells=>{
   const digits=reading(board,cells,perspective),n=BigInt(digits);
   const factors=SMALL_PRIMES.filter(p=>(n===0n||BigInt(p)<n)&&n%BigInt(p)===0n).map(String);
-  return {cells,digits,factors};
+  return {cells,digits,reverse:perspective===1,factors};
  });
 }
 function smallChallenge(target,excluded=[]){
  const factor=target?.factors.find(f=>!excluded.includes(f));
- return factor?{action:'challenge',a:target.cells[0],b:target.cells.at(-1),factor,cells:target.cells,digits:target.digits,source:'full-board small-prime scan'}:null;
+ return factor?{action:'challenge',a:target.cells[0],b:target.cells.at(-1),reverse:target.reverse,factor,cells:target.cells,digits:target.digits,source:'full-board small-prime scan'}:null;
 }
 const pattern=text=>text;
 function branch(engine,state,command){
@@ -90,10 +91,10 @@ function createPlanner(engine,{size,seed,seat,style='balanced',level='intermedia
   observed=state.history.length;
   for(const [key,expiry]of punished)if(expiry<observed)punished.delete(key);
  }
- function inspect(board,cells,ctx,limit=ctx.budget,perspective=seat,excluded=[]){
+ function inspect(board,cells,ctx,limit=ctx.budget,perspective=0,excluded=[]){
   const text=reading(board,cells,perspective),known=facts.get(text);
   const charge=cost=>{if(ctx.seconds+cost>limit){ctx.unfinishedChecks++;return false;}ctx.seconds+=cost;return true;};
-  const found=(factor,source)=>({action:'challenge',a:cells[0],b:cells.at(-1),factor:String(factor),cells,digits:text,source});
+  const found=(factor,source)=>({action:'challenge',a:cells[0],b:cells.at(-1),reverse:perspective===1,factor:String(factor),cells,digits:text,source});
   if(known?.factor&&!excluded.includes(known.factor)&&charge(.2*skill.speed)){
    ctx.cacheHits++;return found(known.factor,'remembered factor');
   }
@@ -117,7 +118,7 @@ function createPlanner(engine,{size,seed,seat,style='balanced',level='intermedia
   if(count===1){for(const index of empty){const command={action:'single',moves:[{index,digit:digits[0]}]};try{engine.placement(state,command.action,command.moves);return command;}catch{}}}
   if(count===2){
    const edge=empty.filter(i=>engine.adjacent(state.board,i));
-   for(const index of edge.slice(0,12))for(const order of [digits,digits.slice().reverse()]){
+   for(const index of edge)for(const order of [digits,digits.slice().reverse()]){
     const board=state.board.slice();board[index]=order[0];
     const seconds=secondSquares(board,index);
     for(const next of seconds){const command={action:'double',moves:[{index,digit:order[0]},{index:next,digit:order[1]}]};try{engine.placement(state,command.action,command.moves);return command;}catch{}}
@@ -169,43 +170,209 @@ function createPlanner(engine,{size,seed,seat,style='balanced',level='intermedia
  }
  function evaluate(state,root){
   if(state.ended)return state.ended.winner===root?100000:-100000;
-  const own=state.piles[root],opponent=state.piles[1-root],count=engine.total(own);
-  const shortage=Math.max(0,Math.ceil(hard(own)/2)-guards(own));
-  return -3*count+temperament.opponentWeight*engine.total(opponent)-temperament.inventory*(hard(own)+(count<=12?1.5:1)*shortage);
+  const burden=p=>hard(p)+(engine.total(p)<=12?1.5:1)*Math.max(0,Math.ceil(hard(p)/2)-guards(p));
+  const own=state.piles[root],opponent=state.piles[1-root];
+  // Returning a tile and shedding one affect the race symmetrically. The former
+  // evaluation valued an opponent's returned tile at less than half an own tile.
+  return 3*(engine.total(opponent)-engine.total(own))+temperament.inventory*(burden(opponent)-burden(own));
  }
- function assessed(state,command,ctx,limit=ctx.budget){
-  const next=branch(engine,state,command),threats=[];let exposure=0,unverified=0,memoryPenalty=0;
-  if(!next.ended){
-   // Opponent replies also see small factors anywhere on the board.
-   const all=scanSmallFactors(next.board,next.turn).filter(t=>t.factors.length).sort((a,b)=>b.cells.length-a.cells.length);
-   threats.push(...all.map(t=>smallChallenge(t)));
+ function singleIdeas(state,limit){
+  const groups=[[],[],[]];
+  for(let index=0;index<state.board.length;index++)if(state.board[index]===null){
+   const occupied=neighbors(index,size).filter(i=>state.board[i]!==null).length;
+   groups[occupied===0?0:occupied===1?1:2].push(index);
   }
-  if(!next.ended&&command.moves){
-   const local=wholeRuns(next.board,size).filter(c=>c.some(i=>command.moves.some(m=>m.index===i))).sort((a,b)=>b.length-a.length);
-   for(const cells of local){
-    // Cheap small-factor traps remain visible even late in a planning budget.
-    const text=reading(next.board,cells,next.turn),easy=factorChecks(text,level).find(c=>c.quick&&c.divides);
-    if(easy){exposure=Math.max(exposure,cells.length-1);threats.push({action:'challenge',a:cells[0],b:cells.at(-1),factor:easy.factor});}
-    if(punished.has(pattern(text)))memoryPenalty+=3;
-    if(ctx.seconds>=limit){unverified++;continue;}
-    const misses=ctx.unfinishedChecks,f=inspect(next.board,cells,ctx,limit,next.turn);
-    if(f){threats.push(f);exposure=Math.max(exposure,(cells.length-1)*.75);}
-    if(ctx.unfinishedChecks>misses)unverified++;
+  const available=groups.filter(g=>g.length),digits=[1,4,3,6,7,8,9,2,5,0].filter(d=>state.piles[state.turn][d]);
+  const result=[],seen=new Set();
+  if(!available.length||!digits.length)return result;
+  // Sample isolated anchors, extensions and bridges separately. Isolated
+  // composites are legal and return no tiles if challenged; do not omit them.
+  for(let attempt=0;attempt<limit*8&&result.length<limit;attempt++){
+   const group=available[attempt%available.length],digit=digits[Math.floor(attempt/available.length)%digits.length];
+   const move={index:pick(group),digit},key=move.index+':'+digit;
+   if(seen.has(key))continue;seen.add(key);
+   try{engine.placement(state,'single',[move]);result.push({action:'single',moves:[move]});}catch{}
+  }
+  return result;
+ }
+ function search(state,extra,ctx,pressure){
+  const root=state.turn,boardCache=new Map(),actionCache=new Map(),winCache=new Map(),transpositions=new Map();
+  const stats={searchModel:SEARCH_MODEL,searchNodes:0,searchDepth:0,searchCutoffs:0,searchCacheHits:0,searchGenerated:0,threatDefenses:0,replies:0,followups:0,placementCoverage:{nodesWithSingles:0,nodesRetainingSingles:0,nodesWithDoubles:0,nodesRetainingDoubles:0},exploredMoveTypes:{single:0,double:0,challenge:0}};
+  const nodeLimit=pressure?Math.min(skill.nodes,160):skill.nodes;
+  const maxDepth=pressure?Math.min(skill.depth,2):skill.depth;
+  const stopped=Symbol('search budget');
+  const boardKey=s=>s.board.map(d=>d===null?'.':d).join('');
+  const positionKey=s=>boardKey(s)+'/'+s.turn+'/'+s.piles.map(p=>p.join(',')).join('/')+'/'+s.taxed.join(',')+'/'+(s.timeOutRule?s.elapsed+':'+s.leader+':'+s.streak:'');
+  function information(s){
+   const key=boardKey(s);if(boardCache.has(key))return boardCache.get(key);
+   const both=[...scanSmallFactors(s.board,0),...scanSmallFactors(s.board,1)],scans=[both,both];
+   const challenges=scans.map(targets=>targets.flatMap(t=>{
+    const known=smallChallenge(t);if(known)return [known];
+    const fact=facts.get(t.digits),n=BigInt(t.digits),f=fact?.factor&&BigInt(fact.factor);
+    return f&&f>1n&&f<n&&n%f===0n?[{action:'challenge',a:t.cells[0],b:t.cells.at(-1),reverse:t.reverse,factor:String(f),cells:t.cells,digits:t.digits,source:'remembered factor'}]:[];
+   }).sort((a,b)=>b.cells.length-a.cells.length));
+   const result={scans,challenges,best:challenges.map(c=>c.length?Math.max(0,c[0].cells.length-2):0)};
+   boardCache.set(key,result);return result;
+  }
+  function win(s){
+   const key=positionKey(s);if(!winCache.has(key))winCache.set(key,winningPlacement(s));return winCache.get(key);
+  }
+  function score(s){
+   if(s.ended)return evaluate(s,root);
+   const info=information(s);
+   // Include stored captures on both sides, including numbers untouched by the
+   // last move. The player about to move has first use of their capture.
+   const reserve=player=>info.best[player]*(s.turn===player?1.5:.7);
+   return evaluate(s,root)+reserve(root)-reserve(1-root)+(s.turn===root?.2:-.2);
+  }
+  function endpoints(board,cells){
+   if(cells.length===1)return neighbors(cells[0],size).filter(i=>board[i]===null);
+   const step=cells[1]-cells[0],first=cells[0],last=cells.at(-1);
+   return [first-step,last+step].filter(i=>i>=0&&i<board.length&&board[i]===null&&(step!==1||Math.floor(i/size)===Math.floor(first/size)));
+  }
+  function defenses(s,ply){
+   if(level==='beginner'||ply>1)return [];
+   const threats=information(s).challenges[1-s.turn].filter(c=>c.cells.length>=3).slice(0,ply===0?2:1);
+   if(!threats.length)return [];
+   const result=[],firsts=[],seen=new Set();
+   for(const threat of threats)for(const index of endpoints(s.board,threat.cells)){
+    const group=[];
+    for(let digit=0;digit<10;digit++)if(s.piles[s.turn][digit]){
+     try{
+      const move={index,digit},p=engine.placement(s,'double',[move],true),next={...s,board:p.board,piles:s.piles.map((pile,i)=>i===s.turn?p.pile:pile)};
+      const key=index+':'+digit;if(seen.has(key))continue;seen.add(key);
+      const danger=information(next).best[1-s.turn];
+      group.push({move,next,rank:-4*danger+(hard(s.piles[s.turn])-hard(p.pile))});
+      try{engine.placement(s,'single',[move]);result.push({action:'single',moves:[move]});}catch{}
+     }catch{}
+    }
+    group.sort((a,b)=>b.rank-a.rank);firsts.push(...group.slice(0,ply===0?2:1));
    }
+   for(const first of firsts){
+    const points=new Set(neighbors(first.move.index,size).filter(i=>first.next.board[i]===null));
+    for(const line of engine.challengeLines(first.next.board,first.move.index))for(const i of endpoints(first.next.board,line.cells))points.add(i);
+    for(const threat of information(first.next).challenges[1-s.turn].slice(0,1))for(const i of endpoints(first.next.board,threat.cells))points.add(i);
+    for(const index of points)for(let digit=0;digit<10;digit++)if(first.next.piles[s.turn][digit]){
+     if(ply>0&&![1,3,7,9].includes(digit))continue;
+     const command={action:'double',moves:[first.move,{index,digit}]};
+     try{engine.placement(s,command.action,command.moves);result.push(command);}catch{}
+    }
+   }
+   stats.threatDefenses+=result.length;return result;
   }
-  return {command,next,threats,exposure,unverified,memoryPenalty};
+  function options(s,ply){
+   const key=positionKey(s)+'/'+Math.min(ply,2);if(actionCache.has(key))return actionCache.get(key);
+   const victory=win(s);if(victory){const r=[{command:victory,next:branch(engine,s,victory)}];actionCache.set(key,r);return r;}
+   const scratch={seconds:0,budget:Infinity};
+   const randomPlacements=generate(s,ply===0?skill.ideas:Math.max(4,skill.width*2),scratch);
+   const singles=singleIdeas(s,ply===0?Math.max(4,Math.floor(skill.ideas/2)):Math.max(2,skill.width));
+   const commands=[...information(s).challenges[s.turn],...(ply===0?extra:[]),...defenses(s,ply),...randomPlacements,...singles];
+   const unique=new Set(),children=[];
+   for(const command of commands){
+    const signature=command.action==='challenge'?'c:'+command.a+':'+command.b+':'+command.reverse:JSON.stringify(command.moves);
+    if(unique.has(signature))continue;unique.add(signature);
+    try{
+     const next=branch(engine,s,command);if(next.challengeAttempt)continue;
+     const immediate=next.ended?null:win(next);
+     const value=immediate?(next.turn===root?100000:-100000):score(next);
+     children.push({command,next,value});stats.searchGenerated++;
+    }catch{}
+   }
+   const sign=s.turn===root?1:-1;
+   children.sort((a,b)=>sign*(b.value-a.value));
+   // Keep different placement options alive before comparing their deeper
+   // continuations. Immediate two-tile progress must not prune every Single.
+   const width=ply===0?skill.rootWidth:skill.width;
+   const placements=children.filter(c=>c.command.action!=='challenge'),kept=new Set();
+   const minimum=Math.max(1,Math.floor(width/4));
+   const singleRole=c=>{
+    const move=c.command.moves[0],occupied=neighbors(move.index,size).filter(i=>s.board[i]!==null).length;
+    return (occupied===0?'isolated':occupied===1?'extension':'bridge')+([4,6,8].includes(move.digit)?':hard':':other');
+   };
+   for(const action of ['single','double']){
+    const pool=placements.filter(c=>c.command.action===action),roles=new Set();let count=0;
+    for(const c of pool){
+     const role=action==='single'?singleRole(c):JSON.stringify(c.next.board);
+     if(roles.has(role))continue;
+     roles.add(role);kept.add(c);if(++count===minimum)break;
+    }
+    if(count<minimum)for(const c of pool)if(!kept.has(c)){kept.add(c);if(++count===minimum)break;}
+   }
+   for(const c of placements){if(kept.size>=width)break;kept.add(c);}
+   // Preserve global move order for alpha-beta pruning and retain every known
+   // challenge. These are search slots, never quotas for moves actually played.
+   const selected=children.filter(c=>c.command.action==='challenge'||kept.has(c));
+   const tally=list=>Object.fromEntries(['single','double','challenge'].map(action=>[action,list.filter(c=>c.command.action===action).length]));
+   const generated=tally(children),retained=tally(selected);
+   for(const [action,label]of [['single','Singles'],['double','Doubles']]){
+    if(generated[action])stats.placementCoverage['nodesWith'+label]++;
+    if(retained[action])stats.placementCoverage['nodesRetaining'+label]++;
+   }
+   if(ply===0)stats.rootCandidates={generated,retained,singleAlternatives:selected.filter(c=>c.command.action==='single').map(c=>({...c.command.moves[0],role:singleRole(c),staticScore:c.value}))};
+   actionCache.set(key,selected);return selected;
+  }
+  function minimax(s,depth,alpha,beta,ply,quiet=2){
+   if(++stats.searchNodes>nodeLimit)throw stopped;
+   if(s.ended)return {value:evaluate(s,root),pv:[]};
+   const victory=win(s);if(victory)return {value:s.turn===root?100000-ply:-100000+ply,pv:[victory]};
+   const originalAlpha=alpha,originalBeta=beta;
+   const key=positionKey(s)+'/'+depth+'/'+quiet+'/'+ply;
+   if(transpositions.has(key)){stats.searchCacheHits++;return transpositions.get(key);}
+   const maximize=s.turn===root;
+   let children;
+   if(depth<=0){
+    if(!quiet)return {value:score(s),pv:[]};
+    // Extend tactical capture sequences past the nominal horizon. Stand pat
+    // represents declining a capture, rather than forcing every available one.
+    children=information(s).challenges[s.turn].filter(c=>c.cells.length>=3||engine.total(s.piles[1-s.turn])<=2).map(command=>({command,next:branch(engine,s,command)}));
+    if(!children.length)return {value:score(s),pv:[]};
+   }else children=options(s,ply);
+   let best={value:depth<=0?score(s):maximize?-Infinity:Infinity,pv:[]},cutoff=false;
+   for(const child of children){
+    stats.exploredMoveTypes[child.command.action]++;
+    if(ply===1)stats.replies++;if(ply===2)stats.followups++;
+    const reply=minimax(child.next,depth-1,alpha,beta,ply+1,depth<=0?quiet-1:quiet);
+    if(maximize?reply.value>best.value:reply.value<best.value)best={value:reply.value,pv:[child.command,...reply.pv]};
+    if(maximize)alpha=Math.max(alpha,best.value);else beta=Math.min(beta,best.value);
+    if(beta<=alpha){stats.searchCutoffs++;cutoff=true;break;}
+   }
+   if(!Number.isFinite(best.value))best={value:score(s),pv:[]};
+   if(!cutoff&&best.value>originalAlpha&&best.value<originalBeta)transpositions.set(key,best);
+   return best;
+  }
+  stats.opponentSmallPrimeTargets=information(state).scans[1-root].filter(t=>t.factors.length).length;
+  stats.opponentBestCapture=information(state).best[1-root];
+  const roots=options(state,0);
+  if(!roots.length)return {command:null,stats};
+  let selected=roots[0],variation=[selected.command],value=selected.value;
+  for(let depth=1;depth<=maxDepth;depth++){
+   let best=null,alpha=-Infinity;
+   const ordered=roots.slice().sort((a,b)=>(a===selected?-1:b===selected?1:0));
+   try{
+    for(const child of ordered){
+     stats.exploredMoveTypes[child.command.action]++;
+     const reply=minimax(child.next,depth-1,alpha,Infinity,1);
+     if(!best||reply.value>best.value)best={child,value:reply.value,pv:[child.command,...reply.pv]};
+     alpha=Math.max(alpha,reply.value);
+    }
+   }catch(error){if(error!==stopped)throw error;break;}
+   selected=best.child;value=best.value;variation=best.pv;stats.searchDepth=depth;
+   if(value>=99900)break;
+  }
+  Object.assign(stats,{principalVariation:variation,chosenScore:value,considered:roots.length,knownExposure:information(selected.next).best[1-root]});
+  return {command:selected.command,stats};
  }
  function choose(state){
   observe(state);
   const root=state.turn,clock=state.clocks[root],pressure=clock!==null&&clock<90;
   const budget=clock!==null&&clock<10?.8:clock!==null&&clock<30?2:clock!==null&&clock<90?4:skill.budget*(.85+random()*.3);
-  const scanned=scanSmallFactors(state.board,root);
+  const scanned=[...scanSmallFactors(state.board,0),...scanSmallFactors(state.board,1)];
   const scanSeconds=scanned.length?FULL_SCAN_SECONDS*skill.speed:0;
   const ctx={seconds:Math.min(budget*.2,1+random())+scanSeconds,budget,cacheHits:0,unfinishedChecks:0,replies:0,followups:0,smallPrimeRunsScanned:scanned.length,smallPrimeTargets:scanned.filter(t=>t.factors.length).length,scanSeconds};
   if(state.challengeAttempt){
    const p=state.challengeAttempt,excluded=p.attempts.map(a=>a.factor);
-   const target=scanned.find(t=>t.cells.length===p.cells.length&&t.cells.every((i,k)=>i===p.cells[k]));
-   const attempt=smallChallenge(target,excluded)||inspect(state.board,p.cells,ctx,ctx.budget,seat,excluded);
+   const target=scanned.find(t=>t.reverse===p.reverse&&t.cells.length===p.cells.length&&t.cells.every((i,k)=>i===p.cells[k]));
+   const attempt=smallChallenge(target,excluded)||inspect(state.board,p.cells,ctx,ctx.budget,p.reverse?1:0,excluded);
    return {command:attempt||{action:'quitChallenge'},seconds:Math.max(.5,Math.min(budget,ctx.seconds)),trace:{...ctx,retry:true}};
   }
   if(state.board.every(d=>d===null)){
@@ -214,64 +381,21 @@ function createPlanner(engine,{size,seed,seat,style='balanced',level='intermedia
   }
   const immediate=winningPlacement(state);
   if(immediate)return {command:immediate,seconds:ctx.seconds+1,trace:{...ctx,style,level,pressure,immediateWin:true,considered:1}};
-  const candidates=[];
-  // Every cheap factor enters the choice; only harder factoring has attention limits.
-  for(const target of scanned){const f=smallChallenge(target);if(f)candidates.push(assessed(state,f,ctx));}
-  const targets=scanned.filter(t=>!t.factors.length).map(({cells})=>({cells,rank:(cells.some(i=>state.lastCells.includes(i))?100:0)+cells.length*2+random()})).sort((a,b)=>b.rank-a.rank).slice(0,pressure?1:skill.targets);
-  for(const {cells}of targets){const f=inspect(state.board,cells,ctx,Math.min(budget*.45,ctx.budget));if(f)candidates.push(assessed(state,f,ctx));}
-  const commands=generate(state,pressure?Math.max(3,Math.floor(skill.ideas/2)):skill.ideas,ctx);
-  for(const command of commands)candidates.push(assessed(state,command,ctx,budget*.65));
-  if(!candidates.length){
-   // If placement is blocked, a player may spend a challenge on a plausible factor.
-   for(const cells of wholeRuns(state.board,size)){
-    const text=reading(state.board,cells,seat),n=BigInt(text);
-    if(n>2n||n===0n)return {command:{action:'challenge',a:cells[0],b:cells.at(-1),factor:'2'},seconds:Math.max(.5,budget),trace:{...ctx,speculative:true}};
+  const extra=[];
+  const targets=scanned.filter(t=>!t.factors.length).map(({cells,reverse})=>({cells,reverse,rank:(cells.some(i=>state.lastCells.includes(i))?100:0)+cells.length*2})).sort((a,b)=>b.rank-a.rank).slice(0,pressure?1:skill.targets);
+  for(const {cells,reverse}of targets){const f=inspect(state.board,cells,ctx,budget*.35,reverse?1:0);if(f)extra.push(f);}
+  const result=search(state,extra,ctx,pressure);
+  if(!result.command){
+   for(const cells of wholeRuns(state.board,size))for(const reverse of [false,true]){
+    const text=reading(state.board,cells,reverse?1:0),n=BigInt(text);
+    if(n>2n||n===0n)return {command:{action:'challenge',a:cells[0],b:cells.at(-1),reverse,factor:'2'},seconds:Math.max(.5,budget),trace:{...ctx,...result.stats,speculative:true}};
    }
-   return {command:null,seconds:1,trace:{...ctx,noLegalMove:true}};
+   return {command:null,seconds:1,trace:{...ctx,...result.stats,noLegalMove:true}};
   }
-  for(const c of candidates){
-   c.score=evaluate(c.next,root)-temperament.risk*(c.exposure*3+c.unverified*.6)-c.memoryPenalty;
-   c.score+=(random()-.5)*skill.noise;
-  }
-  // Obvious ending traps are excluded when a known safer alternative exists.
-  const safe=candidates.filter(c=>c.exposure===0);
-  const pool=safe.length?safe:candidates;
-  pool.sort((a,b)=>b.score-a.score);
-  const examined=pool.slice(0,pressure?1:3);
-  for(const c of examined){
-   if(c.next.ended||ctx.seconds+1>=budget)continue;
-   const replies=[];
-   const win=winningPlacement(c.next);
-   if(win)replies.push(assessed(c.next,win,ctx));
-   for(const command of c.threats.slice(0,1))replies.push(assessed(c.next,command,ctx));
-   for(const command of generate(c.next,Math.max(1,skill.replies-replies.length),ctx)){
-    if(replies.length>=skill.replies||ctx.seconds>=budget)break;
-    replies.push(assessed(c.next,command,ctx,budget*.9));
-   }
-   let worst=Infinity;
-   for(const reply of replies){
-    ctx.replies++;let value=evaluate(reply.next,root);
-    if(skill.followups&&!reply.next.ended&&ctx.seconds+1<budget){
-     const winBack=winningPlacement(reply.next);
-     const followups=winBack?[winBack]:generate(reply.next,skill.followups,ctx);
-     let best=-Infinity;
-     for(const command of followups){if(ctx.seconds>=budget)break;const f=assessed(reply.next,command,ctx);ctx.followups++;best=Math.max(best,evaluate(f.next,root)-temperament.risk*(f.exposure*3+f.unverified*.6));}
-     if(best>-Infinity)value=best;
-    }
-    worst=Math.min(worst,value);
-   }
-   if(worst<Infinity)c.score=worst-c.memoryPenalty-temperament.risk*c.unverified*.25;
-  }
-  // Risk and continuation are compared for all investigated candidates; neither
-  // captures nor any placement type is required to appear a prescribed amount.
-  examined.sort((a,b)=>b.score-a.score);
-  const selected=examined[0];
-  // Automatic small-prime scan results are exact; slips affect harder factors only.
-  if(selected.command.action==='challenge'&&Number(selected.command.factor)>13&&selected.command.digits?.length>=4&&random()<(level==='beginner'?.08:level==='intermediate'?.025:.005)){
-   const next=BigInt(selected.command.factor)+1n;
-   if(next<BigInt(selected.command.digits))selected.command={...selected.command,factor:String(next)};
-  }
-  return {command:selected.command,seconds:Math.max(.5,Math.min(ctx.budget,ctx.seconds)+.3),trace:{...ctx,style,level,pressure,immediateWin:false,considered:candidates.length,endingFallback:!safe.length,memoryAvoided:candidates.filter(c=>c.memoryPenalty>0).length,knownExposure:selected.exposure,chosenScore:selected.score}};
+  // Searching hypothetical branches is separate from arithmetic discovery.
+  // Its bounded assumed cost does not consume the small-prime scan's budget.
+  const planningSeconds=result.stats.searchNodes*.004*skill.speed;
+  return {command:result.command,seconds:Math.max(.5,Math.min(budget,ctx.seconds+planningSeconds+1)),trace:{...ctx,...result.stats,style,level,pressure,immediateWin:false,planningSeconds}};
  }
  return {choose,observe,profile:{style,level,...temperament,...skill}};
 }

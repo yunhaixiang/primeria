@@ -1,4 +1,4 @@
-import {MODES,PILE} from './engine.js?v=998c113a1e';
+import {MODES,PILE} from './engine.js?v=8fbacc9628';
 
 export function gameResult(game){
  if(!game.ended)return '';
@@ -15,11 +15,12 @@ export function reviewPosition(game,move){
   if(entry.action==='challenge'){
    lastCells=entry.cells.slice();
    if(entry.success){
-    const final=entry.taxedCell??entry.readingCells?.at(-1)??(entry.reverse?entry.cells[0]:entry.cells.at(-1));
+    // Older histories taxed only one endpoint; replay their recorded effects.
+    const taxedCells=new Set(entry.taxedCells??[entry.taxedCell??entry.readingCells?.at(-1)??(entry.reverse?entry.cells[0]:entry.cells.at(-1))]);
     for(const index of entry.cells){
      const digit=board[index];
      if(digit===null)throw Error('The saved move history is incomplete.');
-     if(index===final)taxed[digit]++;else piles[1-entry.player][digit]++;
+     if(taxedCells.has(index))taxed[digit]++;else piles[1-entry.player][digit]++;
      board[index]=null;
     }
     for(const tile of entry.cleanup||[]){board[tile.index]=null;taxed[tile.digit]++;}

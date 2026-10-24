@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import * as engine from '../engine.js';
-import {ARITHMETIC_MODEL,createBot} from '../bot.js';
+import {ARITHMETIC_MODEL,SEARCH_MODEL,createBot} from '../bot.js';
 
 // Use the same engine, arithmetic and planner as the playable bot.
 export function simulateGame({size=11,seed=1,first=0,strengths=['intermediate','intermediate'],maxMoves=1000}={}){
@@ -21,5 +21,5 @@ export function simulateGame({size=11,seed=1,first=0,strengths=['intermediate','
   if(entry.action==='challenge'&&!state.ended){reviewPauses++;const review=engine.beginChallengeReview(state,entry,now);now+=3000;engine.finishChallengeReview(state,review,now);}
  }
  assert.equal(Object.values(counts).reduce((a,b)=>a+b,0),state.history.length);
- return {arithmeticModel:ARITHMETIC_MODEL,rulesVersion:engine.RULES_VERSION,size,seed,first,strengths,finished:!!state.ended,ending:state.ended,moves:state.history.length,counts,challengeAttempts,reviewPauses,thinkingSeconds:state.elapsed,modelSeconds:now/1000+3,remaining:state.piles.map(engine.total)};
+ return {arithmeticModel:ARITHMETIC_MODEL,searchModel:SEARCH_MODEL,rulesVersion:engine.RULES_VERSION,size,seed,first,strengths,finished:!!state.ended,ending:state.ended,moves:state.history.length,counts,challengeAttempts,reviewPauses,thinkingSeconds:state.elapsed,modelSeconds:now/1000+3,remaining:state.piles.map(engine.total)};
 }

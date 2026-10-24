@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {newGame,complete} from './engine.js';
-import {splitPermissions,splitPanelHTML} from './split-view.js';
+import {newGame,complete} from './engine.js?v=8fbacc9628';
+import {splitPermissions,splitPanelHTML} from './split-view.js?v=13a3d3e309';
 const active=()=>{const s=newGame({first:0});s.started=true;return s;};
 const options=seat=>({seat,tile:d=>`<span>${d}</span>`,formatTime:t=>String(t)});
 test('split seats allow only the current human to draft a move',()=>{
@@ -39,10 +39,10 @@ test('each panel keeps its own inventory, escapes names, and has no duplicate ID
  const ids=[...(first+second).matchAll(/\sid="([^"]+)"/g)].map(m=>m[1]);assert.equal(ids.length,new Set(ids).size);
  assert.match(second,/data-split-command="digit" data-value="3"[^>]*disabled/);
 });
-test('second seat challenges read from the same fixed challenger perspective',()=>{
+test('both seats offer both reading directions after selecting a number',()=>{
  const s=active();s.turn=1;s.board[0]=1;s.board[1]=2;
  const html=splitPanelHTML(s,{...options(1),action:'challenge',ends:[0,1],factor:'3'});
- assert.match(html,/<strong>21<\/strong>/);assert.match(html,/Challenger’s perspective/);
+ assert.match(html,/<strong>21<\/strong>/);assert.match(html,/<strong>12<\/strong>/);assert.match(html,/Choose a reading direction/);assert.match(html,/data-split-command="reading" data-value="true"/);
  assert.match(html,/Submit challenge/);assert.match(html,/Factor digit 3/);
 });
 test('ended panels offer history review and preserve expanded history',()=>{
@@ -65,4 +65,17 @@ test('phone panel toggles control their own accessible body without changing per
   assert.match(html,new RegExp('split-phone-clock" data-player="'+seat+'"'));
  }
  assert.equal(splitPermissions(s,1).canMove,false);
+});
+test('split challenge submission requires direction and retries disable direction changes',()=>{
+ const s=active();[1,0,0,3].forEach((d,i)=>s.board[i]=d);
+ let html=splitPanelHTML(s,{...options(0),action:'challenge',ends:[0,3],factor:'2'});assert.match(html,/data-split-command="commit" disabled/);
+ html=splitPanelHTML(s,{...options(0),action:'challenge',ends:[0,3],factor:'2',readingReverse:true});assert.doesNotMatch(html,/data-split-command="commit" disabled/);
+ complete(s,{action:'challenge',a:0,b:3,reverse:true,factor:'2'},0);
+ html=splitPanelHTML(s,{...options(0),action:'challenge',ends:[0,3],factor:'7',readingReverse:true});assert.match(html,/reading-choice selected[^>]*data-value="true"[^>]*disabled/);
+});
+
+test('opposite-facing panel labels describe reading from that player’s side',()=>{
+ const s=active();s.turn=1;s.board[0]=1;s.board[1]=2;
+ const html=splitPanelHTML(s,{...options(1),action:'challenge',ends:[0,1]});
+ assert.match(html,/<strong>12<\/strong><small>Right → left<\/small>/);assert.match(html,/<strong>21<\/strong><small>Left → right<\/small>/);
 });

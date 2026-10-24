@@ -22,12 +22,13 @@ for(const strength of Object.keys(BOT_LEVELS))for(const lowTime of [false,true])
  s.lastCells=[0,1];if(lowTime)s.clocks[0]=3;
  s.piles[0]=Array(10).fill(0);s.piles[0][0]=2;
  const plan=createBot({size,strength,seat:0,seed:4}).choose(s);
- assert.equal(plan.trace.smallPrimeRunsScanned,4);assert.equal(plan.trace.smallPrimeTargets,1);
+ assert.equal(plan.trace.smallPrimeRunsScanned,8);assert.equal(plan.trace.smallPrimeTargets,3);
  assert.equal(plan.trace.scanSeconds,FULL_SCAN_SECONDS*BOT_LEVELS[strength].speed);
- assert.equal(plan.command.action,'challenge');assert.equal(plan.command.factor,'7');
- assert.equal(challenge(s,plan.command.a,plan.command.b,plan.command.factor).digits,'49');
+ assert.equal(plan.command.action,'challenge');
+ const result=challenge(s,plan.command.a,plan.command.b,plan.command.factor,plan.command.reverse);
+ assert.equal(result.success,true);assert.ok(['91','49','94'].includes(result.digits));
 });
-test('the scanner uses the challenger perspective and excludes prime numbers themselves',()=>{
+test('the scanner uses the requested reading direction and excludes prime numbers themselves',()=>{
  const s=newGame({boardSize:9});s.board[0]=4;s.board[1]=1;s.board[20]=7;s.board[40]=1;
  const a=scanSmallFactors(s.board,0),b=scanSmallFactors(s.board,1);
  assert.deepEqual(a.find(t=>t.digits==='41').factors,[]);assert.deepEqual(b.find(t=>t.digits==='14').factors,['2','7']);

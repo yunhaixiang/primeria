@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import {createHash} from 'node:crypto';
-import {ARITHMETIC_MODEL} from '../bot.js';
+import {ARITHMETIC_MODEL,SEARCH_MODEL} from '../bot.js';
 import {simulateGame} from './game.js';
 const args=process.argv.slice(2),options={games:60,seed:20261023,output:null};
 for(let i=0;i<args.length;i+=2){
@@ -19,6 +19,6 @@ const summary=[9,11,13,15].map(size=>{
  return {size,games:rows.length,finished:done.length,incomplete:rows.length-done.length,meanSingles:mean(r=>r.counts.single),meanDoubles:mean(r=>r.counts.double),meanChallenges:mean(r=>r.counts.challenge),meanMoves:mean(r=>r.moves),meanModelMinutes:mean(r=>r.modelSeconds/60)};
 });
 const hashes=Object.fromEntries(['bot.js','engine.js'].map(name=>[name,createHash('sha256').update(fs.readFileSync(new URL('../'+name,import.meta.url))).digest('hex')]));
-const result={method:{arithmeticModel:ARITHMETIC_MODEL,sourceHashes:hashes,gamesPerBoard:options.games,seed:options.seed,timeControl:'Rapid 20+20; tie-breaker off',timing:'Assumed bot thinking seconds plus three-second opening and challenge-result countdowns; not measured human times.',profiles:'Cycle beginner/beginner, intermediate/intermediate, advanced/intermediate; balance stronger seat and first player independently in blocks of 12.',historical:'Prior study results retain their previous arithmetic assumptions; rerun all conditions with the new model for a fair comparison.'},summary,games};
+const result={method:{arithmeticModel:ARITHMETIC_MODEL,searchModel:SEARCH_MODEL,sourceHashes:hashes,gamesPerBoard:options.games,seed:options.seed,timeControl:'Rapid 20+20; tie-breaker off',timing:'Assumed bot thinking seconds plus three-second opening and challenge-result countdowns; not measured human times.',profiles:'Cycle beginner/beginner, intermediate/intermediate, advanced/intermediate; balance stronger seat and first player independently in blocks of 12.',historical:'Prior study results retain their previous arithmetic and search assumptions; rerun all conditions with the new model for a fair comparison.'},summary,games};
 if(options.output)fs.writeFileSync(options.output,JSON.stringify(result,null,2)+'\n');
 console.log(JSON.stringify({arithmeticModel:ARITHMETIC_MODEL,summary,output:options.output},null,2));

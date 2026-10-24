@@ -59,3 +59,9 @@ test('end descriptions cover clear-out, time, resignation and the Time Out Rule'
 test('recorded move clocks are frozen copies, independent of later thinking time',()=>{
  const s={...newGame({},0),started:true};const entry=complete(s,{action:'single',moves:[{index:0,digit:1}]},2000),clocks=entry.clocks.slice();tick(s,5000);assert.deepEqual(entry.clocks,clocks);assert.equal(entry.elapsed,2);
 });
+test('legacy one-endpoint taxation replays its recorded effect',()=>{
+ const s={...newGame({},0),started:true};
+ record(s,[{action:'single',moves:[{index:0,digit:1}]},{action:'single',moves:[{index:1,digit:4}]}]);
+ s.history.push({action:'challenge',player:0,cells:[0,1],readingCells:[0,1],digits:'14',success:true,taxedCell:1,taxedDigit:4});
+ const position=reviewPosition(s,3);assert.equal(position.taxed[4],1);assert.equal(position.taxed[1],0);assert.equal(position.piles[1][1],PILE[1]+1);assert.equal(position.board[0],null);
+});

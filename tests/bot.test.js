@@ -40,12 +40,12 @@ for(const size of engine.BOARD_SIZES)for(const strength of Object.keys(BOT_LEVEL
   engine.complete(s,result.command,0);assert.equal(s.ended.winner,1);
  });
 }
-test('bot challenges the entire number from its own fixed perspective',()=>{
+test('bot challenges the entire number in either chosen direction',()=>{
  const s=active();[3,2,1].forEach((d,i)=>s.board[i]=d);s.piles[1]=Array(10).fill(0);s.piles[1][0]=2;
  const result=createBot({size:11,seed:4,strength:'intermediate'}).choose(s);
  assert.equal(result.command.action,'challenge');
- const c=engine.challenge(s,result.command.a,result.command.b,result.command.factor);
- assert.equal(c.digits,'123');assert.equal(c.success,true);assert.deepEqual(c.cells,[0,1,2]);
+ const c=engine.challenge(s,result.command.a,result.command.b,result.command.factor,result.command.reverse);
+ assert.ok(['123','321'].includes(c.digits));assert.equal(c.success,true);assert.deepEqual(c.cells,[0,1,2]);
 });
 test('a locked challenge resumes with a new factor, never with a placement',()=>{
  const s=active();[1,4,3,7].forEach((d,i)=>s.board[i]=d);

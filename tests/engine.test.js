@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {BOARD_SIZE,BOARD_CELLS,upgradeGameBoard,MODES,PILE,total,newGame,timeOutSettings,tick,placement,segment,challenge as checkChallenge,complete} from '../engine.js';
-// Exercise both fixed player perspectives without an arbitrary reading-direction option.
-const challenge=(s,a,b,reverse,factor)=>checkChallenge({...s,turn:reverse?1:0},a,b,factor);
+// Both reading directions are independent of the player and endpoint order.
+const challenge=(s,a,b,reverse,factor)=>checkChallenge(s,a,b,factor,reverse);
 const square=(x,y)=>y*BOARD_SIZE+x;
 const active=(options={})=>{const s=newGame(options,0);s.started=true;return s;};
 test('starting supply is exactly 36 tiles per player',()=>{assert.equal(total(PILE),36);const s=newGame();assert.equal(total(s.piles[0]),36);assert.equal(BOARD_SIZE,11);assert.equal(s.board.length,121);s.piles[0][0]--;assert.equal(s.piles[1][0],2);});
@@ -24,7 +24,7 @@ test('challenge segments must be straight and continuous',()=>{
  assert.throws(()=>segment(b,a,square(2,2)),/straight/);assert.throws(()=>segment(b,a,a+3),/empty/);
 });
 test('challenge reading direction changes divisibility',()=>{const s=active();s.board[square(4,4)]=1;s.board[square(5,4)]=4;assert.equal(challenge(s,square(4,4),square(5,4),false,'2').success,true);assert.equal(challenge(s,square(4,4),square(5,4),true,'2').success,false);assert.equal(challenge(s,square(4,4),square(5,4),true,'2').digits,'41');});
-test('correct challenge transfers all but the final tile and taxes that tile',()=>{const s=active();s.board[square(4,4)]=1;s.board[square(5,4)]=4;const before=total(s.piles[1]);complete(s,{action:'challenge',a:square(4,4),b:square(5,4),reverse:false,factor:'2'},0);assert.equal(total(s.piles[1]),before+1);assert.equal(s.taxed[4],1);assert.equal(s.board[square(4,4)],null);assert.equal(s.turn,1);});
+test('correct challenge discards both endpoints and transfers none from a two-digit number',()=>{const s=active();s.board[square(4,4)]=1;s.board[square(5,4)]=4;const before=total(s.piles[1]);complete(s,{action:'challenge',a:square(4,4),b:square(5,4),reverse:false,factor:'2'},0);assert.equal(total(s.piles[1]),before);assert.equal(s.taxed[1],1);assert.equal(s.taxed[4],1);assert.equal(s.board[square(4,4)],null);assert.equal(s.turn,1);});
 test('failed challenge consumes a turn and receives increment',()=>{const s=active();s.board[square(4,4)]=1;s.board[square(5,4)]=3;complete(s,{action:'challenge',a:square(4,4),b:square(5,4),reverse:false,factor:'2'},1000);assert.equal(s.board[square(4,4)],1);assert.equal(s.turn,1);assert.equal(s.clocks[0],1219);assert.equal(s.history[0].success,false);});
 test('single-digit one and trivial factors cannot be challenged',()=>{const s=active();s.board[square(4,4)]=1;assert.throws(()=>challenge(s,square(4,4),square(4,4),false,'2'),/cannot/);s.board[square(4,4)]=4;for(const f of ['0','1','4','-2','2.5','x'])assert.throws(()=>challenge(s,square(4,4),square(4,4),false,f));});
 test('zero, leading zeros and eleven-digit numbers are handled exactly',()=>{const s=active();s.board[0]=0;assert.equal(challenge(s,0,0,false,'2').success,true);s.board[1]=4;assert.equal(challenge(s,0,1,false,'2').digits,'04');s.board=Array(BOARD_CELLS).fill(null);'98765432103'.split('').forEach((n,i)=>s.board[i]=Number(n));assert.equal(challenge(s,0,10,false,'3').success,true);});
@@ -88,7 +88,7 @@ test('a horizontal challenge spans all eleven squares of the last row in both di
  assert.equal(challenge(s,start,last,false,'3').digits,digits);
  assert.equal(challenge(s,start,last,true,'3').digits,[...digits].reverse().join(''));
  const before=total(s.piles[1]);complete(s,{action:'challenge',a:start,b:last,reverse:false,factor:'3'},0);
- assert.equal(total(s.piles[1]),before+10);assert.equal(s.board.filter(d=>d!==null).length,0);
+ assert.equal(total(s.piles[1]),before+9);assert.equal(s.board.filter(d=>d!==null).length,0);
 });
 test('a vertical challenge spans the last column using a eleven-square stride',()=>{
  const s=active(),digits='98765432103',last=BOARD_CELLS-1;

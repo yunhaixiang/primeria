@@ -26,8 +26,8 @@ for(const size of BOARD_SIZES){
   for(const player of [0,1]){
    const s=active(size);s.turn=player;const digits=player===0?[1,5]:[5,1];
    digits.forEach((d,i)=>{s.board[i]=d;s.piles[0][d]--;});const before=s.piles.map(p=>p.slice());
-   const entry=complete(s,{action:'challenge',a:0,b:1,factor:'3'},0);
-   assert.equal(entry.digits,'15');assert.equal(entry.taxedDigit,5);assert.equal(s.taxed[5],1);assert.deepEqual(entry.cleanup,[]);
+   const entry=complete(s,{action:'challenge',a:0,b:1,reverse:player===1,factor:'3'},0);
+   assert.equal(entry.digits,'15');assert.deepEqual(entry.taxedDigits,[1,5]);assert.equal(s.taxed[5],1);assert.deepEqual(entry.cleanup,[]);
    assert.deepEqual(s.piles.map(p=>p[5]),before.map(p=>p[5]));
   }
  });

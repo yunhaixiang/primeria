@@ -7,9 +7,9 @@ for(const size of BOARD_SIZES)for(const vertical of [false,true])for(const rever
   const s=active(size);s.turn=reverse?1:0;const actor=s.turn,opponent=1-actor,cells=[0,1,2,3].map(i=>vertical?i*size:i);[1,4,3,7].forEach((d,i)=>s.board[cells[i]]=d);
   const before=s.piles[opponent].slice(),taxedCell=reverse?cells[0]:cells.at(-1),taxedDigit=reverse?1:7;
   const e=complete(s,{action:'challenge',a:swap?cells.at(-1):cells[0],b:swap?cells[0]:cells.at(-1),reverse,factor:'3'},0);
-  assert.equal(e.digits,reverse?'7341':'1437');assert.equal(e.taxedCell,taxedCell);assert.equal(e.taxedDigit,taxedDigit);assert.equal(e.transferredCount,3);
-  assert.equal(total(s.taxed),1);assert.equal(s.taxed[taxedDigit],1);assert.ok(cells.every(i=>s.board[i]===null));
-  for(const d of [1,4,3,7])assert.equal(s.piles[opponent][d],before[d]+(d===taxedDigit?0:1));
+  assert.equal(e.digits,reverse?'7341':'1437');assert.deepEqual(e.taxedCells,reverse?[cells.at(-1),cells[0]]:[cells[0],cells.at(-1)]);assert.deepEqual(e.taxedDigits,reverse?[7,1]:[1,7]);assert.equal(e.transferredCount,2);
+  assert.equal(total(s.taxed),2);assert.equal(s.taxed[taxedDigit],1);assert.ok(cells.every(i=>s.board[i]===null));
+  for(const d of [1,4,3,7])assert.equal(s.piles[opponent][d],before[d]+([1,7].includes(d)?0:1));
   assert.deepEqual(s.piles[actor],PILE);assert.equal(s.turn,opponent);
  });
 }
@@ -21,7 +21,7 @@ for(const digit of [0,4,6,8,9])test(`isolated ${digit} is entirely taxed`,()=>{
 for(const reverse of [false,true])test(`zeros are taxed as physical digits in ${reverse?'reverse':'forward'} reading`,()=>{
  const s=active(11);s.turn=reverse?1:0;const opponent=1-s.turn;[0,1,4,0].forEach((d,i)=>s.board[i]=d);
  const e=complete(s,{action:'challenge',a:0,b:3,reverse,factor:'2'},0);
- assert.equal(e.taxedDigit,0);assert.equal(s.taxed[0],1);assert.equal(s.piles[opponent][0],PILE[0]+1);
+ assert.deepEqual(e.taxedDigits,[0,0]);assert.equal(s.taxed[0],2);assert.equal(s.piles[opponent][0],PILE[0]);
 });
 test('failed and invalid challenges leave taxation and inventories untouched',()=>{
  const s=active(11);[1,3].forEach((d,i)=>s.board[i]=d);s.taxed[7]=2;
@@ -35,12 +35,12 @@ test('taxes accumulate, conserve each digit, and survive saving and online seria
   const reverse=s.turn===1;
   complete(s,{action:'single',moves:[{index:0,digit:reverse?4:1}]},0);
   complete(s,{action:'single',moves:[{index:1,digit:reverse?1:4}]},0);
-  complete(s,{action:'challenge',a:0,b:1,reverse:false,factor:'2'},0);
+  complete(s,{action:'challenge',a:0,b:1,reverse,factor:'2'},0);
  }
  assert.equal(s.taxed[4],2);
  s=upgradeGameBoard(JSON.parse(JSON.stringify(s)));assert.ok(isSupportedBoardState(s));
  for(let d=0;d<10;d++)assert.equal(s.piles[0][d]+s.piles[1][d]+s.taxed[d]+s.board.filter(n=>n===d).length,PILE[d]*2);
- assert.equal(s.history.at(-1).taxedDigit,4);
+ assert.deepEqual(s.history.at(-1).taxedDigits,[1,4]);assert.equal(s.taxed[1],2);
 });
 test('old saved games gain empty tax counts without changing prior transfers or the source save',()=>{
  const legacy=active(13);delete legacy.taxed;legacy.piles[1][4]++;legacy.history=[{action:'challenge',success:true,cells:[0],digits:'4',factor:'2',player:0}];

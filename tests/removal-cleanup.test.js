@@ -10,7 +10,7 @@ for(const size of BOARD_SIZES){
    const s=active(size,player),p=(x,y)=>vertical?x*size+y:y*size+x,end=side==='start'?2:4;
    seed(s,[[p(2,3),end===2?3:1],[p(3,3),0],[p(4,3),end===4?3:1],[p(end,4),9],[p(end+(end===2?-1:1),4),5]]);
    const before=s.piles.map(pile=>pile.slice()),entry=complete(s,{action:'challenge',a:p(end,3),b:p(end,4),factor:'3'},0);
-   assert.equal(entry.success,true);assert.equal(entry.transferredCount,1);assert.equal(entry.taxedDigit,player===0?9:3);
+   assert.equal(entry.success,true);assert.equal(entry.transferredCount,0);assert.deepEqual(entry.taxedDigits,[3,9]);
    assert.deepEqual(entry.cleanup.map(t=>t.digit),[0]);assert.equal(s.taxed[0],1);assert.equal(s.taxed[5],0);
    assert.equal(s.board[p(3,3)],null);assert.equal(s.board[p(end+(end===2?-1:1),4)],5);
    assert.equal(s.board[p(end===2?4:2,3)],1);
