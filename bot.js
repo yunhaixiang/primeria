@@ -1,4 +1,4 @@
-import * as engine from './engine.js?v=8fbacc9628';
+import * as engine from './engine.js?v=3eb394a65f';
 
 export const BOT_LEVELS={
  beginner:{label:'Beginner',description:'Scans every number for small factors; short plans.',speed:1.5,ideas:5,targets:2,depth:1,width:2,rootWidth:5,nodes:100,budget:7,eleven:true,primes:[7,13],maxDigits:15,noise:2.5},
@@ -107,9 +107,16 @@ function createPlanner(engine,{size,seed,seat,style='balanced',level='intermedia
   return null;
  }
  function secondSquares(board,first){
-  const near=neighbors(first,size).filter(i=>board[i]===null);
-  const frontier=board.map((d,i)=>d===null&&engine.adjacent(board,i)?i:-1).filter(i=>i>=0);
-  return [...new Set([...near,...frontier])];
+  const squares=[],x=first%size,y=Math.floor(first/size);
+  // Only the first empty square in each direction can complete this run.
+  for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+   let a=x+dx,b=y+dy;
+   while(a>=0&&a<size&&b>=0&&b<size){
+    const index=b*size+a;if(board[index]===null){squares.push(index);break;}
+    a+=dx;b+=dy;
+   }
+  }
+  return squares;
  }
  function winningPlacement(state){
   const pile=state.piles[state.turn],count=engine.total(pile);if(count>2)return null;

@@ -6,6 +6,12 @@ import {createBot} from '../bot.js';
 for(const size of BOARD_SIZES){
  const active=()=>({...newGame({boardSize:size},0),started:true});
  const at=(x,y)=>y*size+x;
+ function rejected(s,moves){
+  const before=structuredClone(s);
+  for(const partial of [false,true])assert.throws(()=>placement(s,'double',moves,partial),/same uninterrupted/);
+  assert.throws(()=>complete(s,{action:'double',moves},0),/same uninterrupted/);
+  assert.deepEqual(s,before);
+ }
  function allowed(s,moves){
   const before=structuredClone(s);
   for(const partial of [false,true])assert.doesNotThrow(()=>placement(s,'double',moves,partial));
@@ -26,12 +32,12 @@ for(const size of BOARD_SIZES){
   const s=active();for(const x of [0,2,4,5])s.board[at(x,3)]=7;
   allowed(s,[{index:at(1,3),digit:1},{index:at(3,3),digit:3}]);
  });
- test(`${size}: the new tiles can touch different sides of one existing tile`,()=>{
-  const s=active();s.board[at(3,3)]=7;allowed(s,[{index:at(2,3),digit:1},{index:at(3,2),digit:3}]);
+ test(`${size}: perpendicular placements around one existing tile are not one run`,()=>{
+  const s=active();s.board[at(3,3)]=7;rejected(s,[{index:at(2,3),digit:1},{index:at(3,2),digit:3}]);
  });
- test(`${size}: the new tiles may attach to separate islands`,()=>{
+ test(`${size}: placements on separate islands are rejected`,()=>{
   const s=active();s.board[at(0,0)]=7;s.board[at(size-1,size-1)]=3;
-  allowed(s,[{index:at(1,0),digit:1},{index:at(size-2,size-1),digit:9}]);
+  rejected(s,[{index:at(1,0),digit:1},{index:at(size-2,size-1),digit:9}]);
  });
  test(`${size}: both tiles must attach when placed, with no diagonal or row-wrap adjacency`,()=>{
   const s=active(),moves=[{index:at(3,3),digit:1},{index:at(4,3),digit:9}];
@@ -41,7 +47,14 @@ for(const size of BOARD_SIZES){
   for(const partial of [false,true])assert.throws(()=>placement(remote,'double',[{index:at(3,3),digit:1},{index:at(4,4),digit:9}],partial),/existing tile/);
   const edge=active();edge.board[size-2]=3;
   assert.throws(()=>placement(edge,'double',[{index:size-1,digit:1},{index:size,digit:9}]),/existing tile/);
-  edge.board[size+1]=7;allowed(edge,[{index:size-1,digit:1},{index:size,digit:9}]);
+  edge.board[size+1]=7;rejected(edge,[{index:size-1,digit:1},{index:size,digit:9}]);
+ });
+ test(`${size}: sharing a row is insufficient when an empty gap remains`,()=>{
+  const s=active();s.board[at(0,3)]=7;s.board[at(5,3)]=3;
+  rejected(s,[{index:at(1,3),digit:1},{index:at(4,3),digit:9}]);
+ });
+ test(`${size}: one-tile Double Down drafts defer the same-run restriction`,()=>{
+  const s=active();s.board[at(3,3)]=7;assert.doesNotThrow(()=>placement(s,'double',[{index:at(2,3),digit:1}],true));
  });
  test(`${size}: a zero can still be the first tile and become interior`,()=>{
   const s=active();s.board[at(1,3)]=1;
@@ -52,10 +65,11 @@ for(const size of BOARD_SIZES){
   const s=active();s.board.fill(3);for(const i of cells)s.board[i]=null;
   s.piles[0]=Array(10).fill(0);s.piles[0][1]=1;s.piles[0][9]=1;
   const result=createBot({size,seed:4,seat:0}).choose(s);
-  assert.equal(result.command.action,'double');complete(s,result.command,0);assert.equal(s.ended.winner,0);
+  if(label==='in separate runs'){assert.notEqual(result.command.action,'double');complete(s,result.command,0);assert.equal(s.ended,null);}
+  else{assert.equal(result.command.action,'double');complete(s,result.command,0);assert.equal(s.ended.winner,0);}
  });
 }
-for(const version of [9,10,11])test(`local rule-${version} saves migrate without changing board, piles or recorded moves`,()=>{
+for(const version of [9,10,11,12,13])test(`local rule-${version} saves migrate without changing board, piles or recorded moves`,()=>{
  const legacy={...newGame({boardSize:9},0),started:true,rulesVersion:version};complete(legacy,{action:'single',moves:[{index:0,digit:1}]},0);
  const before=structuredClone(legacy);assert.equal(isSupportedBoardState(legacy),false);const restored=upgradeGameBoard(legacy);
  assert.equal(restored.rulesVersion,RULES_VERSION);assert.ok(isSupportedBoardState(restored));

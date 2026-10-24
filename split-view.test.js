@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {newGame,complete} from './engine.js?v=8fbacc9628';
-import {splitPermissions,splitPanelHTML} from './split-view.js?v=13a3d3e309';
+import {newGame,complete} from './engine.js?v=3eb394a65f';
+import {splitPermissions,splitPanelHTML} from './split-view.js?v=218253eb75';
 const active=()=>{const s=newGame({first:0});s.started=true;return s;};
 const options=seat=>({seat,tile:d=>`<span>${d}</span>`,formatTime:t=>String(t)});
 test('split seats allow only the current human to draft a move',()=>{
