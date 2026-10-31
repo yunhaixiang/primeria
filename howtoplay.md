@@ -29,21 +29,17 @@ Each digit has one arrow type. Each player has 58 tiles:
 
 Players take turns. Flip a coin to decide who goes first. On your turn, choose one move: Drop, Claim, Challenge or Pass.
 
+*Note: Tiles are **adjacent** if they share an edge. A **path** is a sequence of at least two arrow-side tiles belonging to the same player, connected in the direction of the arrows. A **cycle** is a path whose last tile connects back to its first. A **segment** is a path whose endpoints are junction tiles or regular tiles with exactly one connection.*
+
 **Drop.** Place one of your unused tiles on an empty square, digit side up.
 
-*Note: Tiles are **adjacent** if they share an edge. A **path** is a sequence of at least two arrow-side tiles belonging to the same player, connected in the direction of the arrows.*
-
-**Claim.** Flip at least two of your digit-side-up tiles on the board to form a path. This path must be part of a path containing at least nine tiles.
-
-*Note: A **cycle** is a path whose last tile connects back to its first.*
-
-**No Cycle Rule.** A Claim is illegal if it creates a cycle on the board.
-
-*Note: A **segment** is a path whose endpoints are junction tiles or regular tiles with exactly one connection.*
+**Claim.** Flip at least 2 of your digit-side-up tiles on the board to form a connected network of arrows. After each move, remove every unclaimed tile adjacent to an opponent’s claimed tile and give it to that opponent as a captured tile.
 
 **Challenge.** Give one of your unused tiles to your opponent as a captured tile. Choose an opponent's segment and read its number from the last tile to the first. Propose a factor other than 1 or the number itself, then check it with a calculator. If correct, remove all tiles in the segment and keep them as captured tiles. Otherwise, your turn ends.
 
 *Note: On a virtual board, the program checks your proposed factor automatically.*
+
+**No Cycle Rule:** A Claim is illegal if it creates a cycle on the board.
 
 **No Leading Zero Rule.** A Claim is illegal if any segment would begin with 0 when read from the last tile to the first. After a capture, remove any 0 that becomes a leading digit and give it to its owner’s opponent as a captured tile.
 
@@ -57,7 +53,7 @@ Players take turns. Flip a coin to decide who goes first. On your turn, choose o
 
 The game ends after two consecutive passes. Remove all unclaimed tiles from the board and give each to its owner's opponent as a captured tile.
 
-Score one point for each of your tiles remaining on a claimed path and for each captured tile. The player with the higher score wins; equal scores result in a draw.
+Score one point for each captured tile and each claimed tile in a group of at least nine tiles connected by arrows. The player with the higher score wins; equal scores result in a draw.
 
 A player also loses by resigning or running out of time.
 

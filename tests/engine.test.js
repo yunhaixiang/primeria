@@ -132,24 +132,22 @@ test("claim nine tiles, read the number from last to first", () => {
   );
   assert.ok(isSupportedState(s));
 });
-test("too-short claims and claims selecting fewer than two new tiles are illegal", () => {
+test("claims need two new connected tiles but no nine-tile path", () => {
   const s = game();
   line(s);
   assert.throws(
     () => move(s, { type: "claim", tiles: [{ at: 30, rotation: 1 }] }),
     /at least two/,
   );
-  assert.throws(
-    () =>
-      move(s, {
-        type: "claim",
-        tiles: [
-          { at: 30, rotation: 1 },
-          { at: 31, rotation: 1 },
-        ],
-      }),
-    /at least 9/,
-  );
+  const event = move(s, {
+    type: "claim",
+    tiles: [
+      { at: 30, rotation: 1 },
+      { at: 31, rotation: 1 },
+    ],
+  });
+  assert.equal(event.length, 2);
+  assert.deepEqual(scores(s), [0, 0]);
 });
 test("claiming two tiles can extend an existing seven-tile path", () => {
   const s = game(),
@@ -158,12 +156,12 @@ test("claiming two tiles can extend an existing seven-tile path", () => {
   const e = move(s, { type: "claim", tiles: tiles.slice(7) });
   assert.equal(e.length, 9);
 });
-test("claim must flip a contiguous path of own previously unclaimed tiles", () => {
+test("claim must flip a connected network of own previously unclaimed tiles", () => {
   const s = game(),
     tiles = line(s);
   assert.throws(
     () => move(s, { type: "claim", tiles: [tiles[0], tiles[2]] }),
-    /Follow the arrow/,
+    /connected network/,
   );
   s.board[31].face = "arrow";
   assert.throws(() => move(s, { type: "claim", tiles }), /unclaimed/);

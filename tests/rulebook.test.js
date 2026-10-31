@@ -9,7 +9,7 @@ test("current rulebook contains the exact supply, path requirements, pass ending
   );
   for (const text of [
     "58 tiles",
-    "at least two",
+    "Flip at least 2",
     "at least nine",
     "last tile to the first",
     "two consecutive passes",

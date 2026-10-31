@@ -1,5 +1,6 @@
 /** Primeria's owned-tile rules. Directions: north, east, south, west. */
-export const RULES_VERSION = 22;
+export const RULES_VERSION = 23;
+export const MIN_SCORING_GROUP = 9;
 export const BOARD_SIZE = 15;
 export const BOARD_CELLS = 225;
 export const MODES = {
@@ -163,6 +164,24 @@ export function hasCycle(g) {
   }
   return g.out.some((_, i) => visit(i));
 }
+/** Claimed groups use matching arrows, in either direction, never mere contact. */
+export function claimedGroups(board, g = graph(board)) {
+  const seen = new Set(),
+    groups = [];
+  for (let i = 0; i < board.length; i++) {
+    if (board[i]?.face !== "arrow" || seen.has(i)) continue;
+    const tiles = [i];
+    seen.add(i);
+    for (let k = 0; k < tiles.length; k++)
+      for (const j of [...g.out[tiles[k]], ...g.incoming[tiles[k]]])
+        if (!seen.has(j)) {
+          seen.add(j);
+          tiles.push(j);
+        }
+    groups.push({ owner: board[i].owner, tiles, size: tiles.length });
+  }
+  return groups;
+}
 export const isEndpoint = (board, g, i) =>
   !!board[i] && (TYPE_MAP[board[i].type].kind === "fork" || g.degree(i) === 1);
 export function validatePath(board, path, owner, g = graph(board)) {
@@ -242,7 +261,9 @@ export function claimPreview(board, tiles, owner) {
     tiles.length > TILES_PER_PLAYER ||
     new Set(tiles.map((t) => t.at)).size !== tiles.length
   )
-    throw Error("Choose at least two of your unclaimed tiles in path order.");
+    throw Error(
+      "Choose at least two of your unclaimed tiles to form a connected network.",
+    );
   const next = board.slice();
   for (const p of tiles) {
     const t = board[p.at];
@@ -258,40 +279,63 @@ export function claimPreview(board, tiles, owner) {
     next[p.at] = { ...t, face: "arrow", rotation: p.rotation };
   }
   const g = graph(next);
-  validatePath(
-    next,
-    tiles.map((t) => t.at),
-    owner,
-    g,
-  );
+  const selected = new Set(tiles.map((t) => t.at)),
+    reached = new Set([tiles[0].at]);
+  const pending = [tiles[0].at];
+  for (let k = 0; k < pending.length; k++)
+    for (const j of [...g.out[pending[k]], ...g.incoming[pending[k]]])
+      if (selected.has(j) && !reached.has(j)) {
+        reached.add(j);
+        pending.push(j);
+      }
+  if (reached.size !== selected.size)
+    throw Error(
+      "The newly flipped tiles must form one connected network of arrows.",
+    );
   if (hasCycle(g)) throw Error("This claim would create an arrow cycle.");
   if (next.some((_, i) => isLeadingZero(next, g, i)))
     throw Error("No Leading Zero Rule: a claim cannot leave a leading 0.");
-  const before = new Map(),
-    after = new Map();
-  const length = (i, edges, memo) => {
-    if (memo.has(i)) return memo.get(i);
-    const n = 1 + Math.max(0, ...edges[i].map((j) => length(j, edges, memo)));
-    memo.set(i, n);
-    return n;
+  const group = claimedGroups(next, g).find((x) =>
+    x.tiles.includes(tiles[0].at),
+  );
+  // A branching claim has several numbers; never concatenate its selection order.
+  const roots = tiles.filter(
+    (t) => !g.incoming[t.at].some((j) => selected.has(j)),
+  );
+  const ordered = roots.length === 1 ? [roots[0].at] : [];
+  while (ordered.length) {
+    const children = g.out[ordered.at(-1)].filter((j) => selected.has(j));
+    if (children.length !== 1) break;
+    ordered.push(children[0]);
+  }
+  return {
+    board: next,
+    length: group.size,
+    number:
+      ordered.length === tiles.length ? segmentNumber(next, ordered) : null,
   };
-  const fullLength =
-    length(tiles[0].at, g.incoming, before) +
-    tiles.length -
-    2 +
-    length(tiles.at(-1).at, g.out, after);
-  if (fullLength < 9)
-    throw Error(
-      `This path reaches ${fullLength} tiles. A claim must belong to a path of at least 9.`,
-    );
-  return { board: next, length: fullLength };
+}
+export function scoreBreakdown(s) {
+  const groups = claimedGroups(s.board);
+  return [0, 1].map((p) => {
+    const own = groups.filter((x) => x.owner === p);
+    const scoring = own
+      .filter((x) => x.size >= MIN_SCORING_GROUP)
+      .reduce((n, x) => n + x.size, 0);
+    const growing = own
+      .filter((x) => x.size < MIN_SCORING_GROUP)
+      .reduce((n, x) => n + x.size, 0);
+    return {
+      scoring,
+      growing,
+      captured: s.captured[p].length,
+      groups: own.map((x) => x.size),
+      total: scoring + s.captured[p].length,
+    };
+  });
 }
 export function scores(s) {
-  return [0, 1].map(
-    (p) =>
-      s.board.filter((t) => t?.owner === p && t.face === "arrow").length +
-      s.captured[p].length,
-  );
+  return scoreBreakdown(s).map((x) => x.total);
 }
 export function newGame(
   { mode = "standard", names = ["Blue", "Orange"], first = 0, bot = null } = {},
@@ -420,10 +464,7 @@ export function applyMove(s, move, now = Date.now()) {
     detail = {
       tiles: clone(move.tiles),
       length: result.length,
-      number: segmentNumber(
-        n.board,
-        move.tiles.map((t) => t.at),
-      ),
+      number: result.number,
     };
   } else if (move.type === "challenge") {
     const number = validateSegment(n.board, move.path, 1 - p);
@@ -470,6 +511,21 @@ export function applyMove(s, move, now = Date.now()) {
     };
   } else if (move.type === "pass") {
   } else throw Error("Choose Drop, Claim, Challenge or Pass.");
+  const adjacentCaptures = [];
+  for (let at = 0; at < n.board.length; at++) {
+    const tile = n.board[at];
+    if (tile?.face !== "digit") continue;
+    if (
+      [0, 1, 2, 3].some((d) => {
+        const j = neighbor(at, d),
+          other = j === null ? null : n.board[j];
+        return other?.face === "arrow" && other.owner !== tile.owner;
+      })
+    )
+      adjacentCaptures.push({ at, by: 1 - tile.owner });
+  }
+  for (const { at, by } of adjacentCaptures) capture(n, at, by);
+  if (adjacentCaptures.length) detail.adjacentCaptures = adjacentCaptures;
   n.passCount = move.type === "pass" ? n.passCount + 1 : 0;
   if (n.passCount === 2) {
     const unclaimed = [];
@@ -662,7 +718,8 @@ export function isSupportedState(s) {
           !validRotations(e.tiles) ||
           !validRotations(e.command.tiles) ||
           !Number.isInteger(e.length) ||
-          e.length < 9
+          e.length < 2 ||
+          e.length > TILES_PER_PLAYER
         )
           return false;
       } else if (e.type === "challenge") {
@@ -685,14 +742,28 @@ export function isSupportedState(s) {
         )
           return false;
       } else if (e.type !== "pass") return false;
+      if (
+        e.adjacentCaptures &&
+        (!Array.isArray(e.adjacentCaptures) ||
+          !validCells(e.adjacentCaptures.map((x) => x.at)) ||
+          new Set(e.adjacentCaptures.map((x) => x.at)).size !==
+            e.adjacentCaptures.length ||
+          !e.adjacentCaptures.every((x) => [0, 1].includes(x.by)))
+      )
+        return false;
     }
     const g = graph(s.board);
     return (
       !hasCycle(g) &&
-      s.board.every(
-        (t, i) =>
-          t?.face !== "arrow" ||
-          (g.degree(i) > 0 && !isLeadingZero(s.board, g, i)),
+      s.board.every((t, i) =>
+        t?.face === "arrow"
+          ? g.degree(i) > 0 && !isLeadingZero(s.board, g, i)
+          : !t ||
+            ![0, 1, 2, 3].some((d) => {
+              const j = neighbor(i, d),
+                other = j === null ? null : s.board[j];
+              return other?.face === "arrow" && other.owner !== t.owner;
+            }),
       )
     );
   } catch {

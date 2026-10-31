@@ -8,6 +8,7 @@ import {
   total,
   coordinate,
   direction,
+  neighbor,
   graph,
   isEndpoint,
   claimPreview,
@@ -20,32 +21,33 @@ import {
   finishGameCountdown,
   resign,
   scores,
+  scoreBreakdown,
   reviewPosition,
   isSupportedState,
   clone,
-} from "./engine.js?v=de4dc0085b";
+} from "./engine.js?v=b11df7a335";
 import {
   tileHTML,
   factorKeyHTML,
   tileLabel,
   escapeHTML as esc,
-} from "./tiles.js?v=de4dc0085b";
-import { orientPath } from "./paths.js?v=de4dc0085b";
+} from "./tiles.js?v=b11df7a335";
+import { orientTree } from "./paths.js?v=b11df7a335";
 import {
   extendChallenge,
   challengeReady,
-} from "./challenge-selection.js?v=de4dc0085b";
-import { gameResult } from "./review.js?v=de4dc0085b";
-import { RULES_HTML } from "./rules-content.js?v=de4dc0085b";
+} from "./challenge-selection.js?v=b11df7a335";
+import { gameResult } from "./review.js?v=b11df7a335";
+import { RULES_HTML } from "./rules-content.js?v=b11df7a335";
 import {
   logicalIndex as boardIndex,
   boardLabels,
-} from "./board-view.js?v=de4dc0085b";
-import { splitPanelHTML, splitPermissions } from "./split-view.js?v=de4dc0085b";
+} from "./board-view.js?v=b11df7a335";
+import { splitPanelHTML, splitPermissions } from "./split-view.js?v=b11df7a335";
 const $ = (s) => document.querySelector(s),
   $$ = (s) => [...document.querySelectorAll(s)];
 const SAVE = `primeria.owned-paths.v${RULES_VERSION}`,
-  ONLINE = 3;
+  ONLINE = 4;
 let state = newGame(),
   action = "drop",
   selected = "j1",
@@ -192,11 +194,12 @@ function renderClocks() {
 }
 function renderPlayers() {
   const s = shown(),
-    points = scores(s);
+    points = scores(s),
+    breakdown = scoreBreakdown(s);
   $("#players").innerHTML = [0, 1]
     .map(
       (p) =>
-        `<div class="player owner-${p} ${!s.ended && s.turn === p ? "active" : ""}"><div><div class="player-name"><span class="player-dot"></span>${esc(s.names[p])}${state.bot?.player === p ? " · CPU" : ""}</div><div class="player-meta">${points[p]} points · ${s.captured[p].length} captured</div></div><span class="clock" data-clock="${p}">${formatTime(s.clocks[p])}</span></div>`,
+        `<div class="player owner-${p} ${!s.ended && s.turn === p ? "active" : ""}"><div><div class="player-name"><span class="player-dot"></span>${esc(s.names[p])}${state.bot?.player === p ? " · CPU" : ""}</div><div class="player-meta" title="${breakdown[p].scoring} scoring tiles; ${breakdown[p].growing} tiles in groups below nine">${points[p]} points · ${s.captured[p].length} captured${breakdown[p].growing ? ` · ${breakdown[p].growing} growing` : ""}</div></div><span class="clock" data-clock="${p}">${formatTime(s.clocks[p])}</span></div>`,
     )
     .join("");
   renderClocks();
@@ -290,7 +293,13 @@ function draftStatus() {
       okay: dropAt !== null && state.reserves[viewer()][selected] > 0,
       text:
         dropAt !== null
-          ? `Ready to place ${TYPE_MAP[selected].digit} at ${coordinate(dropAt)}.`
+          ? [0, 1, 2, 3].some((d) => {
+              const j = neighbor(dropAt, d),
+                t = j === null ? null : state.board[j];
+              return t?.face === "arrow" && t.owner !== viewer();
+            })
+            ? "This tile will be captured immediately beside an opponent’s claimed tile."
+            : `Ready to place ${TYPE_MAP[selected].digit} at ${coordinate(dropAt)}.`
           : "Select an empty square on the board.",
     };
   if (action === "claim") {
@@ -298,14 +307,14 @@ function draftStatus() {
       const p = claimPreview(state.board, claim, viewer());
       return {
         okay: true,
-        text: `Legal claim · part of a ${p.length}-tile path.`,
+        text: `Legal claim · ${p.length}-tile group${p.length < 9 ? " · needs 9 to score" : " · scores points"}.`,
       };
     } catch (e) {
       return {
         okay: false,
         text: claim.length
           ? e.message
-          : "Select your unclaimed tiles in arrow order.",
+          : "Select at least two unclaimed tiles to connect, including branches.",
       };
     }
   }
@@ -632,7 +641,7 @@ function renderSession() {
   const b = (command, label, primary = false) =>
     `<button data-session-command="${command}" class="${primary ? "primary-button" : "outline-button"}">${label}</button>`;
   if (ended)
-    session.innerHTML = `<div><h2>${inReview ? "Review Game" : esc(gameResult(state))}</h2><p>${inReview ? `Turn ${reviewAt} of ${state.history.length}` : "Claimed tiles and captured tiles determine the score."}</p>${inReview ? `<div class="review-navigation">${b("first", "|←")}${b("previous", "←")}${b("next", "→")}${b("last", "→|")}</div>` : ""}<div class="session-actions">${b(inReview ? "result" : "review", inReview ? "Game Result" : "Review Game")}${b("new", "New Game")}</div></div>`;
+    session.innerHTML = `<div><h2>${inReview ? "Review Game" : esc(gameResult(state))}</h2><p>${inReview ? `Turn ${reviewAt} of ${state.history.length}` : "Groups of nine or more and captured tiles score points."}</p>${inReview ? `<div class="review-navigation">${b("first", "|←")}${b("previous", "←")}${b("next", "→")}${b("last", "→|")}</div>` : ""}<div class="session-actions">${b(inReview ? "result" : "review", inReview ? "Game Result" : "Review Game")}${b("new", "New Game")}</div></div>`;
   else if (paused)
     session.innerHTML = `<div><h2>Game is Paused</h2><div class="session-actions">${b("resume", "Resume", true)}${b("new", "New Game")}</div></div>`;
   else if (bot)
@@ -679,12 +688,12 @@ function renderControls() {
   if (action === "drop") content = "";
   if (action === "claim") {
     content =
-      '<p class="step">Select at least <b>2 unclaimed tiles</b> in path order. The result must belong to a path of <b>9 or more tiles</b>.</p>';
+      '<p class="step">Select at least <b>2 unclaimed tiles</b> to form a connected network of arrows. Groups of <b>9 or more tiles</b> score points.</p>';
     if (claim.length) {
-      content += `<div class="selected-path">${claim.map((t) => `<button class="path-chip ${editing === t.at ? "selected-edit" : ""}" data-edit="${t.at}" aria-label="Edit ${coordinate(t.at)}">${tileHTML({ ...state.board[t.at], face: "arrow", rotation: t.rotation })}<span class="path-coordinate">${coordinate(t.at)}</span></button>`).join("")}</div><div class="rotation-controls"><span>${editing === null ? "Select a tile" : coordinate(editing)}</span><button data-rotate="-1" aria-label="Rotate selected tile counterclockwise">↶</button><button data-rotate="1" aria-label="Rotate selected tile clockwise">↷</button><button id="auto-orient">Align path</button></div>`;
+      content += `<div class="selected-path">${claim.map((t) => `<button class="path-chip ${editing === t.at ? "selected-edit" : ""}" data-edit="${t.at}" aria-label="Edit ${coordinate(t.at)}">${tileHTML({ ...state.board[t.at], face: "arrow", rotation: t.rotation })}<span class="path-coordinate">${coordinate(t.at)}</span></button>`).join("")}</div><div class="rotation-controls"><span>${editing === null ? "Select a tile" : coordinate(editing)}</span><button data-rotate="-1" aria-label="Rotate selected tile counterclockwise">↶</button><button data-rotate="1" aria-label="Rotate selected tile clockwise">↷</button><button id="auto-orient">Align arrows</button></div>`;
     } else
       content +=
-        '<div class="preview-help">Click tiles from tail to head. Arrows align automatically when their printed shapes allow it. You can adjust a tile’s rotation.</div>';
+        '<div class="preview-help">Select the tiles of your network, including branches. Arrows align automatically where possible; select a tile to adjust its rotation. Claiming captures adjacent enemy unclaimed tiles.</div>';
   }
   if (action === "challenge") {
     const all = segments(state.board, 1 - p, 2000),
@@ -705,7 +714,7 @@ function entryText(e) {
   if (e.type === "claim")
     return {
       title: `Claim ${e.tiles.length} tiles`,
-      note: `${coordinate(e.tiles[0].at)} → ${coordinate(e.tiles.at(-1).at)} · ${e.length}-tile path`,
+      note: `${e.length}-tile group${e.adjacentCaptures?.length ? ` · ${e.adjacentCaptures.length} adjacent captures` : ""}`,
     };
   if (e.type === "challenge")
     return {
@@ -803,15 +812,13 @@ $("#board").addEventListener("click", (e) => {
   if (action === "claim") {
     const pos = claim.findIndex((t) => t.at === at);
     if (pos >= 0) {
-      claim = claim.slice(0, pos);
+      claim = claim.filter((_, i) => i !== pos);
       editing = claim.at(-1)?.at ?? null;
     } else {
-      if (claim.length && direction(claim.at(-1).at, at) < 0)
-        return toast(
-          "Choose a tile sharing an edge with the last selected tile.",
-        );
       const indices = [...claim.map((t) => t.at), at],
-        aligned = orientPath(state.board, indices, viewer());
+        aligned = orientTree(state.board, indices, viewer(), {
+          preferred: claim,
+        });
       claim = aligned ?? [...claim, { at, rotation: 0 }];
       editing = at;
     }
@@ -886,13 +893,16 @@ $("#action-content").onclick = (e) => {
     renderBoard();
   }
   if (e.target.id === "auto-orient") {
-    const aligned = orientPath(
+    const aligned = orientTree(
       state.board,
       claim.map((t) => t.at),
       viewer(),
     );
     if (aligned) claim = aligned;
-    else toast("These tile shapes cannot connect in that order.");
+    else
+      toast(
+        "No valid orientation found. Adjust the selection or rotate individual tiles.",
+      );
     renderControls();
     renderBoard();
   }
@@ -1043,6 +1053,10 @@ function apply(command, actor = state.turn) {
         event.success
           ? `Verified: ${event.number} = ${event.factor} × ${BigInt(event.number) / BigInt(event.factor)}. Captured ${event.removed.length} tiles.`
           : "The factor does not divide the number. The fee stays with your opponent.",
+      );
+    else if (event.adjacentCaptures?.length)
+      toast(
+        `${event.adjacentCaptures.length} unclaimed ${event.adjacentCaptures.length === 1 ? "tile captured" : "tiles captured"} by adjacency.`,
       );
   } else throw Error("Unknown action.");
   reset();
@@ -1463,7 +1477,7 @@ function updateBot() {
       cancelBot();
       botJob = id;
       worker = new Worker(
-        new URL("./bot-worker.js?v=de4dc0085b", import.meta.url),
+        new URL("./bot-worker.js?v=b11df7a335", import.meta.url),
         {
           type: "module",
         },

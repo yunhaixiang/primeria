@@ -45,6 +45,52 @@ test("bot prioritizes a verified profitable capture over a new route", () => {
   assert.equal(event.success, true);
   assert.ok(isSupportedState(s));
 });
+function put(s, at, type, owner = 0, face = "digit", rotation = 0) {
+  s.reserves[owner][type]--;
+  s.board[at] = { id: s.nextId++, type, owner, face, rotation };
+}
+test("bot claims a branching tree to capture nearby unfinished enemy construction", () => {
+  const s = newGame({ mode: "casual" }, 0);
+  s.started = true;
+  put(s, 112, "j1");
+  put(s, 97, "j3");
+  put(s, 111, "j3");
+  put(s, 113, "j7");
+  for (const at of [82, 110, 114, 98]) put(s, at, "r2", 1);
+  const result = createBot({ seed: 27, strength: "advanced" }).choose(s);
+  assert.equal(result.command.type, "claim");
+  assert.equal(result.command.tiles.length, 4);
+  const e = applyMove(s, result.command, 0);
+  assert.equal(e.number, null);
+  assert.equal(e.adjacentCaptures.length, 4);
+  assert.deepEqual(scores(s), [4, 0]);
+  assert.ok(isSupportedState(s));
+});
+test("bot connects two new tiles to turn a seven-tile group into a scoring group", () => {
+  const s = newGame({ mode: "casual" }, 0);
+  s.started = true;
+  const types = ["j1", "r2", "r4", "r6", "r8", "r2", "r4", "r2", "r2"];
+  types.forEach((type, k) =>
+    put(s, 30 + k, type, 0, k < 7 ? "arrow" : "digit", 1),
+  );
+  assert.deepEqual(scores(s), [0, 0]);
+  const result = createBot({ seed: 9, strength: "advanced" }).choose(s);
+  assert.equal(result.command.type, "claim");
+  applyMove(s, result.command, 0);
+  assert.deepEqual(scores(s), [9, 0]);
+  assert.ok(isSupportedState(s));
+});
+test("bot avoids drops that are immediately captured by enemy claimed control", () => {
+  const s = newGame({ mode: "casual" }, 0);
+  s.started = true;
+  put(s, 112, "j1", 1, "arrow", 1);
+  put(s, 113, "j3", 1, "arrow", 1);
+  const result = createBot({ seed: 42, strength: "advanced" }).choose(s);
+  assert.equal(result.command.type, "drop");
+  applyMove(s, result.command, 0);
+  assert.ok(s.board[result.command.at]);
+  assert.equal(s.captured[1].length, 0);
+});
 test("two search bots complete a replayable game without invalid moves or arithmetic errors", () => {
   const s = newGame({ mode: "casual" }, 0);
   s.started = true;

@@ -1,20 +1,22 @@
 import {
   TYPES,
+  TYPE_MAP,
   neighbor,
   direction,
+  ports,
+  claimedGroups,
   segments,
   total,
   validateMove,
-  claimPreview,
   scores,
-} from "./engine.js?v=de4dc0085b";
-import { orientationsFor, orientPath } from "./paths.js?v=de4dc0085b";
+} from "./engine.js?v=b11df7a335";
+import { orientTree } from "./paths.js?v=b11df7a335";
 export const BOT_LEVELS = {
   beginner: "Gentle",
   intermediate: "Thoughtful",
   advanced: "Deep",
 };
-/** Known elementary tests are always performed before budgeted trial division. */
+/** Elementary tests are compulsory, independent of the trial-division budget. */
 export function findFactor(text, budget = 1200) {
   const n = BigInt(text);
   for (const p of [2n, 3n, 5n, 7n, 11n, 13n])
@@ -33,277 +35,378 @@ function random(seed) {
     return (x >>> 0) / 4294967296;
   };
 }
-function findClaim(state, budget) {
-  const p = state.turn,
-    board = state.board;
-  let visited = 0,
-    result = null;
-  const starts = board
-    .map((t, i) => (t?.owner === p && t.face === "digit" ? i : null))
-    .filter((i) => i !== null);
-  function walk(path) {
-    if (++visited > budget || result) return;
-    const oriented = orientPath(board, path, p);
-    if (!oriented) return;
-    if (path.length >= 2) {
-      try {
-        claimPreview(board, oriented, p);
-        result = { type: "claim", tiles: oriented };
-        return;
-      } catch {}
+const around = (at) =>
+  [0, 1, 2, 3].map((d) => neighbor(at, d)).filter((x) => x !== null);
+const unsafeDrop = (s, at, p) =>
+  around(at).some(
+    (i) => s.board[i]?.owner === 1 - p && s.board[i].face === "arrow",
+  );
+function feeFor(s, p) {
+  return TYPES.filter((t) => s.reserves[p][t.id] > 0).sort(
+    (a, b) =>
+      (a.kind === "fork") - (b.kind === "fork") ||
+      s.reserves[p][b.id] - s.reserves[p][a.id],
+  )[0]?.id;
+}
+/** Growing groups have future value; finished games use actual points only. */
+function evaluate(s, p) {
+  const points = scores(s);
+  let value = points[p] - points[1 - p];
+  if (s.ended) return value;
+  for (const group of claimedGroups(s.board))
+    if (group.size < 9)
+      value +=
+        (group.owner === p ? 1 : -1) * group.size * (0.3 + 0.06 * group.size);
+  for (const t of s.board)
+    if (t?.face === "digit") value += t.owner === p ? 0.15 : -0.15;
+  return value;
+}
+/** Search connected subsets, including branches, rather than the first path. */
+function claimCandidates(s, owner, limit, orientationBudget) {
+  const starts = s.board.flatMap((t, at) =>
+    t?.owner === owner && t.face === "digit" ? [at] : [],
+  );
+  const seen = new Set(),
+    commands = [];
+  for (const start of starts)
+    for (const reverse of [false, true]) {
+      const cells = [start],
+        used = new Set(cells);
+      for (let k = 0; k < cells.length && cells.length <= 14; k++) {
+        const neighbors = around(cells[k]);
+        if (reverse) neighbors.reverse();
+        for (const at of neighbors)
+          if (
+            !used.has(at) &&
+            s.board[at]?.owner === owner &&
+            s.board[at].face === "digit"
+          ) {
+            cells.push(at);
+            used.add(at);
+          }
+      }
+      const sizes = [...new Set([cells.length, 2, 3, 4, 6, 9])].filter(
+        (n) => n >= 2 && n <= cells.length,
+      );
+      for (const n of sizes) {
+        const selected = cells.slice(0, n),
+          key = [...selected].sort((a, b) => a - b).join(",");
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const tiles = orientTree(s.board, selected, owner, {
+          budget: orientationBudget,
+          rank: (preview) =>
+            -segments(preview.board, owner)
+              .filter(
+                (seg) =>
+                  seg.path.some((i) => used.has(i)) &&
+                  findFactor(seg.number, 60),
+              )
+              .reduce((sum, seg) => sum + seg.path.length * 12, 0),
+        });
+        if (tiles) commands.push({ type: "claim", tiles });
+        if (commands.length >= limit) return commands;
+      }
     }
-    if (path.length >= 12) return;
-    const last = path.at(-1);
-    for (let d = 0; d < 4; d++) {
-      const j = neighbor(last, d);
-      if (
-        j !== null &&
-        !path.includes(j) &&
-        board[j]?.owner === p &&
-        board[j].face === "digit"
-      )
-        walk([...path, j]);
-    }
-  }
-  for (const i of starts) {
-    walk([i]);
-    if (result || visited > budget) break;
-  }
-  return { command: result, visited };
+  return commands;
 }
 export function createBot({ seed = 1, strength = "intermediate" } = {}) {
-  const rng = random(seed || 1);
+  const rng = random(seed || 1),
+    advanced = strength === "advanced",
+    gentle = strength === "beginner";
+  const budget = advanced ? 16000 : gentle ? 1800 : 7000;
+  const trials = advanced ? 100 : gentle ? 24 : 55;
+  const factorBudget = advanced ? 4000 : gentle ? 100 : 1200;
   let plan = null;
-  const budget =
-    strength === "advanced" ? 16000 : strength === "beginner" ? 1800 : 7000;
-  function legal(s, m) {
-    try {
-      validateMove(s, m);
-      return true;
-    } catch {
-      return false;
+  function captureReply(s, owner, divisionBudget = factorBudget) {
+    const fee = feeFor(s, owner);
+    if (!fee) return null;
+    const view = { ...s, turn: owner };
+    let best = null;
+    for (const seg of segments(s.board, 1 - owner)) {
+      const factor = findFactor(seg.number, divisionBudget);
+      if (!factor) continue;
+      const command = { type: "challenge", fee, path: seg.path, factor };
+      const after = validateMove(view, command);
+      const value = evaluate(after, owner) - evaluate(s, owner);
+      if (!best || value > best.value) best = { command, after, value };
     }
+    return best;
+  }
+  function assessed(s, command, threatened = new Set(), deeper = false) {
+    let after;
+    try {
+      after = validateMove(s, command);
+    } catch {
+      return null;
+    }
+    const p = s.turn;
+    let value = evaluate(after, p) - evaluate(s, p);
+    if (command.type === "claim") {
+      value += command.tiles.filter((t) => threatened.has(t.at)).length * 1.1;
+      const reply = captureReply(after, 1 - p, deeper ? factorBudget : 90);
+      if (reply) value -= Math.max(0, reply.value);
+    }
+    return { command, after, value };
   }
   function planValid(s) {
-    return (
-      plan &&
-      plan.owner === s.turn &&
-      plan.tiles.every(
-        (t) =>
-          !s.board[t.at] ||
-          (s.board[t.at].owner === s.turn &&
-            s.board[t.at].type === t.type &&
-            s.board[t.at].face === "digit"),
-      )
-    );
+    if (!plan || plan.owner !== s.turn) return false;
+    const remaining = { ...s.reserves[s.turn] };
+    for (const t of plan.tiles) {
+      const actual = s.board[t.at];
+      if (actual) {
+        if (
+          actual.owner !== s.turn ||
+          actual.face !== "digit" ||
+          actual.type !== t.type
+        )
+          return false;
+      } else if (unsafeDrop(s, t.at, s.turn) || --remaining[t.type] < 0)
+        return false;
+    }
+    return true;
   }
-  function makePlan(s) {
+  function planValue(s, tiles, dangerSquares) {
     const p = s.turn,
-      candidates = [];
-    let evaluated = 0;
-    // Construct several legal routes, including bends, before choosing reserve tiles.
-    for (let trial = 0; trial < 100; trial++) {
-      const start = Math.floor(rng() * 225);
-      if (s.board[start]) continue;
-      const path = [start];
-      let d = Math.floor(rng() * 4);
-      for (let k = 1; k < 9; k++) {
-        const directions = [d, (d + 1) % 4, (d + 3) % 4].sort(
-          () => rng() - 0.5,
-        );
-        let chosen = null;
-        for (const nextD of directions) {
-          const at = neighbor(path.at(-1), nextD);
-          if (at === null || s.board[at] || path.includes(at)) continue;
-          // Keep room for bends and later branches; don't wind a route against itself.
-          if (path.slice(0, -1).some((i) => direction(i, at) >= 0)) continue;
-          chosen = { at, d: nextD };
-          break;
-        }
-        if (!chosen) break;
-        path.push(chosen.at);
-        d = chosen.d;
+      future = {
+        ...s,
+        board: s.board.slice(),
+        reserves: s.reserves.map((x) => ({ ...x })),
+        nextId: s.nextId,
+      };
+    const drops = [];
+    for (const t of tiles)
+      if (!future.board[t.at]) {
+        if (unsafeDrop(s, t.at, p) || --future.reserves[p][t.type] < 0)
+          return null;
+        future.board[t.at] = {
+          id: future.nextId++,
+          type: t.type,
+          owner: p,
+          face: "digit",
+          rotation: 0,
+        };
+        drops.push(t);
       }
-      if (path.length < 9) continue;
+    if (!drops.length) return null;
+    const command = {
+      type: "claim",
+      tiles: tiles.map(({ at, rotation }) => ({ at, rotation })),
+    };
+    const assessment = assessed(future, command);
+    if (!assessment) return null;
+    // A development plan does not pretend the opponent skips intervening turns.
+    const gain =
+      evaluate(assessment.after, p) -
+      evaluate(s, p) -
+      Math.max(0, captureReply(assessment.after, 1 - p, 90)?.value ?? 0);
+    const danger = drops.filter((t) => dangerSquares.has(t.at)).length;
+    return { owner: p, tiles, value: gain / (drops.length + 1) - danger * 0.5 };
+  }
+  function makePlan(s, dangerSquares) {
+    const p = s.turn,
+      starts = [],
+      attachments = [],
+      available = (at) =>
+        !unsafeDrop(s, at, p) &&
+        (!s.board[at] ||
+          (s.board[at].owner === p && s.board[at].face === "digit"));
+    for (let i = 0; i < 225; i++)
+      if (available(i)) {
+        if (s.board[i]) starts.push(i, i);
+        if (around(i).some((j) => s.board[j])) starts.push(i, i);
+      }
+    for (let i = 0; i < 225; i++)
+      if (s.board[i]?.owner === p && s.board[i].face === "arrow")
+        for (const d of ports(s.board[i]).exits) {
+          const at = neighbor(i, d);
+          if (at !== null && available(at))
+            attachments.push({ at, entry: (d + 2) % 4 });
+        }
+    let best = null;
+    for (let trial = 0; trial < trials; trial++) {
+      const attachment =
+        trial % 2 === 0 && attachments.length
+          ? attachments[Math.floor(rng() * attachments.length)]
+          : null;
+      const start =
+        attachment?.at ??
+        (trial % 4 && starts.length
+          ? starts[Math.floor(rng() * starts.length)]
+          : Math.floor(rng() * 225));
+      if (!available(start)) continue;
+      const cells = [start],
+        parents = [-1],
+        wanted = 2 + Math.floor(rng() * 4);
+      for (let k = 1; k < wanted; k++) {
+        const candidates = [];
+        for (let parent = 0; parent < cells.length; parent++)
+          for (const at of around(cells[parent]))
+            if (available(at) && !cells.includes(at))
+              candidates.push({ at, parent });
+        if (!candidates.length) break;
+        const chosen = candidates[Math.floor(rng() * candidates.length)];
+        cells.push(chosen.at);
+        parents.push(chosen.parent);
+      }
+      if (cells.length < 2) continue;
       const remaining = { ...s.reserves[p] },
         tiles = [];
-      let okay = true;
-      for (let k = 0; k < 9; k++) {
-        const entry = k ? direction(path[k], path[k - 1]) : null,
-          exit = k < 8 ? direction(path[k], path[k + 1]) : null;
-        let options = TYPES.filter(
-          (t) =>
-            remaining[t.id] > 0 && orientationsFor(t.id, entry, exit).length,
+      for (let k = 0; k < cells.length; k++) {
+        const at = cells[k],
+          actual = s.board[at];
+        const entry =
+          parents[k] < 0
+            ? (attachment?.entry ?? null)
+            : direction(at, cells[parents[k]]);
+        const exits = cells.flatMap((to, j) =>
+          parents[j] === k ? [direction(at, to)] : [],
         );
-        // The units digit is read last; odd junctions avoid instant even/5 attacks.
-        if (k === 0)
-          options = options.filter((t) => [1, 3, 7, 9].includes(t.digit));
-        if (k === 8) options = options.filter((t) => t.digit !== 0);
-        if (!options.length) {
-          okay = false;
-          break;
-        }
-        const regular = options.filter((t) => t.id[0] === "r");
-        if (regular.length) options = regular;
-        const type = options[Math.floor(rng() * options.length)],
-          rots = orientationsFor(type.id, entry, exit),
-          rotation = rots[Math.floor(rng() * rots.length)];
-        remaining[type.id]--;
-        tiles.push({ at: path[k], type: type.id, rotation });
+        const options = [];
+        for (const type of actual
+          ? [TYPE_MAP[actual.type]]
+          : TYPES.filter((t) => remaining[t.id] > 0))
+          for (let rotation = 0; rotation < 4; rotation++) {
+            const port = ports({ type: type.id, rotation });
+            if (
+              (entry !== null && port.entry !== entry) ||
+              !exits.every((d) => port.exits.includes(d))
+            )
+              continue;
+            if (k === 0 && ![1, 3, 7, 9].includes(type.digit)) {
+              const before = neighbor(at, port.entry),
+                old = before === null ? null : s.board[before];
+              if (
+                !(
+                  old?.owner === p &&
+                  old.face === "arrow" &&
+                  ports(old).exits.includes((port.entry + 2) % 4)
+                )
+              )
+                continue;
+            }
+            if (!exits.length && type.digit === 0) continue;
+            options.push({ at, type: type.id, rotation });
+            if (type.kind !== "fork")
+              options.push({ at, type: type.id, rotation });
+          }
+        if (!options.length) break;
+        const choice = options[Math.floor(rng() * options.length)];
+        if (!actual) remaining[choice.type]--;
+        tiles.push(choice);
       }
-      if (!okay) continue;
-      const board = s.board.slice();
-      tiles.forEach(
-        (t, k) =>
-          (board[t.at] = {
-            id: 1000 + k,
-            type: t.type,
-            owner: p,
-            face: "digit",
-            rotation: 0,
-          }),
-      );
-      let preview;
-      try {
-        preview = claimPreview(
-          board,
-          tiles.map((t) => ({ at: t.at, rotation: t.rotation })),
-          p,
-        );
-      } catch {
-        continue;
-      }
-      const threats = segments(preview.board, p, 300).map((x) =>
-        findFactor(x.number, 250),
-      );
-      const closest =
-        tiles.reduce(
-          (n, t) =>
-            n +
-            Math.min(
-              t.at % 15,
-              14 - (t.at % 15),
-              Math.floor(t.at / 15),
-              14 - Math.floor(t.at / 15),
-            ),
-          0,
-        ) / 9;
-      const value =
-        threats.filter(Boolean).length * -7 + closest * 0.05 + rng() * 2;
-      candidates.push({ owner: p, tiles, value });
-      evaluated++;
+      if (tiles.length !== cells.length) continue;
+      const candidate = planValue(s, tiles, dangerSquares);
+      if (candidate && (!best || candidate.value > best.value))
+        best = candidate;
     }
-    candidates.sort((a, b) => b.value - a.value);
-    return { plan: candidates[0] ?? null, evaluated };
+    return best;
   }
   return {
     choose(s) {
-      const p = s.turn,
-        fee = TYPES.filter((t) => s.reserves[p][t.id] > 0).sort(
-          (a, b) =>
-            (a.id[0] === "j") - (b.id[0] === "j") ||
-            Number([1, 3, 7, 9].includes(a.digit)) -
-              Number([1, 3, 7, 9].includes(b.digit)),
-        )[0]?.id;
-      let scans = 0,
-        best = null;
-      if (fee)
-        for (const seg of segments(s.board, 1 - p, 2500)) {
-          scans++;
-          const factor = findFactor(
-            seg.number,
-            strength === "advanced"
-              ? 4000
-              : strength === "beginner"
-                ? 100
-                : 1200,
-          );
-          if (!factor) continue;
-          const command = { type: "challenge", fee, path: seg.path, factor };
-          let after;
-          try {
-            after = validateMove(s, command);
-          } catch {
-            continue;
-          }
-          const old = scores(s),
-            points = scores(after),
-            value = points[p] - points[1 - p] - (old[p] - old[1 - p]);
-          if (!best || value > best.value) best = { command, value };
-        }
-      if (best && best.value >= 1)
+      const p = s.turn;
+      const enemyClaims = claimCandidates(s, 1 - p, gentle ? 4 : 12, 200);
+      const threatened = new Set(),
+        dangerSquares = new Set();
+      for (const c of enemyClaims) {
+        const enemy = validateMove({ ...s, turn: 1 - p }, c);
+        for (const hit of enemy.history.at(-1).adjacentCaptures ?? [])
+          if (hit.by === 1 - p) threatened.add(hit.at);
+        for (const t of c.tiles)
+          for (const at of around(t.at)) dangerSquares.add(at);
+      }
+      const candidates = [],
+        capture = captureReply(s, p);
+      if (capture) candidates.push({ ...capture, reason: "Verified capture" });
+      const claims = claimCandidates(
+        s,
+        p,
+        gentle ? 12 : advanced ? 55 : 30,
+        gentle ? 150 : 700,
+      );
+      if (planValid(s)) {
+        const ready = plan.tiles.filter((t) => s.board[t.at]);
+        if (ready.length >= 2)
+          claims.push({
+            type: "claim",
+            tiles: ready.map(({ at, rotation }) => ({ at, rotation })),
+          });
+      }
+      for (const command of claims) {
+        const candidate = assessed(s, command, threatened);
+        if (candidate)
+          candidates.push({
+            ...candidate,
+            reason: candidate.after.history.at(-1).adjacentCaptures?.length
+              ? "Claim and capture adjacent construction"
+              : "Grow a connected group",
+          });
+      }
+      candidates.sort((a, b) => b.value - a.value);
+      const checked = [];
+      for (const candidate of candidates.slice(0, 8)) {
+        if (candidate.command.type === "claim")
+          candidate.value = assessed(
+            s,
+            candidate.command,
+            threatened,
+            true,
+          ).value;
+        checked.push(candidate);
+      }
+      checked.sort((a, b) => b.value - a.value);
+      if (!planValid(s)) plan = null;
+      if (plan) plan = planValue(s, plan.tiles, dangerSquares);
+      const alternative = makePlan(s, dangerSquares);
+      if (alternative && (!plan || alternative.value > plan.value + 0.3))
+        plan = alternative;
+      const best = checked[0];
+      if (best && best.value > 0.01 && (!plan || best.value >= plan.value)) {
+        if (best.command.type === "claim") plan = null;
         return {
           command: best.command,
-          analysis: { reason: "Verified capture", segments: scans, budget },
-          seconds: 1,
-        };
-      if (planValid(s) && plan.tiles.every((t) => s.board[t.at])) {
-        const command = {
-          type: "claim",
-          tiles: plan.tiles.map(({ at, rotation }) => ({ at, rotation })),
-        };
-        plan = null;
-        if (legal(s, command))
-          return {
-            command,
-            analysis: { reason: "Claim planned route", budget },
-            seconds: 1,
-          };
-      }
-      const claim = findClaim(s, budget);
-      if (claim.command)
-        return {
-          command: claim.command,
           analysis: {
-            reason: "Complete a legal path",
-            nodes: claim.visited,
+            reason: best.reason,
             budget,
+            value: Number(best.value.toFixed(3)),
           },
           seconds: 1,
         };
-      if (!planValid(s)) plan = null;
-      if (!plan) {
-        const made = makePlan(s);
-        plan = made.plan;
       }
-      if (plan) {
-        const remaining = plan.tiles.filter((t) => !s.board[t.at]);
-        if (remaining.length) {
-          const t = remaining[0],
-            command = { type: "drop", tile: t.type, at: t.at };
-          if (legal(s, command))
+      if (plan && plan.value > 0.01) {
+        const missing = plan.tiles.filter((t) => !s.board[t.at]);
+        missing.sort(
+          (a, b) =>
+            around(b.at).filter((i) => s.board[i]?.owner === 1 - p).length -
+            around(a.at).filter((i) => s.board[i]?.owner === 1 - p).length,
+        );
+        if (missing.length) {
+          const t = missing[0],
+            command = { type: "drop", tile: t.type, at: t.at },
+            after = validateMove(s, command);
+          if (after.board[t.at])
             return {
               command,
-              analysis: { reason: "Develop a planned nine-tile route", budget },
-              seconds: 1,
-            };
-          plan = null;
-        } else {
-          const command = {
-            type: "claim",
-            tiles: plan.tiles.map(({ at, rotation }) => ({ at, rotation })),
-          };
-          plan = null;
-          if (legal(s, command))
-            return {
-              command,
-              analysis: { reason: "Claim planned route", budget },
+              analysis: {
+                reason: "Develop a connected claim",
+                budget,
+                plannedTiles: plan.tiles.length,
+              },
               seconds: 1,
             };
         }
       }
-      if (best)
+      if (best && best.value > 0.01)
         return {
           command: best.command,
-          analysis: { reason: "Verified capture", segments: scans, budget },
+          analysis: { reason: best.reason, budget },
           seconds: 1,
         };
-      // Do not scatter unclaimable reserve tiles: passing keeps unused tiles safe.
       return {
         command: { type: "pass" },
         analysis: {
           reason: total(s.reserves[p])
-            ? "No worthwhile route found within the search budget"
+            ? "No beneficial move found within the search budget"
             : "Reserve exhausted",
           budget,
         },
