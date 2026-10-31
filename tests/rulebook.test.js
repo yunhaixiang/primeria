@@ -10,7 +10,11 @@ test("current rulebook contains the exact supply, path requirements, pass ending
   for (const text of [
     "58 tiles",
     "Flip at least 2",
-    "Capture every unclaimed enemy tile adjacent to a tile you just flipped",
+    "capture every surrounded unclaimed enemy tile",
+    "Territory",
+    "home edges",
+    "all claimed groups of fewer than nine tiles",
+    "each empty territory square",
     "at least nine",
     "last tile to the first",
     "two consecutive passes",
@@ -28,6 +32,8 @@ test("current rulebook contains the exact supply, path requirements, pass ending
     app = await readFile(new URL("../app.js", import.meta.url), "utf8");
   assert.ok(page.includes("rules-content.js"));
   assert.ok(app.includes("rules-content.js"));
+  assert.ok(!md.includes("adjacent to a tile you just flipped"));
+  assert.ok(!app.includes("captured immediately beside"));
 });
 test("every browser module and published asset exists", async () => {
   const files = [

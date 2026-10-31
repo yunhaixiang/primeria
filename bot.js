@@ -5,12 +5,15 @@ import {
   direction,
   ports,
   claimedGroups,
+  homeReachability,
+  territory,
   segments,
   total,
   validateMove,
   scores,
-} from "./engine.js?v=6b5191fb74";
-import { orientTree } from "./paths.js?v=6b5191fb74";
+  scoreBreakdown,
+} from "./engine.js?v=5a55683d07";
+import { orientTree } from "./paths.js?v=5a55683d07";
 export const BOT_LEVELS = {
   beginner: "Gentle",
   intermediate: "Thoughtful",
@@ -44,7 +47,7 @@ function feeFor(s, p) {
       s.reserves[p][b.id] - s.reserves[p][a.id],
   )[0]?.id;
 }
-/** Growing groups have future value; finished games use actual points only. */
+/** Territory and prisoners use exact rules; unfinished groups have future value. */
 function evaluate(s, p) {
   const points = scores(s);
   let value = points[p] - points[1 - p];
@@ -129,6 +132,16 @@ export function createBot({ seed = 1, strength = "intermediate" } = {}) {
     }
     return best;
   }
+  function enclosureReply(s, owner) {
+    const view = { ...s, turn: owner };
+    let best = null;
+    for (const command of claimCandidates(s, owner, gentle ? 4 : 12, 150)) {
+      const after = validateMove(view, command);
+      const value = evaluate(after, owner) - evaluate(s, owner);
+      if (!best || value > best.value) best = { command, after, value };
+    }
+    return best;
+  }
   function assessed(s, command, threatened = new Set(), deeper = false) {
     let after;
     try {
@@ -141,7 +154,8 @@ export function createBot({ seed = 1, strength = "intermediate" } = {}) {
     if (command.type === "claim") {
       value += command.tiles.filter((t) => threatened.has(t.at)).length * 1.1;
       const reply = captureReply(after, 1 - p, deeper ? factorBudget : 90);
-      if (reply) value -= Math.max(0, reply.value);
+      const enclosure = deeper ? enclosureReply(after, 1 - p) : null;
+      value -= Math.max(0, reply?.value ?? 0, enclosure?.value ?? 0);
     }
     return { command, after, value };
   }
@@ -199,7 +213,7 @@ export function createBot({ seed = 1, strength = "intermediate" } = {}) {
     const danger = drops.filter((t) => dangerSquares.has(t.at)).length;
     return { owner: p, tiles, value: gain / (drops.length + 1) - danger * 0.5 };
   }
-  function makePlan(s, dangerSquares) {
+  function makePlan(s, dangerSquares, land) {
     const p = s.turn,
       starts = [],
       attachments = [],
@@ -232,7 +246,7 @@ export function createBot({ seed = 1, strength = "intermediate" } = {}) {
       if (!available(start)) continue;
       const cells = [start],
         parents = [-1],
-        wanted = 2 + Math.floor(rng() * 4);
+        wanted = land[start] === 1 - p ? 9 : 2 + Math.floor(rng() * 4);
       for (let k = 1; k < wanted; k++) {
         const candidates = [];
         for (let parent = 0; parent < cells.length; parent++)
@@ -305,10 +319,10 @@ export function createBot({ seed = 1, strength = "intermediate" } = {}) {
         dangerSquares = new Set();
       for (const c of enemyClaims) {
         const enemy = validateMove({ ...s, turn: 1 - p }, c);
-        for (const hit of enemy.history.at(-1).adjacentCaptures ?? [])
+        for (const hit of enemy.history.at(-1).enclosureCaptures ?? [])
           if (hit.by === 1 - p) threatened.add(hit.at);
-        for (const t of c.tiles)
-          for (const at of around(t.at)) dangerSquares.add(at);
+        const escape = homeReachability(enemy.board, p);
+        escape.forEach((reachable, at) => { if (!reachable) dangerSquares.add(at); });
       }
       const candidates = [],
         capture = captureReply(s, p);
@@ -332,9 +346,11 @@ export function createBot({ seed = 1, strength = "intermediate" } = {}) {
         if (candidate)
           candidates.push({
             ...candidate,
-            reason: candidate.after.history.at(-1).adjacentCaptures?.length
-              ? "Claim and capture adjacent construction"
-              : "Grow a connected group",
+            reason: candidate.after.history.at(-1).enclosureCaptures?.length
+              ? "Enclose unfinished enemy construction"
+              : scoreBreakdown(candidate.after)[p].territory > scoreBreakdown(s)[p].territory
+                ? "Claim territory"
+                : "Grow a connected group",
           });
       }
       candidates.sort((a, b) => b.value - a.value);
@@ -352,7 +368,7 @@ export function createBot({ seed = 1, strength = "intermediate" } = {}) {
       checked.sort((a, b) => b.value - a.value);
       if (!planValid(s)) plan = null;
       if (plan) plan = planValue(s, plan.tiles, dangerSquares);
-      const alternative = makePlan(s, dangerSquares);
+      const alternative = makePlan(s, dangerSquares, territory(s.board));
       if (alternative && (!plan || alternative.value > plan.value + 0.3))
         plan = alternative;
       const best = checked[0];

@@ -17,3 +17,6 @@ export function boardLabels(rotation = 0) {
     ),
   };
 }
+export function boardHomeEdges(rotation = 0) {
+  return { columns: rotation % 2, rows: 1 - rotation % 2 };
+}

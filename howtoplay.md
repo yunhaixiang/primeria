@@ -5,7 +5,7 @@ Its name refers to prime numbers, such as 2, 3 and 5. A prime is a natural numbe
 
 ## Setup
 
-The game is played on a 15 × 15 board. There are two kinds of tiles:
+The game is played on a 15 × 15 board. Blue's **home edges** are north and south; Orange's are east and west. There are two kinds of tiles:
 
 **Regular tiles** carry one of the digits 0, 2, 4, 5, 6 or 8 and a straight arrow, a left bend or a right bend.
 
@@ -33,7 +33,9 @@ Players take turns. Flip a coin to decide who goes first. On your turn, choose o
 
 **Drop.** Place one of your unused tiles on an empty square, digit side up.
 
-**Claim.** Flip at least 2 of your digit-side-up tiles on the board to form a connected network of arrows. Capture every unclaimed enemy tile adjacent to a tile you just flipped.
+**Claim.** Flip at least 2 of your digit-side-up tiles on the board to form a connected network of arrows. Then capture every surrounded unclaimed enemy tile.
+
+A tile is **surrounded** if no horizontal or vertical route connects its square to either of its owner's home edges without crossing an opponent's claimed tile. All other tiles are ignored when checking the route. Claimed tiles cannot be captured by surrounding.
 
 **Challenge.** Give one of your unused tiles to your opponent as a captured tile. Choose an opponent's segment and read its number from the last tile to the first. Propose a factor other than 1 or the number itself, then check it with a calculator. If correct, remove all tiles in the segment and keep them as captured tiles. Otherwise, your turn ends.
 
@@ -51,9 +53,11 @@ Players take turns. Flip a coin to decide who goes first. On your turn, choose o
 
 ## Endgame
 
-The game ends after two consecutive passes. Remove all unclaimed tiles from the board and give each to its owner's opponent as a captured tile.
+The game ends after two consecutive passes. Remove all unclaimed tiles and all claimed groups of fewer than nine tiles, giving each removed tile to its owner's opponent as a captured tile. A **group** consists of claimed tiles connected through matching arrows, in either direction.
 
-Score one point for each captured tile and each claimed tile in a group of at least nine tiles connected by arrows. The player with the higher score wins; equal scores result in a draw.
+**Territory.** Only claimed groups of at least nine tiles form territory boundaries. Ignore all other tiles when finding regions connected through shared edges. An empty square is your territory if every claimed tile and board edge bordering its region belongs to you. North and south belong to Blue; east and west belong to Orange. Either player may play in empty territory.
+
+Score one point for each remaining claimed tile, each captured tile and each empty territory square. The player with the higher score wins; equal scores result in a draw.
 
 A player also loses by resigning or running out of time.
 

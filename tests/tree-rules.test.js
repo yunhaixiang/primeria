@@ -89,7 +89,7 @@ test("new tiles must connect to each other, not only through older claimed tiles
     /connected network/,
   );
 });
-test("claim captures orthogonal enemy digits once, preserving diagonals and claimed enemies", () => {
+test("mere adjacency never captures digits or claimed enemies", () => {
   const s = active();
   const tiles = branch(s);
   put(s, 98, "r2", 1); // beside two newly claimed tiles: captured once
@@ -102,15 +102,13 @@ test("claim captures orthogonal enemy digits once, preserving diagonals and clai
   put(s, 128, "j1", 1, "arrow", 2);
   put(s, 143, "j3", 1, "arrow", 2);
   const e = move(s, { type: "claim", tiles });
-  assert.deepEqual(
-    e.adjacentCaptures.map((x) => x.at).sort((a, b) => a - b),
-    [82, 96, 98],
-  );
-  assert.equal(s.captured[0].length, 3);
+  assert.equal(e.enclosureCaptures, undefined);
+  assert.equal(s.captured[0].length, 0);
+  for (const at of [82, 96, 98]) assert.ok(s.board[at]);
   assert.ok(s.board[129]);
   assert.ok(s.board[114]);
   assert.ok(s.board[127]);
-  assert.deepEqual(scores(s), [3, 0]);
+  assert.deepEqual(scores(s), [0, 0]);
   assert.ok(isSupportedState(s));
 });
 test("dropping beside an older enemy claimed group survives and can be saved", () => {
@@ -125,7 +123,7 @@ test("dropping beside an older enemy claimed group survives and can be saved", (
   assert.ok(isSupportedState(s));
   assert.ok(isSupportedState(JSON.parse(JSON.stringify(s))));
 });
-test("a claim captures only beside newly flipped tiles, not older arrows", () => {
+test("a claim does not capture merely beside new or older arrows", () => {
   const s = active();
   put(s, 30, "j1", 0, "arrow", 1);
   put(s, 31, "j3", 0, "arrow", 1);
@@ -137,7 +135,8 @@ test("a claim captures only beside newly flipped tiles, not older arrows", () =>
     type: "claim",
     tiles: [{ at: 32, rotation: 1 }, { at: 33, rotation: 1 }],
   });
-  assert.deepEqual(e.adjacentCaptures, [{ at: 48, by: 0 }]);
+  assert.equal(e.enclosureCaptures, undefined);
+  assert.ok(s.board[48]);
   assert.ok(s.board[45]);
   assert.ok(isSupportedState(s));
 });
@@ -186,6 +185,7 @@ test("a group crosses nine only through matching arrows, not physical contact", 
   assert.deepEqual(scoreBreakdown(s)[0], {
     scoring: 9,
     growing: 0,
+    territory: 0,
     captured: 0,
     groups: [9],
     total: 9,
@@ -228,7 +228,7 @@ test("cutting a nine-tile group removes its scoring status while prisoners still
   assert.deepEqual(scores(s), [2, 1]);
   assert.ok(isSupportedState(s));
 });
-test("adjacent captures and nine-tile scoring replay identically and survive serialization", () => {
+test("claims, endgame removal of small groups and scoring replay identically", () => {
   const s = active();
   const commands = [
     { type: "drop", tile: "j1", at: 112 },

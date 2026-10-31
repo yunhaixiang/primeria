@@ -1,5 +1,5 @@
 /** Primeria's owned-tile rules. Directions: north, east, south, west. */
-export const RULES_VERSION = 24;
+export const RULES_VERSION = 25;
 export const MIN_SCORING_GROUP = 9;
 export const BOARD_SIZE = 15;
 export const BOARD_CELLS = 225;
@@ -126,6 +126,35 @@ export function direction(a, b) {
   for (let d = 0; d < 4; d++) if (neighbor(a, d) === b) return d;
   return -1;
 }
+/** Only enemy claimed tiles block a route to the player's home edges. */
+export function homeReachability(board, owner) {
+  const blocked = new Set(
+    board.flatMap((t, at) =>
+      t?.face === "arrow" && t.owner !== owner ? [at] : [],
+    ),
+  );
+  const reached = new Uint8Array(BOARD_CELLS),
+    queue = [];
+  const visit = (at) => {
+    if (blocked.has(at) || reached[at]) return;
+    reached[at] = 1;
+    queue.push(at);
+  };
+  for (let i = 0; i < BOARD_SIZE; i++) {
+    visit(owner === 0 ? i : i * BOARD_SIZE);
+    visit(
+      owner === 0
+        ? BOARD_CELLS - BOARD_SIZE + i
+        : i * BOARD_SIZE + BOARD_SIZE - 1,
+    );
+  }
+  for (let k = 0; k < queue.length; k++)
+    for (let d = 0; d < 4; d++) {
+      const at = neighbor(queue[k], d);
+      if (at !== null) visit(at);
+    }
+  return reached;
+}
 export function ports(tile) {
   const t = TYPE_MAP[tile.type],
     r = tile.rotation ?? 0;
@@ -181,6 +210,37 @@ export function claimedGroups(board, g = graph(board)) {
     groups.push({ owner: board[i].owner, tiles, size: tiles.length });
   }
   return groups;
+}
+/** Only nine-tile arrow groups form territory boundaries. Other tiles are
+ * ignored as barriers, but an occupied square is never an empty territory point. */
+export function territory(board, groups = claimedGroups(board)) {
+  const walls = new Map();
+  for (const group of groups)
+    if (group.size >= MIN_SCORING_GROUP)
+      for (const at of group.tiles) walls.set(at, group.owner);
+  const owners = Array(BOARD_CELLS).fill(null),
+    seen = new Uint8Array(BOARD_CELLS);
+  for (let start = 0; start < BOARD_CELLS; start++) {
+    if (walls.has(start) || seen[start]) continue;
+    const region = [start],
+      boundary = new Set();
+    seen[start] = 1;
+    for (let k = 0; k < region.length; k++)
+      for (let d = 0; d < 4; d++) {
+        const at = neighbor(region[k], d);
+        if (at === null) boundary.add(d % 2); // north/south Blue; east/west Orange
+        else if (walls.has(at)) boundary.add(walls.get(at));
+        else if (!seen[at]) {
+          seen[at] = 1;
+          region.push(at);
+        }
+      }
+    if (boundary.size === 1) {
+      const [owner] = boundary;
+      for (const at of region) if (!board[at]) owners[at] = owner;
+    }
+  }
+  return owners;
 }
 export const isEndpoint = (board, g, i) =>
   !!board[i] && (TYPE_MAP[board[i].type].kind === "fork" || g.degree(i) === 1);
@@ -316,7 +376,8 @@ export function claimPreview(board, tiles, owner) {
   };
 }
 export function scoreBreakdown(s) {
-  const groups = claimedGroups(s.board);
+  const groups = claimedGroups(s.board),
+    areas = territory(s.board, groups);
   return [0, 1].map((p) => {
     const own = groups.filter((x) => x.owner === p);
     const scoring = own
@@ -325,12 +386,14 @@ export function scoreBreakdown(s) {
     const growing = own
       .filter((x) => x.size < MIN_SCORING_GROUP)
       .reduce((n, x) => n + x.size, 0);
+    const land = areas.filter((owner) => owner === p).length;
     return {
       scoring,
       growing,
+      territory: land,
       captured: s.captured[p].length,
       groups: own.map((x) => x.size),
-      total: scoring + s.captured[p].length,
+      total: scoring + land + s.captured[p].length,
     };
   });
 }
@@ -511,27 +574,28 @@ export function applyMove(s, move, now = Date.now()) {
     };
   } else if (move.type === "pass") {
   } else throw Error("Choose Drop, Claim, Challenge or Pass.");
-  const adjacentCaptures = [];
+  const enclosureCaptures = [];
   if (move.type === "claim") {
-    const targets = new Set();
-    for (const { at } of move.tiles)
-      for (const d of [0, 1, 2, 3]) {
-        const target = neighbor(at, d),
-          tile = target === null ? null : n.board[target];
-        if (tile?.face === "digit" && tile.owner !== p) targets.add(target);
-      }
-    for (const at of targets) adjacentCaptures.push({ at, by: p });
+    const escape = homeReachability(n.board, 1 - p);
+    n.board.forEach((tile, at) => {
+      if (tile?.face === "digit" && tile.owner !== p && !escape[at])
+        enclosureCaptures.push({ at, by: p });
+    });
   }
-  for (const { at, by } of adjacentCaptures) capture(n, at, by);
-  if (adjacentCaptures.length) detail.adjacentCaptures = adjacentCaptures;
+  for (const { at, by } of enclosureCaptures) capture(n, at, by);
+  if (enclosureCaptures.length) detail.enclosureCaptures = enclosureCaptures;
   n.passCount = move.type === "pass" ? n.passCount + 1 : 0;
   if (n.passCount === 2) {
-    const unclaimed = [];
+    const unclaimed = [],
+      smallGroups = [];
+    for (const group of claimedGroups(n.board))
+      if (group.size < MIN_SCORING_GROUP) smallGroups.push(...group.tiles);
     for (let at = 0; at < 225; at++)
       if (n.board[at]?.face === "digit") {
         unclaimed.push(at);
         capture(n, at, 1 - n.board[at].owner);
       }
+    for (const at of smallGroups) capture(n, at, 1 - n.board[at].owner);
     const points = scores(n);
     n.ended = {
       winner: points[0] === points[1] ? null : points[0] > points[1] ? 0 : 1,
@@ -539,6 +603,7 @@ export function applyMove(s, move, now = Date.now()) {
       scores: points,
     };
     detail.unclaimed = unclaimed;
+    detail.smallGroups = smallGroups;
   }
   if (n.clocks[p] !== null) n.clocks[p] += n.increment;
   n.turn = 1 - p;
@@ -670,13 +735,14 @@ export function isSupportedState(s) {
         !Array.isArray(s.ended.scores) ||
         s.ended.scores.length !== 2 ||
         !s.ended.scores.every(
-          (n) => Number.isInteger(n) && n >= 0 && n <= TILES_PER_PLAYER * 2,
+          (n) => Number.isInteger(n) && n >= 0 &&
+            n <= BOARD_CELLS + TILES_PER_PLAYER * 2,
         ))
     )
       return false;
-    const validCells = (cells) =>
+    const validCells = (cells, maximum = TILES_PER_PLAYER) =>
       Array.isArray(cells) &&
-      cells.length <= TILES_PER_PLAYER &&
+      cells.length <= maximum &&
       cells.every((i) => Number.isInteger(i) && i >= 0 && i < 225);
     const validRotations = (cells) =>
       Array.isArray(cells) &&
@@ -740,14 +806,18 @@ export function isSupportedState(s) {
         )
           return false;
       } else if (e.type !== "pass") return false;
+      if (e.adjacentCaptures !== undefined) return false;
+      if (e.smallGroups !== undefined &&
+          (e.type !== "pass" || !validCells(e.smallGroups, TILES_PER_PLAYER * 2)))
+        return false;
       if (
-        e.adjacentCaptures &&
+        e.enclosureCaptures &&
         (e.type !== "claim" ||
-          !Array.isArray(e.adjacentCaptures) ||
-          !validCells(e.adjacentCaptures.map((x) => x.at)) ||
-          new Set(e.adjacentCaptures.map((x) => x.at)).size !==
-            e.adjacentCaptures.length ||
-          !e.adjacentCaptures.every((x) => x.by === e.player))
+          !Array.isArray(e.enclosureCaptures) ||
+          !validCells(e.enclosureCaptures.map((x) => x.at)) ||
+          new Set(e.enclosureCaptures.map((x) => x.at)).size !==
+            e.enclosureCaptures.length ||
+          !e.enclosureCaptures.every((x) => x.by === e.player))
       )
         return false;
     }

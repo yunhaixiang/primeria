@@ -3,6 +3,9 @@ import {
   applyMove,
   isSupportedState,
   scores,
+  scoreBreakdown,
+  territory,
+  TILES_PER_PLAYER,
   TYPE_MAP,
   reviewPosition,
 } from "../engine.js";
@@ -10,7 +13,7 @@ import { createBot } from "../bot.js";
 export function simulate({
   seed = 1,
   strength = "intermediate",
-  maxTurns = 240,
+  maxTurns = 6 * TILES_PER_PLAYER + 2,
 } = {}) {
   const state = newGame(
     { mode: "casual", names: ["Ada", "Emmy"], first: seed % 2 },
@@ -56,6 +59,8 @@ export function simulate({
     seed,
     strength,
     scores: scores(state),
+    breakdown: scoreBreakdown(state),
+    territory: territory(state.board),
     turns: state.history.length,
     winner: state.ended.winner,
     moves: Object.fromEntries(

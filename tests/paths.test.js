@@ -57,13 +57,14 @@ test("both tile faces preserve four aligned corner digits, ownership and route e
 });
 
 test("rotating the board preserves every coordinate and labels its actual row or column", async () => {
-  const { logicalIndex, boardLabels } = await import("../board-view.js");
+  const { logicalIndex, boardLabels, boardHomeEdges } = await import("../board-view.js");
   for (let r = 0; r < 4; r++) {
     const cells = Array.from({ length: 225 }, (_, i) =>
       logicalIndex(Math.floor(i / 15), i % 15, r),
     );
     assert.equal(new Set(cells).size, 225);
     const labels = boardLabels(r);
+    assert.deepEqual(boardHomeEdges(r), { columns: r % 2, rows: 1 - r % 2 });
     for (let c = 0; c < 15; c++) {
       const i = logicalIndex(0, c, r);
       assert.equal(

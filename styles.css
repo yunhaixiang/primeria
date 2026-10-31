@@ -3978,6 +3978,8 @@ main {
 #rows-right {
   grid-column: 3;
 }
+.home-edge.home-0 { color: #9bd4ec; }
+.home-edge.home-1 { color: #f0bd91; }
 .opposite-labels span {
   transform: rotate(180deg);
 }
@@ -4005,6 +4007,15 @@ main {
 .square.alt {
   background: #d9dfd0;
 }
+.square.empty.territory-0 { background: #c6dfe9; }
+.square.empty.territory-1 { background: #eddbc4; }
+.square.empty.territory-0::before,
+.square.empty.territory-1::before {
+  content: ""; position: absolute; inset: 43%; border-radius: 50%;
+  background: var(--blue); pointer-events: none;
+}
+.square.empty.territory-1::before { background: var(--orange); }
+.territory-legend { margin: 6px 0; color: var(--muted); font-size: 10px; line-height: 1.5; }
 .square.empty:hover:not(:disabled) {
   background: #f9ebc6;
   box-shadow: inset 0 0 0 2px #c9a664;

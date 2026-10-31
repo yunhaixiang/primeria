@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createBot, findFactor } from "../bot.js";
+import { topPocket } from "./territory-fixtures.js";
 import {
   newGame,
   applyMove,
@@ -50,21 +51,17 @@ function put(s, at, type, owner = 0, face = "digit", rotation = 0) {
   s.reserves[owner][type]--;
   s.board[at] = { id: s.nextId++, type, owner, face, rotation };
 }
-test("bot claims a branching tree to capture nearby unfinished enemy construction", () => {
+test("bot closes an enclosure to capture unfinished construction and score territory", () => {
   const s = newGame({ mode: "casual" }, 0);
   s.started = true;
-  put(s, 112, "j1");
-  put(s, 97, "j3");
-  put(s, 111, "j3");
-  put(s, 113, "j7");
-  for (const at of [82, 110, 114, 98]) put(s, at, "r2", 1);
+  topPocket(s, 7);
+  for (const at of [5, 20]) put(s, at, "r2", 1);
   const result = createBot({ seed: 27, strength: "advanced" }).choose(s);
   assert.equal(result.command.type, "claim");
-  assert.equal(result.command.tiles.length, 4);
+  assert.equal(result.command.tiles.length, 2);
   const e = applyMove(s, result.command, 0);
-  assert.equal(e.number, null);
-  assert.equal(e.adjacentCaptures.length, 4);
-  assert.deepEqual(scores(s), [4, 0]);
+  assert.equal(e.enclosureCaptures.length, 2);
+  assert.deepEqual(scores(s), [17, 0]);
   assert.ok(isSupportedState(s));
 });
 test("bot connects two new tiles to turn a seven-tile group into a scoring group", () => {
