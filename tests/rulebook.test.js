@@ -10,6 +10,7 @@ test("current rulebook contains the exact supply, path requirements, pass ending
   for (const text of [
     "58 tiles",
     "Flip at least 2",
+    "Capture every unclaimed enemy tile adjacent to a tile you just flipped",
     "at least nine",
     "last tile to the first",
     "two consecutive passes",

@@ -9,8 +9,8 @@ import {
   total,
   validateMove,
   scores,
-} from "./engine.js?v=b11df7a335";
-import { orientTree } from "./paths.js?v=b11df7a335";
+} from "./engine.js?v=6b5191fb74";
+import { orientTree } from "./paths.js?v=6b5191fb74";
 export const BOT_LEVELS = {
   beginner: "Gentle",
   intermediate: "Thoughtful",
@@ -37,10 +37,6 @@ function random(seed) {
 }
 const around = (at) =>
   [0, 1, 2, 3].map((d) => neighbor(at, d)).filter((x) => x !== null);
-const unsafeDrop = (s, at, p) =>
-  around(at).some(
-    (i) => s.board[i]?.owner === 1 - p && s.board[i].face === "arrow",
-  );
 function feeFor(s, p) {
   return TYPES.filter((t) => s.reserves[p][t.id] > 0).sort(
     (a, b) =>
@@ -161,7 +157,7 @@ export function createBot({ seed = 1, strength = "intermediate" } = {}) {
           actual.type !== t.type
         )
           return false;
-      } else if (unsafeDrop(s, t.at, s.turn) || --remaining[t.type] < 0)
+      } else if (--remaining[t.type] < 0)
         return false;
     }
     return true;
@@ -177,7 +173,7 @@ export function createBot({ seed = 1, strength = "intermediate" } = {}) {
     const drops = [];
     for (const t of tiles)
       if (!future.board[t.at]) {
-        if (unsafeDrop(s, t.at, p) || --future.reserves[p][t.type] < 0)
+        if (--future.reserves[p][t.type] < 0)
           return null;
         future.board[t.at] = {
           id: future.nextId++,
@@ -208,9 +204,8 @@ export function createBot({ seed = 1, strength = "intermediate" } = {}) {
       starts = [],
       attachments = [],
       available = (at) =>
-        !unsafeDrop(s, at, p) &&
-        (!s.board[at] ||
-          (s.board[at].owner === p && s.board[at].face === "digit"));
+        !s.board[at] ||
+        (s.board[at].owner === p && s.board[at].face === "digit");
     for (let i = 0; i < 225; i++)
       if (available(i)) {
         if (s.board[i]) starts.push(i, i);

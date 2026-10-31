@@ -33,7 +33,7 @@ Players take turns. Flip a coin to decide who goes first. On your turn, choose o
 
 **Drop.** Place one of your unused tiles on an empty square, digit side up.
 
-**Claim.** Flip at least 2 of your digit-side-up tiles on the board to form a connected network of arrows. After each move, remove every unclaimed tile adjacent to an opponent’s claimed tile and give it to that opponent as a captured tile.
+**Claim.** Flip at least 2 of your digit-side-up tiles on the board to form a connected network of arrows. Capture every unclaimed enemy tile adjacent to a tile you just flipped.
 
 **Challenge.** Give one of your unused tiles to your opponent as a captured tile. Choose an opponent's segment and read its number from the last tile to the first. Propose a factor other than 1 or the number itself, then check it with a calculator. If correct, remove all tiles in the segment and keep them as captured tiles. Otherwise, your turn ends.
 

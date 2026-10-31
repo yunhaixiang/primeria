@@ -25,29 +25,29 @@ import {
   reviewPosition,
   isSupportedState,
   clone,
-} from "./engine.js?v=b11df7a335";
+} from "./engine.js?v=6b5191fb74";
 import {
   tileHTML,
   factorKeyHTML,
   tileLabel,
   escapeHTML as esc,
-} from "./tiles.js?v=b11df7a335";
-import { orientTree } from "./paths.js?v=b11df7a335";
+} from "./tiles.js?v=6b5191fb74";
+import { orientTree } from "./paths.js?v=6b5191fb74";
 import {
   extendChallenge,
   challengeReady,
-} from "./challenge-selection.js?v=b11df7a335";
-import { gameResult } from "./review.js?v=b11df7a335";
-import { RULES_HTML } from "./rules-content.js?v=b11df7a335";
+} from "./challenge-selection.js?v=6b5191fb74";
+import { gameResult } from "./review.js?v=6b5191fb74";
+import { RULES_HTML } from "./rules-content.js?v=6b5191fb74";
 import {
   logicalIndex as boardIndex,
   boardLabels,
-} from "./board-view.js?v=b11df7a335";
-import { splitPanelHTML, splitPermissions } from "./split-view.js?v=b11df7a335";
+} from "./board-view.js?v=6b5191fb74";
+import { splitPanelHTML, splitPermissions } from "./split-view.js?v=6b5191fb74";
 const $ = (s) => document.querySelector(s),
   $$ = (s) => [...document.querySelectorAll(s)];
 const SAVE = `primeria.owned-paths.v${RULES_VERSION}`,
-  ONLINE = 4;
+  ONLINE = 5;
 let state = newGame(),
   action = "drop",
   selected = "j1",
@@ -1477,7 +1477,7 @@ function updateBot() {
       cancelBot();
       botJob = id;
       worker = new Worker(
-        new URL("./bot-worker.js?v=b11df7a335", import.meta.url),
+        new URL("./bot-worker.js?v=6b5191fb74", import.meta.url),
         {
           type: "module",
         },

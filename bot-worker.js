@@ -1,4 +1,4 @@
-import { createBot } from "./bot.js?v=b11df7a335";
+import { createBot } from "./bot.js?v=6b5191fb74";
 let bot, key;
 self.onmessage = ({ data }) => {
   try {

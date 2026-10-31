@@ -8,6 +8,7 @@ import {
   TYPE_MAP,
   reviewPosition,
   scores,
+  TILES_PER_PLAYER,
 } from "../engine.js";
 test("elementary factors are exact and never charged to the trial-division budget", () => {
   for (const n of [
@@ -80,23 +81,33 @@ test("bot connects two new tiles to turn a seven-tile group into a scoring group
   assert.deepEqual(scores(s), [9, 0]);
   assert.ok(isSupportedState(s));
 });
-test("bot avoids drops that are immediately captured by enemy claimed control", () => {
+test("bot develops and claims tiles beside an established enemy claimed group", () => {
   const s = newGame({ mode: "casual" }, 0);
   s.started = true;
   put(s, 112, "j1", 1, "arrow", 1);
   put(s, 113, "j3", 1, "arrow", 1);
-  const result = createBot({ seed: 42, strength: "advanced" }).choose(s);
-  assert.equal(result.command.type, "drop");
-  applyMove(s, result.command, 0);
-  assert.ok(s.board[result.command.at]);
-  assert.equal(s.captured[1].length, 0);
+  put(s, 97, "j3"); // adjacent to the old enemy arrows is a valid starting point
+  const bot = createBot({ seed: 42, strength: "advanced" });
+  for (let turn = 0; turn < 3; turn++) {
+    const result = bot.choose(s);
+    applyMove(s, result.command, 0);
+    assert.ok(isSupportedState(s));
+    assert.equal(s.captured[1].length, 0);
+    applyMove(s, { type: "pass" }, 0);
+  }
+  assert.equal(s.board[97].face, "arrow");
+  assert.ok(s.board[112]);
+  assert.ok(s.board[113]);
 });
 test("two search bots complete a replayable game without invalid moves or arithmetic errors", () => {
   const s = newGame({ mode: "casual" }, 0);
   s.started = true;
   const bots = [createBot({ seed: 42 }), createBot({ seed: 57 })];
   let turns = 0;
-  while (!s.ended && turns < 160) {
+  // At most 116 drops/challenges and 58 claims, each separated by a pass,
+  // followed by the two ending passes. Contact is no longer self-capture.
+  const maxTurns = 6 * TILES_PER_PLAYER + 2;
+  while (!s.ended && turns < maxTurns) {
     const result = bots[s.turn].choose(s);
     assert.ok(result.analysis.budget > 0);
     const e = applyMove(s, result.command, 0);

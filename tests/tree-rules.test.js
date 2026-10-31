@@ -98,6 +98,9 @@ test("claim captures orthogonal enemy digits once, preserving diagonals and clai
   put(s, 129, "r8", 1); // last is diagonal only
   put(s, 114, "j1", 1, "arrow", 0);
   put(s, 99, "j3", 1, "arrow", 0);
+  put(s, 127, "r4"); // friendly digit beside an older enemy group survives
+  put(s, 128, "j1", 1, "arrow", 2);
+  put(s, 143, "j3", 1, "arrow", 2);
   const e = move(s, { type: "claim", tiles });
   assert.deepEqual(
     e.adjacentCaptures.map((x) => x.at).sort((a, b) => a - b),
@@ -106,19 +109,55 @@ test("claim captures orthogonal enemy digits once, preserving diagonals and clai
   assert.equal(s.captured[0].length, 3);
   assert.ok(s.board[129]);
   assert.ok(s.board[114]);
+  assert.ok(s.board[127]);
   assert.deepEqual(scores(s), [3, 0]);
   assert.ok(isSupportedState(s));
 });
-test("dropping beside enemy claimed control is captured immediately, even on a small group", () => {
+test("dropping beside an older enemy claimed group survives and can be saved", () => {
   const s = active();
   put(s, 30, "j1", 1, "arrow", 1);
   put(s, 31, "j3", 1, "arrow", 1);
   const e = move(s, { type: "drop", tile: "r4", at: 45 });
-  assert.equal(s.board[45], null);
-  assert.deepEqual(e.adjacentCaptures, [{ at: 45, by: 1 }]);
+  assert.ok(s.board[45]);
+  assert.equal(e.adjacentCaptures, undefined);
   assert.equal(s.reserves[0].r4, 4);
-  assert.deepEqual(scores(s), [0, 1]);
+  assert.deepEqual(scores(s), [0, 0]);
   assert.ok(isSupportedState(s));
+  assert.ok(isSupportedState(JSON.parse(JSON.stringify(s))));
+});
+test("a claim captures only beside newly flipped tiles, not older arrows", () => {
+  const s = active();
+  put(s, 30, "j1", 0, "arrow", 1);
+  put(s, 31, "j3", 0, "arrow", 1);
+  put(s, 45, "r2", 1); // beside old arrow only
+  put(s, 32, "j7");
+  put(s, 33, "j3");
+  put(s, 48, "r4", 1); // beside new arrow
+  const e = move(s, {
+    type: "claim",
+    tiles: [{ at: 32, rotation: 1 }, { at: 33, rotation: 1 }],
+  });
+  assert.deepEqual(e.adjacentCaptures, [{ at: 48, by: 0 }]);
+  assert.ok(s.board[45]);
+  assert.ok(isSupportedState(s));
+});
+test("passing or challenging never activates adjacent capture from older arrows", () => {
+  for (const command of [
+    { type: "pass" },
+    { type: "challenge", fee: "r0", path: [60, 61], factor: "3" },
+    { type: "challenge", fee: "r0", path: [60, 61], factor: "2" },
+  ]) {
+    const s = active();
+    put(s, 30, "j1", 0, "arrow", 1);
+    put(s, 31, "j3", 0, "arrow", 1);
+    put(s, 45, "r2", 1);
+    put(s, 60, "j3", 1, "arrow", 1);
+    put(s, 61, "j3", 1, "arrow", 1);
+    const e = move(s, command);
+    assert.ok(s.board[45]);
+    assert.equal(e.adjacentCaptures, undefined);
+    assert.ok(isSupportedState(s));
+  }
 });
 test("friendly claimed neighbors do not capture a drop", () => {
   const s = active();
@@ -214,6 +253,10 @@ test("adjacent captures and nine-tile scoring replay identically and survive ser
   for (const command of commands) {
     move(s, command);
     assert.ok(isSupportedState(s));
+    if (command.type === "drop" && command.at === 96) {
+      assert.ok(s.board[96]);
+      assert.equal(s.captured[1].length, 0);
+    }
     positions.push(clone(s));
   }
   for (let n = 0; n < positions.length; n++) {

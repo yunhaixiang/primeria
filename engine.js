@@ -1,5 +1,5 @@
 /** Primeria's owned-tile rules. Directions: north, east, south, west. */
-export const RULES_VERSION = 23;
+export const RULES_VERSION = 24;
 export const MIN_SCORING_GROUP = 9;
 export const BOARD_SIZE = 15;
 export const BOARD_CELLS = 225;
@@ -512,17 +512,15 @@ export function applyMove(s, move, now = Date.now()) {
   } else if (move.type === "pass") {
   } else throw Error("Choose Drop, Claim, Challenge or Pass.");
   const adjacentCaptures = [];
-  for (let at = 0; at < n.board.length; at++) {
-    const tile = n.board[at];
-    if (tile?.face !== "digit") continue;
-    if (
-      [0, 1, 2, 3].some((d) => {
-        const j = neighbor(at, d),
-          other = j === null ? null : n.board[j];
-        return other?.face === "arrow" && other.owner !== tile.owner;
-      })
-    )
-      adjacentCaptures.push({ at, by: 1 - tile.owner });
+  if (move.type === "claim") {
+    const targets = new Set();
+    for (const { at } of move.tiles)
+      for (const d of [0, 1, 2, 3]) {
+        const target = neighbor(at, d),
+          tile = target === null ? null : n.board[target];
+        if (tile?.face === "digit" && tile.owner !== p) targets.add(target);
+      }
+    for (const at of targets) adjacentCaptures.push({ at, by: p });
   }
   for (const { at, by } of adjacentCaptures) capture(n, at, by);
   if (adjacentCaptures.length) detail.adjacentCaptures = adjacentCaptures;
@@ -744,11 +742,12 @@ export function isSupportedState(s) {
       } else if (e.type !== "pass") return false;
       if (
         e.adjacentCaptures &&
-        (!Array.isArray(e.adjacentCaptures) ||
+        (e.type !== "claim" ||
+          !Array.isArray(e.adjacentCaptures) ||
           !validCells(e.adjacentCaptures.map((x) => x.at)) ||
           new Set(e.adjacentCaptures.map((x) => x.at)).size !==
             e.adjacentCaptures.length ||
-          !e.adjacentCaptures.every((x) => [0, 1].includes(x.by)))
+          !e.adjacentCaptures.every((x) => x.by === e.player))
       )
         return false;
     }
@@ -758,12 +757,7 @@ export function isSupportedState(s) {
       s.board.every((t, i) =>
         t?.face === "arrow"
           ? g.degree(i) > 0 && !isLeadingZero(s.board, g, i)
-          : !t ||
-            ![0, 1, 2, 3].some((d) => {
-              const j = neighbor(i, d),
-                other = j === null ? null : s.board[j];
-              return other?.face === "arrow" && other.owner !== t.owner;
-            }),
+          : true,
       )
     );
   } catch {

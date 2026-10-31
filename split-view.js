@@ -5,12 +5,12 @@ import {
   total,
   scores,
   scoreBreakdown,
-} from "./engine.js?v=b11df7a335";
+} from "./engine.js?v=6b5191fb74";
 import {
   tileHTML,
   factorKeyHTML,
   escapeHTML as escape,
-} from "./tiles.js?v=b11df7a335";
+} from "./tiles.js?v=6b5191fb74";
 
 export function splitPermissions(
   state,
