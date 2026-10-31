@@ -21,11 +21,14 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 24
+      - run: npm run rules
+      - run: npm run assets
+      - run: git diff --exit-code -- rules-content.js
       - run: npm test
       - name: Package website
         run: |
           mkdir _site
-          cp index.html styles.css app.js split-view.js challenge-selection.js engine.js review.js bot.js bot-worker.js favicon.svg .nojekyll _site/
+          cp index.html how-to-play.html howtoplay.md styles.css app.js split-view.js board-view.js tiles.js paths.js rules-content.js challenge-selection.js engine.js review.js bot.js bot-worker.js favicon.svg .nojekyll _site/
           cp -r vendor _site/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v4

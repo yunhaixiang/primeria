@@ -1,0 +1,94 @@
+# Primeria: How to Play
+
+Primeria is a two-player board game invented by [Yunhai Xiang](https://yunhaimath.com/) that combines strategy with quick mental arithmetic.
+Its name refers to prime numbers, such as 2, 3 and 5. A prime is a natural number greater than 1 that cannot be written as the product of two smaller natural numbers.
+
+## Setup
+
+The game is played on a 15 × 15 board. There are two kinds of tiles:
+
+**Regular tiles** carry one of the digits 0, 2, 4, 5, 6 or 8 and a straight arrow, a left bend or a right bend.
+
+**Junction tiles** carry one of the digits 1, 3, 7 or 9 and a fork arrow: straight + left, straight + right, left + right, or straight + left + right.
+
+Each tile shows the same digit on both sides. The **arrow side** also shows its arrow, while the **digit side** indicates which arrow appears on the back.
+
+Each digit has one arrow type. Each player has 58 tiles:
+
+| Tile | Digit(s) | Arrow | Copies per digit |
+|---|---|---|---:|
+| Regular | 0 | Left bend | 5 |
+| Regular | 2, 4, 6, 8 | Straight | 5 |
+| Regular | 5 | Right bend | 5 |
+| Junction | 1 | Straight + left + right | 7 |
+| Junction | 9 | Left + right | 7 |
+| Junction | 3 | Straight + left | 7 |
+| Junction | 7 | Straight + right | 7 |
+
+## Moves
+
+Players take turns. Flip a coin to decide who goes first. On your turn, choose one move: Drop, Claim, Challenge or Pass.
+
+**Drop.** Place one of your unused tiles on an empty square, digit side up.
+
+*Note: Tiles are **adjacent** if they share an edge. A **path** is a sequence of at least two arrow-side tiles belonging to the same player, connected in the direction of the arrows.*
+
+**Claim.** Flip at least two of your digit-side-up tiles on the board to form a path. This path must be part of a path containing at least nine tiles.
+
+*Note: A **cycle** is a path whose last tile connects back to its first.*
+
+**No Cycle Rule.** A Claim is illegal if it creates a cycle on the board.
+
+*Note: A **segment** is a path whose endpoints are junction tiles or regular tiles with exactly one connection.*
+
+**Challenge.** Give one of your unused tiles to your opponent as a captured tile. Choose an opponent's segment and read its number from the last tile to the first. Propose a factor other than 1 or the number itself, then check it with a calculator. If correct, remove all tiles in the segment and keep them as captured tiles. Otherwise, your turn ends.
+
+*Note: On a virtual board, the program checks your proposed factor automatically.*
+
+**No Leading Zero Rule.** A Claim is illegal if any segment would begin with 0 when read from the last tile to the first. After a capture, remove any 0 that becomes a leading digit and give it to its owner’s opponent as a captured tile.
+
+**No Isolated Arrow Rule.** After a capture, remove every arrow-side tile with no connections and give it to its owner's opponent as a captured tile.
+
+*Note: After a capture, apply both removal rules until neither removes a tile.*
+
+**Pass.** Do nothing this turn.
+
+## Endgame
+
+The game ends after two consecutive passes. Remove all unclaimed tiles from the board and give each to its owner's opponent as a captured tile.
+
+Score one point for each of your tiles remaining on a claimed path and for each captured tile. The player with the higher score wins; equal scores result in a draw.
+
+A player also loses by resigning or running out of time.
+
+## Time Controls
+
+Choose a time control before starting.
+
+| Mode | Starting time per player | Increment per completed turn |
+|---|---:|---:|
+| Blitz | 10 minutes | 10 seconds |
+| Rapid | 20 minutes | 20 seconds |
+| Standard | 30 minutes | 30 seconds |
+| Classical | 45 minutes | 60 seconds |
+| Casual | No clock | — |
+
+Your clock runs throughout your turn, including factor verification and removing captured tiles.
+
+## Tips
+
+These divisibility tests can help you find factors:
+
+1. A number is divisible by 2 if and only if its last digit is even.
+
+2. A number is divisible by 5 if and only if its last digit is 0 or 5.
+
+3. A number is divisible by 3 if and only if the sum of its digits is divisible by 3.
+
+4. A number is divisible by 7 if and only if subtracting three times its last two digits from the remaining number gives a multiple of 7.
+
+5. Alternately add and subtract the digits of the number. The number is divisible by 11 if and only if the result is divisible by 11.
+
+6. A number is divisible by 13 if and only if subtracting nine times its last digit from the remaining number gives a multiple of 13.
+
+7. Split the number into groups of three digits from the right, then alternately add and subtract the groups. The original number is divisible by 7 if and only if the result is divisible by 7. The same test works for 11 and 13.

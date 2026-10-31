@@ -1,198 +1,701 @@
-export const BOARD_SIZE = 11;
-export const BOARD_CELLS = BOARD_SIZE * BOARD_SIZE;
-export const BOARD_SIZES = [9,11,13,15];
-export function getBoardSize(board){
- const size=Array.isArray(board)?Math.sqrt(board.length):0;
- if(!BOARD_SIZES.includes(size))throw Error('This board size is unsupported.');
- return size;
+/** Primeria's owned-tile rules. Directions: north, east, south, west. */
+export const RULES_VERSION = 22;
+export const BOARD_SIZE = 15;
+export const BOARD_CELLS = 225;
+export const MODES = {
+  blitz: [600, 10],
+  rapid: [1200, 20],
+  standard: [1800, 30],
+  classical: [2700, 60],
+  casual: [null, 0],
+};
+export const TYPES = [
+  {
+    id: "r0",
+    digit: 0,
+    kind: "left",
+    exits: [3],
+    count: 5,
+    label: "Left bend",
+  },
+  {
+    id: "j1",
+    digit: 1,
+    kind: "fork",
+    exits: [0, 3, 1],
+    count: 7,
+    label: "Three-way fork",
+  },
+  {
+    id: "r2",
+    digit: 2,
+    kind: "straight",
+    exits: [0],
+    count: 5,
+    label: "Straight",
+  },
+  {
+    id: "j3",
+    digit: 3,
+    kind: "fork",
+    exits: [0, 3],
+    count: 7,
+    label: "Straight + left",
+  },
+  {
+    id: "r4",
+    digit: 4,
+    kind: "straight",
+    exits: [0],
+    count: 5,
+    label: "Straight",
+  },
+  {
+    id: "r5",
+    digit: 5,
+    kind: "right",
+    exits: [1],
+    count: 5,
+    label: "Right bend",
+  },
+  {
+    id: "r6",
+    digit: 6,
+    kind: "straight",
+    exits: [0],
+    count: 5,
+    label: "Straight",
+  },
+  {
+    id: "j7",
+    digit: 7,
+    kind: "fork",
+    exits: [0, 1],
+    count: 7,
+    label: "Straight + right",
+  },
+  {
+    id: "r8",
+    digit: 8,
+    kind: "straight",
+    exits: [0],
+    count: 5,
+    label: "Straight",
+  },
+  {
+    id: "j9",
+    digit: 9,
+    kind: "fork",
+    exits: [3, 1],
+    count: 7,
+    label: "Left + right",
+  },
+];
+export const TILES_PER_PLAYER = TYPES.reduce((n, type) => n + type.count, 0);
+const FACTOR_PATTERN = new RegExp(`^\\d{1,${TILES_PER_PLAYER}}$`);
+const NUMBER_PATTERN = new RegExp(`^[1-9]\\d{1,${TILES_PER_PLAYER - 1}}$`);
+export const TYPE_MAP = Object.fromEntries(TYPES.map((t) => [t.id, t]));
+export const total = (counts) =>
+  Object.values(counts).reduce((a, b) => a + b, 0);
+export const inventory = () =>
+  Object.fromEntries(TYPES.map((t) => [t.id, t.count]));
+export const clone = (x) => structuredClone(x);
+export const coordinate = (i) =>
+  `${String.fromCharCode(65 + (i % 15))}${Math.floor(i / 15) + 1}`;
+export function neighbor(i, d) {
+  const r = Math.floor(i / 15),
+    c = i % 15;
+  return d === 0
+    ? r
+      ? i - 15
+      : null
+    : d === 1
+      ? c < 14
+        ? i + 1
+        : null
+      : d === 2
+        ? r < 14
+          ? i + 15
+          : null
+        : c
+          ? i - 1
+          : null;
 }
-export function isSupportedBoardState(state){return !!state&&state.rulesVersion===RULES_VERSION&&state.challengeAttempt===null&&BOARD_SIZES.includes(state.boardSize)&&Array.isArray(state.board)&&state.board.length===state.boardSize**2&&Array.isArray(state.taxed)&&state.taxed.length===10&&state.taxed.every(n=>Number.isSafeInteger(n)&&n>=0);}
-export const RULES_VERSION = 15;
-export const MODES = {blitz:[600,10],rapid:[1200,20],standard:[1800,30],classical:[2700,60],casual:[null,0]};
-export const PILE = [2,5,3,5,3,2,3,5,3,5];
-export const total = pile => pile.reduce((a,b)=>a+b,0);
-export const TIE_BREAKER_MOVES = 10;
-export function timeOutSettings({timeOutRule,hourRule=false,timeOutSeconds=3600}={}) {
-  if(!Number.isSafeInteger(timeOutSeconds)||timeOutSeconds<1)throw Error('Choose a positive whole-number tie-breaker duration.');
-  return {timeOutRule:timeOutRule??hourRule,timeOutSeconds,timeOutMoves:TIE_BREAKER_MOVES};
+export function direction(a, b) {
+  for (let d = 0; d < 4; d++) if (neighbor(a, d) === b) return d;
+  return -1;
 }
-export function newGame(options={},now=Date.now()) {
-  const {mode='rapid',names=['Player one','Player two'],first=0,boardSize=BOARD_SIZE}=options;
-  if(!BOARD_SIZES.includes(boardSize))throw Error('Choose a 9 × 9, 11 × 11, 13 × 13, or 15 × 15 board.');
-  if (!MODES[mode]) throw Error('Choose a valid time control.');
-  return {rulesVersion:RULES_VERSION,challengeAttempt:null,boardSize,board:Array(boardSize*boardSize).fill(null),piles:[PILE.slice(),PILE.slice()],taxed:Array(10).fill(0),names:names.map((n,i)=>String(n).trim().slice(0,24)||`Player ${i+1}`),mode,turn:first===1?1:0,clocks:[MODES[mode][0],MODES[mode][0]],increment:MODES[mode][1],started:false,paused:false,ended:null,lastTick:now,elapsed:0,...timeOutSettings(options),leader:null,streak:0,history:[],lastCells:[],revision:0};
+export function ports(tile) {
+  const t = TYPE_MAP[tile.type],
+    r = tile.rotation ?? 0;
+  return { entry: (2 + r) % 4, exits: t.exits.map((d) => (d + r) % 4) };
 }
-export function tick(s,now=Date.now()) {
-  const seconds=Math.max(0,now-s.lastTick)/1000;s.lastTick=now;
-  if (!s.started||s.paused||s.ended) return;
-  s.elapsed+=seconds;
-  if(s.clocks[s.turn]!==null){s.clocks[s.turn]=Math.max(0,s.clocks[s.turn]-seconds);if(s.clocks[s.turn]===0)s.ended={winner:1-s.turn,reason:'on time'};}
-}
-export function adjacent(board,index){const size=getBoardSize(board),x=index%size,y=Math.floor(index/size);return [[x-1,y],[x+1,y],[x,y-1],[x,y+1]].some(([a,b])=>a>=0&&a<size&&b>=0&&b<size&&board[b*size+a]!==null);}
-export function placement(s,action,moves,partial=false){
-  const boardCells=s.board.length;getBoardSize(s.board);
-  const count=action==='single'?1:action==='double'?2:0;
-  if(!count||moves.length<1||moves.length>count||(!partial&&moves.length!==count))throw Error(`Place ${count||'one or two'} tiles to complete this move.`);
-  const board=s.board.slice(),pile=s.piles[s.turn].slice();
-  for(const m of moves){
-    if(!Number.isInteger(m.index)||m.index<0||m.index>=boardCells||!Number.isInteger(m.digit)||m.digit<0||m.digit>9)throw Error('Choose a board square and digit.');
-    if(board[m.index]!==null)throw Error('That square is occupied.');
-    if(!pile[m.digit])throw Error('No tiles of that digit remain.');
-    if((action==='double'||m.digit===0)&&!adjacent(board,m.index))throw Error(m.digit===0?'Zero must touch another tile.':'Each Double Down tile must touch an existing tile.');
-    board[m.index]=m.digit;pile[m.digit]--;
-  }
-  if(moves.length===count){
-    if(action==='double'&&!challengeLines(board,moves[0].index).some(line=>line.cells.includes(moves[1].index)))throw Error('Both Double Down tiles must belong to the same uninterrupted horizontal or vertical run after your move.');
-    const affected=new Set();
-    for(const m of moves)for(const line of challengeLines(board,m.index))for(const i of line.cells)if(board[i]===0)affected.add(i);
-    for(const i of affected)for(const line of challengeLines(board,i))if(line.cells.length>1&&(line.cells[0]===i||line.cells.at(-1)===i))throw Error('Zero cannot begin or end a number after your move.');
-  }
-  return {board,pile};
-}
-export function segment(board,a,b){
-  const size=getBoardSize(board),boardCells=board.length;
-  if(!Number.isInteger(a)||!Number.isInteger(b)||a<0||b<0||a>=boardCells||b>=boardCells)throw Error('Select the first and last tile of a number.');
-  if(Math.floor(a/size)!==Math.floor(b/size)&&a%size!==b%size)throw Error('Choose a straight horizontal or vertical number.');
-  const step=a===b?1:Math.floor(a/size)===Math.floor(b/size)?1:size,lo=Math.min(a,b),hi=Math.max(a,b),cells=[];
-  for(let i=lo;i<=hi;i+=step){if(board[i]===null)throw Error('A challenged number cannot contain empty squares.');cells.push(i);}
-  if(a===b){
-    if(adjacent(board,a))throw Error('Single-digit challenges require an isolated tile with no edge-adjacent tiles.');
-  }else{
-    const before=step===1?(lo%size>0?lo-1:null):(lo>=size?lo-size:null);
-    const after=step===1?(hi%size<size-1?hi+1:null):(hi+size<boardCells?hi+size:null);
-    if((before!==null&&board[before]!==null)||(after!==null&&board[after]!==null))throw Error('Select both ends of the whole uninterrupted number.');
-  }
-  return cells;
-}
-// Maximal numbers through a tile; connected tiles never offer a singleton.
-export function challengeLines(board,index){
-  const size=getBoardSize(board);
-  if(!Number.isInteger(index)||index<0||index>=board.length)throw Error('Choose a tile on the board.');
-  if(board[index]===null)return [];
-  const lines=[];
-  for(const [axis,step] of [['row',1],['column',size]]){
-    const inLine=i=>i>=0&&i<board.length&&(axis==='column'||Math.floor(i/size)===Math.floor(index/size));
-    let first=index,last=index;
-    while(inLine(first-step)&&board[first-step]!==null)first-=step;
-    while(inLine(last+step)&&board[last+step]!==null)last+=step;
-    if(first!==last)lines.push({axis,cells:Array.from({length:(last-first)/step+1},(_,n)=>first+n*step)});
-  }
-  return lines.length?lines:[{axis:'isolated',cells:[index]}];
-}
-// Remove newly exposed zero tiles together, repeating for any resulting exposures.
-function removeExposedTiles(s){
-  const removed=[];
-  while(true){
-    const exposed=[];
-    for(let index=0;index<s.board.length;index++){
-      const digit=s.board[index];
-      if(digit===0){
-        const lines=challengeLines(s.board,index);
-        if(lines.some(line=>line.axis==='isolated'||line.cells[0]===index||line.cells.at(-1)===index))exposed.push({index,digit});
+export function graph(board) {
+  const out = Array.from({ length: 225 }, () => []),
+    incoming = Array.from({ length: 225 }, () => []);
+  for (let i = 0; i < 225; i++) {
+    const t = board[i];
+    if (!t || t.face !== "arrow") continue;
+    for (const d of ports(t).exits) {
+      const j = neighbor(i, d),
+        n = j === null ? null : board[j];
+      if (
+        n?.face === "arrow" &&
+        n.owner === t.owner &&
+        ports(n).entry === (d + 2) % 4
+      ) {
+        out[i].push(j);
+        incoming[j].push(i);
       }
     }
-    if(!exposed.length)return removed;
-    for(const tile of exposed){s.board[tile.index]=null;s.taxed[tile.digit]++;removed.push(tile);}
   }
+  return { out, incoming, degree: (i) => out[i].length + incoming[i].length };
 }
-export function challengeNumber(s,a,b,reverse=false){
-  if(typeof reverse!=='boolean')throw Error('Choose a reading direction.');
-  const cells=segment(s.board,a,b),readingCells=reverse?cells.slice().reverse():cells.slice();
-  return {cells,readingCells,digits:readingCells.map(i=>s.board[i]).join(''),reverse};
+export function hasCycle(g) {
+  const color = new Uint8Array(225);
+  function visit(i) {
+    if (color[i] === 1) return true;
+    if (color[i] === 2) return false;
+    color[i] = 1;
+    for (const j of g.out[i]) if (visit(j)) return true;
+    color[i] = 2;
+    return false;
+  }
+  return g.out.some((_, i) => visit(i));
 }
-export function challenge(s,a,b,factor,reverse=false){
-  const reading=challengeNumber(s,a,b,reverse);
-  if(!/^\d{1,20}$/.test(String(factor)))throw Error('Enter a whole-number factor greater than 1.');
-  const n=BigInt(reading.digits),f=BigInt(factor);
-  if(n===1n)throw Error('The number 1 cannot be challenged.');
-  if(f<=1n||(n!==0n&&f>=n))throw Error('Use a nontrivial factor: greater than 1 and smaller than the number.');
-  return {...reading,factor:String(f),success:n%f===0n,quotient:String(n/f),remainder:String(n%f)};
+export const isEndpoint = (board, g, i) =>
+  !!board[i] && (TYPE_MAP[board[i].type].kind === "fork" || g.degree(i) === 1);
+export function validatePath(board, path, owner, g = graph(board)) {
+  if (
+    !Array.isArray(path) ||
+    path.length < 2 ||
+    path.length > TILES_PER_PLAYER ||
+    new Set(path).size !== path.length
+  )
+    throw Error("Select a path of at least two different tiles.");
+  for (let k = 0; k < path.length; k++) {
+    const i = path[k];
+    if (
+      !Number.isInteger(i) ||
+      !board[i] ||
+      board[i].owner !== owner ||
+      board[i].face !== "arrow"
+    )
+      throw Error("Choose connected arrow tiles of the same player.");
+    if (k && !g.out[path[k - 1]].includes(i))
+      throw Error("Follow the arrow from one tile into the next.");
+  }
+  return true;
 }
-export function complete(s,command,now=Date.now()){
-  tick(s,now);if(s.ended)throw Error('This game is over.');
-  if(!s.started||s.paused)throw Error('Start or resume the game first.');
-  const actor=s.turn;let entry;
-  if(command.action==='challenge'){
-    const c=challenge(s,command.a,command.b,command.factor,command.reverse??false);
-    const attempt={factor:c.factor,success:c.success,quotient:c.quotient,remainder:c.remainder};
-    entry={action:'challenge',player:actor,...c,attempts:[attempt]};
-    s.lastCells=c.cells;
-    if(c.success){
-      const taxedCells=[...new Set([c.readingCells[0],c.readingCells.at(-1)])],taxedDigits=taxedCells.map(i=>s.board[i]);
-      for(const i of c.cells){if(taxedCells.includes(i))s.taxed[s.board[i]]++;else s.piles[1-actor][s.board[i]]++;s.board[i]=null;}
-      Object.assign(entry,{taxedCells,taxedDigits,transferredCount:c.cells.length-taxedCells.length,cleanup:removeExposedTiles(s)});
+export function segmentNumber(board, path) {
+  return path
+    .slice()
+    .reverse()
+    .map((i) => TYPE_MAP[board[i].type].digit)
+    .join("");
+}
+/** Numbers are read against the arrows: an exposed arrowhead is the leading end. */
+export const isLeadingZero = (board, g, i) =>
+  board[i]?.face === "arrow" &&
+  TYPE_MAP[board[i].type].digit === 0 &&
+  g.out[i].length === 0;
+export function validateSegment(board, path, owner) {
+  const g = graph(board);
+  validatePath(board, path, owner, g);
+  if (!isEndpoint(board, g, path[0]) || !isEndpoint(board, g, path.at(-1)))
+    throw Error("A segment must start and end at a junction or an end tile.");
+  const number = segmentNumber(board, path);
+  if (number[0] === "0")
+    throw Error("No Leading Zero Rule: a number cannot start with 0.");
+  return number;
+}
+/** Enumerate actual directed segments, with a cap for bounded bot/UI search. */
+export function segments(board, owner, limit = 2000) {
+  const g = graph(board),
+    result = [];
+  for (let i = 0; i < 225 && result.length < limit; i++) {
+    if (
+      board[i]?.owner !== owner ||
+      board[i].face !== "arrow" ||
+      !isEndpoint(board, g, i)
+    )
+      continue;
+    const walk = (path) => {
+      if (result.length >= limit) return;
+      const end = path.at(-1);
+      if (
+        path.length > 1 &&
+        isEndpoint(board, g, end) &&
+        TYPE_MAP[board[end].type].digit !== 0
+      )
+        result.push({ path: [...path], number: segmentNumber(board, path) });
+      for (const j of g.out[end]) if (!path.includes(j)) walk([...path, j]);
+    };
+    walk([i]);
+  }
+  return result;
+}
+export function claimPreview(board, tiles, owner) {
+  if (
+    !Array.isArray(tiles) ||
+    tiles.length < 2 ||
+    tiles.length > TILES_PER_PLAYER ||
+    new Set(tiles.map((t) => t.at)).size !== tiles.length
+  )
+    throw Error("Choose at least two of your unclaimed tiles in path order.");
+  const next = board.slice();
+  for (const p of tiles) {
+    const t = board[p.at];
+    if (
+      !Number.isInteger(p.at) ||
+      !t ||
+      t.owner !== owner ||
+      t.face !== "digit"
+    )
+      throw Error("Only your unclaimed tiles can be flipped.");
+    if (!Number.isInteger(p.rotation) || p.rotation < 0 || p.rotation > 3)
+      throw Error("Choose a tile orientation.");
+    next[p.at] = { ...t, face: "arrow", rotation: p.rotation };
+  }
+  const g = graph(next);
+  validatePath(
+    next,
+    tiles.map((t) => t.at),
+    owner,
+    g,
+  );
+  if (hasCycle(g)) throw Error("This claim would create an arrow cycle.");
+  if (next.some((_, i) => isLeadingZero(next, g, i)))
+    throw Error("No Leading Zero Rule: a claim cannot leave a leading 0.");
+  const before = new Map(),
+    after = new Map();
+  const length = (i, edges, memo) => {
+    if (memo.has(i)) return memo.get(i);
+    const n = 1 + Math.max(0, ...edges[i].map((j) => length(j, edges, memo)));
+    memo.set(i, n);
+    return n;
+  };
+  const fullLength =
+    length(tiles[0].at, g.incoming, before) +
+    tiles.length -
+    2 +
+    length(tiles.at(-1).at, g.out, after);
+  if (fullLength < 9)
+    throw Error(
+      `This path reaches ${fullLength} tiles. A claim must belong to a path of at least 9.`,
+    );
+  return { board: next, length: fullLength };
+}
+export function scores(s) {
+  return [0, 1].map(
+    (p) =>
+      s.board.filter((t) => t?.owner === p && t.face === "arrow").length +
+      s.captured[p].length,
+  );
+}
+export function newGame(
+  { mode = "standard", names = ["Blue", "Orange"], first = 0, bot = null } = {},
+  now = Date.now(),
+) {
+  if (!Object.hasOwn(MODES, mode) || ![0, 1].includes(first))
+    throw Error("Choose a time control and first player.");
+  return {
+    rulesVersion: RULES_VERSION,
+    boardSize: 15,
+    board: Array(225).fill(null),
+    reserves: [inventory(), inventory()],
+    captured: [[], []],
+    names: names.map(
+      (n, i) =>
+        String(n ?? "")
+          .trim()
+          .slice(0, 24) || ["Blue", "Orange"][i],
+    ),
+    mode,
+    turn: first,
+    clocks: [MODES[mode][0], MODES[mode][0]],
+    increment: MODES[mode][1],
+    started: false,
+    paused: false,
+    lastTick: now,
+    ended: null,
+    passCount: 0,
+    history: [],
+    revision: 0,
+    nextId: 1,
+    bot,
+  };
+}
+export function tick(s, now = Date.now()) {
+  if (!s.started || s.paused || s.ended) {
+    s.lastTick = now;
+    return;
+  }
+  const delta = Math.max(0, now - s.lastTick) / 1000;
+  s.lastTick = now;
+  if (s.clocks[s.turn] !== null) {
+    s.clocks[s.turn] = Math.max(0, s.clocks[s.turn] - delta);
+    if (s.clocks[s.turn] === 0) {
+      s.ended = { winner: 1 - s.turn, reason: "time", scores: scores(s) };
+      s.revision++;
     }
-    s.challengeAttempt=null;
-  }else{
-    const p=placement(s,command.action,command.moves);s.board=p.board;s.piles[actor]=p.pile;s.lastCells=command.moves.map(m=>m.index);
-    entry={action:command.action,player:actor,moves:command.moves};
   }
-  if(s.clocks[actor]!==null)s.clocks[actor]+=s.increment;
-  entry.clocks=s.clocks.slice();entry.elapsed=s.elapsed;
-  s.history.push(entry);s.revision++;
-  if(total(s.piles[actor])===0)s.ended={winner:actor,reason:'by playing every tile'};
-  const rule=timeOutSettings(s);
-  if(rule.timeOutRule&&s.elapsed>=rule.timeOutSeconds){const a=total(s.piles[0]),b=total(s.piles[1]),leader=a===b?null:a<b?0:1;s.streak=leader!==null&&leader===s.leader?s.streak+1:leader===null?0:1;s.leader=leader;if(!s.ended&&s.streak>=rule.timeOutMoves)s.ended={winner:leader,reason:'by the Time Out Rule'};}
-  s.turn=1-actor;s.lastTick=now;return entry;
 }
-
-// Expand the former board without moving a tile to a different coordinate.
-export function upgradeGameBoard(state){
-  // Earlier moves remain reviewable; resumed games use the current placement rule.
-  if([9,10,11,12,13,14].includes(state.rulesVersion)){
-    state={...state,rulesVersion:RULES_VERSION};
-    // A legacy failed attempt now completes its turn; do not grant another try.
-    if(state.challengeAttempt&&!state.ended){
-      const p=state.challengeAttempt,reverse=p.reverse??p.player===1,reading=challengeNumber(state,p.a,p.b,reverse);
-      if(p.player!==state.turn||!Array.isArray(p.attempts)||!p.attempts.length||p.attemptLimit!==Math.ceil(reading.cells.length/3)||p.attempts.length>=p.attemptLimit||p.digits!==reading.digits||JSON.stringify(p.cells)!==JSON.stringify(reading.cells)||!p.attempts.every(a=>{const c=challenge(state,p.a,p.b,a.factor,reverse);return a.success===false&&!c.success&&a.quotient===c.quotient&&a.remainder===c.remainder;}))throw Error('The saved challenge is invalid.');
-      const paused=state.paused;
-      state={...state,paused:false,challengeAttempt:null,clocks:state.clocks.slice(),history:state.history.slice()};
-      const entry=complete(state,{action:'challenge',a:p.a,b:p.b,reverse,factor:p.attempts.at(-1).factor},state.lastTick);
-      entry.attempts=p.attempts.map(a=>({...a}));state.paused=paused;
+/** The opening countdown starts neither player's clock until it finishes. */
+export function beginGameCountdown(s, now = Date.now()) {
+  if (s.started || s.ended || s.startCountdown)
+    throw Error("The game has already started.");
+  s.startCountdown = { finishAt: now + 3000 };
+  s.paused = false;
+  s.lastTick = now;
+  s.revision++;
+}
+export function finishGameCountdown(s, now = Date.now()) {
+  if (!s.startCountdown || now < s.startCountdown.finishAt) return false;
+  const start = s.startCountdown.finishAt;
+  delete s.startCountdown;
+  s.started = true;
+  s.paused = false;
+  s.lastTick = start;
+  s.revision++;
+  tick(s, now);
+  return true;
+}
+export function setRunning(s, running, now = Date.now()) {
+  if (s.startCountdown) throw Error("The game is starting.");
+  if (typeof running !== "boolean") throw Error("Choose start or pause.");
+  tick(s, now);
+  if (s.ended) throw Error("The game has ended.");
+  s.started = true;
+  s.paused = !running;
+  s.lastTick = now;
+  s.revision++;
+}
+function capture(s, at, by) {
+  const t = s.board[at];
+  s.captured[by].push({ ...t, at });
+  s.board[at] = null;
+}
+export function validateMove(s, move) {
+  const draft = clone(s);
+  draft.started = true;
+  draft.paused = false;
+  draft.clocks = [null, null];
+  applyMove(draft, move, 0);
+  return draft;
+}
+export function applyMove(s, move, now = Date.now()) {
+  if (!s.started || s.paused || s.ended)
+    throw Error("Start or resume the game first.");
+  tick(s, now);
+  if (s.ended) throw Error("Your clock has run out.");
+  const n = clone(s),
+    p = s.turn;
+  let detail = {};
+  if (!move || typeof move !== "object") throw Error("Choose a move.");
+  const take = (type) => {
+    if (
+      typeof type !== "string" ||
+      !Object.hasOwn(TYPE_MAP, type) ||
+      !Number.isInteger(n.reserves[p][type]) ||
+      n.reserves[p][type] < 1
+    )
+      throw Error("That tile is not available in your reserve.");
+    n.reserves[p][type]--;
+    return { id: n.nextId++, type, owner: p, face: "digit", rotation: 0 };
+  };
+  if (move.type === "drop") {
+    if (
+      !Number.isInteger(move.at) ||
+      move.at < 0 ||
+      move.at >= 225 ||
+      n.board[move.at]
+    )
+      throw Error("Choose an empty square.");
+    n.board[move.at] = take(move.tile);
+    detail = { at: move.at, tile: move.tile };
+  } else if (move.type === "claim") {
+    const result = claimPreview(n.board, move.tiles, p);
+    n.board = result.board;
+    detail = {
+      tiles: clone(move.tiles),
+      length: result.length,
+      number: segmentNumber(
+        n.board,
+        move.tiles.map((t) => t.at),
+      ),
+    };
+  } else if (move.type === "challenge") {
+    const number = validateSegment(n.board, move.path, 1 - p);
+    if (typeof move.factor !== "string" || !FACTOR_PATTERN.test(move.factor))
+      throw Error("Enter a positive whole-number factor.");
+    const factor = BigInt(move.factor),
+      value = BigInt(number);
+    if (factor <= 1n || factor >= value)
+      throw Error(
+        "The factor must be greater than 1 and smaller than the number.",
+      );
+    const fee = take(move.fee);
+    n.captured[1 - p].push(fee);
+    const success = value % factor === 0n,
+      removed = [];
+    if (success) {
+      for (const at of move.path) {
+        removed.push(at);
+        capture(n, at, p);
+      }
+      // Removing a leading zero can expose another zero or isolate an arrow.
+      for (;;) {
+        const g = graph(n.board);
+        const cleanup = n.board.flatMap((tile, at) =>
+          tile?.face === "arrow" &&
+          (g.degree(at) === 0 || isLeadingZero(n.board, g, at))
+            ? [at]
+            : [],
+        );
+        if (!cleanup.length) break;
+        for (const at of cleanup) {
+          removed.push(at);
+          capture(n, at, 1 - n.board[at].owner);
+        }
+      }
     }
-    state={...state,challengeAttempt:null};
+    detail = {
+      path: [...move.path],
+      number,
+      factor: factor.toString(),
+      fee: move.fee,
+      success,
+      removed,
+    };
+  } else if (move.type === "pass") {
+  } else throw Error("Choose Drop, Claim, Challenge or Pass.");
+  n.passCount = move.type === "pass" ? n.passCount + 1 : 0;
+  if (n.passCount === 2) {
+    const unclaimed = [];
+    for (let at = 0; at < 225; at++)
+      if (n.board[at]?.face === "digit") {
+        unclaimed.push(at);
+        capture(n, at, 1 - n.board[at].owner);
+      }
+    const points = scores(n);
+    n.ended = {
+      winner: points[0] === points[1] ? null : points[0] > points[1] ? 0 : 1,
+      reason: "passes",
+      scores: points,
+    };
+    detail.unclaimed = unclaimed;
   }
-  if(state.challengeAttempt===undefined)state={...state,challengeAttempt:null};
-  const size=Math.sqrt(state.board.length);
-  if(BOARD_SIZES.includes(size)){
-    if(state.boardSize!==undefined&&state.boardSize!==size)throw Error('The saved board dimensions do not match.');
-    if(state.taxed!==undefined&&(!Array.isArray(state.taxed)||state.taxed.length!==10||!state.taxed.every(n=>Number.isSafeInteger(n)&&n>=0)))throw Error('The saved taxation counts are invalid.');
-    return state.boardSize===size&&state.taxed!==undefined?state:{...state,boardSize:size,taxed:state.taxed??Array(10).fill(0)};
+  if (n.clocks[p] !== null) n.clocks[p] += n.increment;
+  n.turn = 1 - p;
+  n.lastTick = now;
+  n.revision++;
+  const event = {
+    player: p,
+    type: move.type,
+    ...detail,
+    command: clone(move),
+    clocks: [...n.clocks],
+    scores: scores(n),
+  };
+  n.history.push(event);
+  Object.assign(s, n);
+  return event;
+}
+export function resign(s, player, now = Date.now()) {
+  tick(s, now);
+  if (s.ended) return;
+  s.ended = { winner: 1 - player, reason: "resign", scores: scores(s) };
+  s.revision++;
+}
+export function reviewPosition(s, count) {
+  const first = s.history[0]?.player ?? s.turn,
+    r = newGame({ mode: s.mode, names: s.names, first }, 0);
+  r.started = true;
+  r.clocks = [null, null];
+  for (const e of s.history.slice(0, count)) {
+    applyMove(r, e.command, 0);
+    r.clocks = [null, null];
   }
-  const oldSize=state.board.length===100?10:null;
-  if(!oldSize)throw Error('This saved board size is unsupported.');
-  const remap=index=>Math.floor(index/oldSize)*BOARD_SIZE+index%oldSize;
-  const board=Array(BOARD_CELLS).fill(null);
-  state.board.forEach((digit,index)=>{board[remap(index)]=digit;});
-  return {...state,taxed:state.taxed??Array(10).fill(0),boardSize:BOARD_SIZE,board,lastCells:state.lastCells.map(remap),history:state.history.map(entry=>({
-    ...entry,...(entry.moves?{moves:entry.moves.map(move=>({...move,index:remap(move.index)}))}:{}),
-    ...(entry.cells?{cells:entry.cells.map(remap)}:{})
-  }))};
+  r.clocks = count
+    ? s.history[count - 1].clocks
+    : [...newGame({ mode: s.mode }).clocks];
+  return r;
 }
-
-// The host owns the review deadline. Catch up from that deadline if a timer runs late.
-export function beginChallengeReview(s,entry,now=Date.now()){
-  s.paused=true;s.lastTick=now;
-  return {...entry,revision:s.revision,resumeAt:now+3000};
-}
-export function finishChallengeReview(s,review,now=Date.now()){
-  if(!review||s.ended||!s.started||!s.paused||s.revision!==review.revision||now<review.resumeAt)return false;
-  s.paused=false;s.lastTick=review.resumeAt;s.revision++;tick(s,now);return true;
-}
-export function challengeReviewSeconds(review,now=Date.now()){
-  return Math.max(1,Math.ceil((review.resumeAt-now)/1000));
-}
-
-// No clock runs before the opening countdown; only its owner starts the game.
-export function beginGameCountdown(s,now=Date.now()){
-  if(s.started||s.ended)throw Error('Create a new game before starting the countdown.');
-  s.paused=false;s.lastTick=now;s.revision++;
-  s.startCountdown={revision:s.revision,resumeAt:now+3000};
-  return s.startCountdown;
-}
-export function finishGameCountdown(s,now=Date.now()){
-  const countdown=s.startCountdown;
-  if(!countdown||s.started||s.ended||s.revision!==countdown.revision||now<countdown.resumeAt)return false;
-  s.started=true;s.paused=false;s.lastTick=countdown.resumeAt;s.revision++;
-  delete s.startCountdown;tick(s,now);return true;
+/** Reject incompatible saves and malformed network snapshots before rendering. */
+export function isSupportedState(s) {
+  try {
+    if (
+      s?.rulesVersion !== RULES_VERSION ||
+      s.boardSize !== 15 ||
+      !Array.isArray(s.board) ||
+      s.board.length !== 225 ||
+      ![0, 1].includes(s.turn) ||
+      !Object.hasOwn(MODES, s.mode) ||
+      !Number.isInteger(s.revision) ||
+      s.revision < 0 ||
+      !Array.isArray(s.history) ||
+      s.history.length > 500 ||
+      typeof s.started !== "boolean" ||
+      typeof s.paused !== "boolean" ||
+      !Array.isArray(s.names) ||
+      s.names.length !== 2 ||
+      !s.names.every((n) => typeof n === "string" && n.length <= 24) ||
+      !Array.isArray(s.clocks) ||
+      s.clocks.length !== 2 ||
+      !s.clocks.every((c) => c === null || (Number.isFinite(c) && c >= 0)) ||
+      s.increment !== MODES[s.mode][1]
+    )
+      return false;
+    if (
+      !Array.isArray(s.reserves) ||
+      s.reserves.length !== 2 ||
+      !Array.isArray(s.captured) ||
+      s.captured.length !== 2 ||
+      ![0, 1, 2].includes(s.passCount) ||
+      !Number.isInteger(s.nextId) ||
+      s.nextId < 1 ||
+      !Number.isFinite(s.lastTick)
+    )
+      return false;
+    if (
+      s.startCountdown &&
+      (s.started || s.ended || !Number.isFinite(s.startCountdown.finishAt))
+    )
+      return false;
+    let count = 0;
+    const ids = new Set();
+    const validTile = (t) => {
+      if (
+        !t ||
+        typeof t.type !== "string" ||
+        !Object.hasOwn(TYPE_MAP, t.type) ||
+        ![0, 1].includes(t.owner) ||
+        !["digit", "arrow"].includes(t.face) ||
+        !Number.isInteger(t.rotation) ||
+        t.rotation < 0 ||
+        t.rotation > 3 ||
+        !Number.isInteger(t.id) ||
+        t.id < 1 ||
+        ids.has(t.id) ||
+        t.id >= s.nextId
+      )
+        return false;
+      ids.add(t.id);
+      count++;
+      return true;
+    };
+    const supplies = [inventory(), inventory()];
+    for (const t of s.board)
+      if (t) {
+        if (!validTile(t)) return false;
+        supplies[t.owner][t.type]--;
+      }
+    for (let p = 0; p < 2; p++) {
+      if (!s.captured[p].every((t) => validTile(t) && t.owner === 1 - p))
+        return false;
+      for (const t of s.captured[p]) supplies[t.owner][t.type]--;
+    }
+    for (let p = 0; p < 2; p++) {
+      for (const type of TYPES) {
+        const n = s.reserves[p][type.id];
+        if (
+          !Number.isInteger(n) ||
+          n < 0 ||
+          n > type.count ||
+          n !== supplies[p][type.id]
+        )
+          return false;
+      }
+    }
+    if (count > TILES_PER_PLAYER * 2 || s.nextId !== count + 1) return false;
+    if (
+      s.ended &&
+      (!["passes", "time", "resign"].includes(s.ended.reason) ||
+        ![0, 1, null].includes(s.ended.winner) ||
+        !Array.isArray(s.ended.scores) ||
+        s.ended.scores.length !== 2 ||
+        !s.ended.scores.every(
+          (n) => Number.isInteger(n) && n >= 0 && n <= TILES_PER_PLAYER * 2,
+        ))
+    )
+      return false;
+    const validCells = (cells) =>
+      Array.isArray(cells) &&
+      cells.length <= TILES_PER_PLAYER &&
+      cells.every((i) => Number.isInteger(i) && i >= 0 && i < 225);
+    const validRotations = (cells) =>
+      Array.isArray(cells) &&
+      cells.length >= 2 &&
+      cells.length <= TILES_PER_PLAYER &&
+      cells.every(
+        (t) =>
+          Number.isInteger(t.at) &&
+          t.at >= 0 &&
+          t.at < 225 &&
+          Number.isInteger(t.rotation) &&
+          t.rotation >= 0 &&
+          t.rotation < 4,
+      );
+    for (const e of s.history) {
+      if (
+        ![0, 1].includes(e.player) ||
+        !e.command ||
+        e.command.type !== e.type ||
+        !Array.isArray(e.clocks) ||
+        e.clocks.length !== 2 ||
+        !e.clocks.every((n) => n === null || (Number.isFinite(n) && n >= 0))
+      )
+        return false;
+      if (e.type === "drop") {
+        if (
+          !Object.hasOwn(TYPE_MAP, e.tile) ||
+          !Number.isInteger(e.at) ||
+          e.at < 0 ||
+          e.at >= 225 ||
+          e.command.at !== e.at ||
+          e.command.tile !== e.tile
+        )
+          return false;
+      } else if (e.type === "claim") {
+        if (
+          !validRotations(e.tiles) ||
+          !validRotations(e.command.tiles) ||
+          !Number.isInteger(e.length) ||
+          e.length < 9
+        )
+          return false;
+      } else if (e.type === "challenge") {
+        if (
+          !validCells(e.path) ||
+          e.path.length < 2 ||
+          !validCells(e.removed) ||
+          !Object.hasOwn(TYPE_MAP, e.fee) ||
+          typeof e.success !== "boolean" ||
+          typeof e.number !== "string" ||
+          !NUMBER_PATTERN.test(e.number) ||
+          typeof e.factor !== "string" ||
+          !FACTOR_PATTERN.test(e.factor) ||
+          BigInt(e.factor) <= 1n ||
+          BigInt(e.factor) >= BigInt(e.number) ||
+          !validCells(e.command.path) ||
+          typeof e.command.factor !== "string" ||
+          !FACTOR_PATTERN.test(e.command.factor) ||
+          !Object.hasOwn(TYPE_MAP, e.command.fee)
+        )
+          return false;
+      } else if (e.type !== "pass") return false;
+    }
+    const g = graph(s.board);
+    return (
+      !hasCycle(g) &&
+      s.board.every(
+        (t, i) =>
+          t?.face !== "arrow" ||
+          (g.degree(i) > 0 && !isLeadingZero(s.board, g, i)),
+      )
+    );
+  } catch {
+    return false;
+  }
 }

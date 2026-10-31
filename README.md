@@ -1,70 +1,44 @@
-# Primeria: How to Play
+# Primeria
 
-Primeria is a two-player board game invented by [Yunhai Xiang](https://yunhaimath.com/) which combines clever strategies with quick mental arithmetic skills. The name of the game is a reference to [prime numbers](https://en.wikipedia.org/wiki/Prime_number), which are natural numbers greater than 1 that cannot be factored into the product of two smaller natural numbers: for example 2, 3, 5, and 7.
+A two-player game of paths and primes, invented by [Yunhai Xiang](https://yunhaimath.com/).
 
-[Click here to play](https://yunhaixiang.github.io/primeria/).
+[Play Primeria](https://yunhaixiang.github.io/primeria/) · [How to play](howtoplay.md)
 
-For a physical set, see the [cutout folder](cutout/), which contains printable A2 boards in all four sizes, rounded tiles, and tile plates. The [printing instructions](cutout/README.md) explain the paper sizes, materials, and cutting process.
+Each player has 58 owned, double-sided tiles on a 15 × 15 board. Drop digit tiles, flip them into directed paths, and challenge an opponent’s segment by giving a factor of its number. Regular tiles bend or continue; junctions branch. Each digit has one arrow type: 0 bends left, 5 bends right, 2/4/6/8 are straight, and 1/3/7/9 are junctions. A claimed number cannot lead with 0; zeros exposed at the leading end after a capture are also captured. Two consecutive passes end the game. Claimed tiles and captured opponent tiles score; unclaimed tiles are surrendered.
 
-## Set-up
+The classic green board and compact interface use ivory tiles with blue and orange ownership colours. Both faces have aligned digits in all four corners. Unclaimed tiles show a small, tilted, solid route indicator at half opacity; claimed tiles show a large arrow aligned to the grid. The factor keypad shares the tile finish and digit style. Rotate the board for either seat. The virtual board previews arrow orientations and the exact number of a selected segment.
 
-The game is played on a square board with 9 × 9, 11 × 11, 13 × 13, or 15 × 15 squares. Each player starts with a pile of 36 tiles labelled with digits 0 ~ 9. Each player gets 2 copies of 0 and 5 each, 3 copies of 2, 4, 6, and 8 each, and 5 copies of 1, 3, 7, and 9 each.
+## Play
 
-## Moves
+- **One device:** share the board and visible reserves. Toggle **Split view** for opposite-facing player controls, with a separate clock, reserve, move controls and journal for each seat. The view adapts to phones and remembers your preference.
+- **Computer:** choose a bounded search budget. This experimental opponent checks elementary divisors immediately and verifies every proposed factor exactly. Its strength has not been calibrated against human players.
+- **Online:** use **Play online** to create an invitation and send it to a friend. Keep the host tab open. PeerJS signalling requires an internet connection; some restrictive networks may prevent a peer connection. The host validates moves and owns the clock.
 
-During the game, tiles will be placed on the squares. Two tiles are **adjacent** if their squares share an edge. Diagonal contact does not count. A tile is **isolated** if it has no adjacent tiles. By a **number**, we mean a number formed by a complete uninterrupted horizontal or vertical run of one or more tiles, viewed from any direction: top to bottom, bottom to top, left to right, or right to left.
+Time controls are Blitz 10+10, Rapid 20+20, Standard 30+30, Classical 45+60, and Casual without a clock. The numbers are minutes initially and seconds added after each turn. Local games are saved automatically and reopen paused. Completed games support turn-by-turn review and a downloadable JSON record.
 
-Players take turns making moves. Flip a coin to decide which player plays first. At each turn, the player chooses from one of three kinds of moves.
+## Development
 
-1. **Single Drop**: Place one tile on any empty square.
+No build framework or external package dependencies are required. Use a current Node.js version and Python 3.
 
-2. **Double Down**: Place two tiles, one at a time. Each tile must be placed adjacent to a tile already on the board when it is placed. After the move, both new tiles must belong to the same complete uninterrupted horizontal or vertical run.
+```sh
+npm test
+npm start
+```
 
-3. **Challenge**: Declare a number on the board to *challenge*: a challenge consists of proposing a factor of the number, other than 1 or itself, and then verifying it with a calculator (verification is automatic on a virtual board).
+Open `http://localhost:4173`. All fonts and the PeerJS client are bundled locally. The online connection service is the only remote runtime dependency.
 
-    - If challenge succeeds: the number is removed from the board. Its first and last tiles are discarded, and all remaining tiles are put into the opponent’s pile. Discarded tiles are removed from play and placed in neither player’s pile.
+Run `npm run assets` after interface changes to refresh the browser asset revision; `npm start` and the publishing workflow also do this automatically.
 
-    - If challenge fails: the number remains on the board, no tile is placed this turn, and the game moves on to the next turn.
+`howtoplay.md` is the rules source. After editing it, run `npm run rules` to update `rules-content.js`, shared by the in-game rulebook and `how-to-play.html`.
 
-**Special Rule for Zero**: At the end of a turn, no 0-tile may be isolated or lie at either end of any number. If removing tiles in a successful Challenge leaves a 0-tile isolated or at either end of any number, immediately remove it from the board and discard it.
+```sh
+npm run simulate -- --games 1 --seed 42
+```
 
-## Winning
+Simulation records contain every legal command, exact challenge arithmetic, final scores and an ASCII board. Simulation thinking budgets are computational budgets, not measured human thinking times. Simulations use Casual mode so timing does not distort rules testing.
 
-There are three ways to win a game (and one optional way).
+The current rules use a separate save format and online protocol from the earlier anchor game. Earlier browser saves remain untouched and are not loaded as current games.
 
-1. Clear-out: a player wins by playing all the tiles in their pile.
+## Printed materials
 
-2. Time: a player wins by their opponent running out of time.
-
-3. Resignation: a player wins by their opponent resigning the game.
-
-4. (Optional Rule) Tie-breaker: Once the selected time limit is reached, a player wins if they have fewer tiles than their opponent at the end of each of 10 consecutive completed turns, counting both players’ turns. Equal pile sizes reset the count.
-
-## Time Controls
-
-Players can choose one of the following time controls.
-
-| Mode | Time per player | Increment per turn |
-| --- | --- | --- |
-| Blitz | 10 minutes | 10 seconds |
-| Rapid | 20 minutes | 20 seconds |
-| Standard | 30 minutes | 30 seconds |
-| Classical | 45 minutes | 60 seconds |
-
-## Tips
-
-The following divisibility tests can help you find factors quickly:
-
-1. A number is a multiple of 2 if and only if it ends in 0, 2, 4, 6, or 8.
-
-2. A number is a multiple of 5 if and only if it ends in 0 or 5.
-
-3. A number is a multiple of 3 if and only if the sum of its digits is a multiple of 3.
-
-4. A number is a multiple of 7 if and only if subtracting 3 times its last two digits from the number formed by the remaining digits gives a multiple of 7.
-
-5. A number is a multiple of 11 if and only if the alternating sum of its digits is a multiple of 11.
-
-6. A number is a multiple of 13 if and only if subtracting 9 times its last digit from the number formed by the remaining digits gives a multiple of 13.
-
-7. A number is a multiple of 7, 11, or 13 if and only if the alternating sum of its three-digit blocks, formed starting from the ones digit, is a multiple of 7, 11, or 13, respectively.
+The existing `cutout/` PDFs are historical materials for earlier rules. They are not the current 58-tile double-sided set. See [the current supply](howtoplay.md#setup) before making physical tiles.

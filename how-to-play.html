@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="theme-color" content="#f6f3eb" />
+    <title>How to play · Primeria</title>
+    <link rel="icon" href="favicon.svg?v=78502c4ec6" />
+    <link rel="stylesheet" href="styles.css?v=78502c4ec6" />
+  </head>
+  <body>
+    <main class="rule-page">
+      <div class="rule-page-header">
+        <strong>Primeria</strong><a href="./">← Back to the board</a>
+      </div>
+      <p class="eyebrow">A GAME OF PATHS & PRIMES</p>
+      <div class="rule-intro" id="rule-intro"></div>
+      <article id="rulebook" class="rules-copy"></article>
+      <noscript
+        ><p>Read the <a href="howtoplay.md">complete rulebook</a>.</p></noscript
+      >
+    </main>
+    <footer class="site-footer">
+      <span>Strategy, with a little number sense.</span
+      ><a href="./">Return to the board ↗</a>
+    </footer>
+    <script type="module">
+      import { RULES_HTML } from "./rules-content.js?v=78502c4ec6";
+      import { tileHTML } from "./tiles.js?v=78502c4ec6";
+      document.querySelector("#rulebook").innerHTML = RULES_HTML;
+      document.querySelector("#rule-intro").innerHTML =
+        tileHTML({ type: "r0", owner: 0, face: "digit", rotation: 0 }) +
+        tileHTML({ type: "j1", owner: 1, face: "arrow", rotation: 1 }) +
+        "<p>Build with digits. Flip them into paths.<br>Challenge a factor to capture an opponent’s segment.</p>";
+    </script>
+  </body>
+</html>

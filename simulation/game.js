@@ -1,25 +1,71 @@
-import assert from 'node:assert/strict';
-import * as engine from '../engine.js';
-import {ARITHMETIC_MODEL,SEARCH_MODEL,createBot} from '../bot.js';
-
-// Use the same engine, arithmetic and planner as the playable bot.
-export function simulateGame({size=11,seed=1,first=0,strengths=['intermediate','intermediate'],maxMoves=1000}={}){
- const state=engine.newGame({boardSize:size,mode:'rapid',first,timeOutRule:false},0);state.started=true;
- if(!Array.isArray(strengths)||strengths.length!==2)throw Error('Choose two bot strengths.');
- if(!Number.isInteger(maxMoves)||maxMoves<1)throw Error('Choose a positive move limit.');
- const bots=strengths.map((strength,seat)=>createBot({size,seed,seat,strength}));
- const counts={single:0,double:0,challenge:0};let now=0,decisions=0,challengeAttempts=0,reviewPauses=0;
- while(!state.ended&&state.history.length<maxMoves&&decisions<maxMoves*2){
-  const plan=bots[state.turn].choose(state);decisions++;
-  if(!plan.command)break;
-  now+=plan.seconds*1000;
-  const before=state.history.length;let entry;
-  try{entry=engine.complete(state,plan.command,now);}catch(error){if(state.ended?.reason==='on time')break;throw error;}
-  if(plan.command.action==='challenge')challengeAttempts++;
-  if(state.history.length>before)counts[entry.action]++;
-  for(let d=0;d<10;d++)assert.equal(state.piles[0][d]+state.piles[1][d]+state.taxed[d]+state.board.filter(n=>n===d).length,2*engine.PILE[d]);
-  if(entry.action==='challenge'&&!state.ended){reviewPauses++;const review=engine.beginChallengeReview(state,entry,now);now+=3000;engine.finishChallengeReview(state,review,now);}
- }
- assert.equal(Object.values(counts).reduce((a,b)=>a+b,0),state.history.length);
- return {arithmeticModel:ARITHMETIC_MODEL,searchModel:SEARCH_MODEL,rulesVersion:engine.RULES_VERSION,size,seed,first,strengths,finished:!!state.ended,ending:state.ended,moves:state.history.length,counts,challengeAttempts,reviewPauses,thinkingSeconds:state.elapsed,modelSeconds:now/1000+3,remaining:state.piles.map(engine.total)};
+import {
+  newGame,
+  applyMove,
+  isSupportedState,
+  scores,
+  TYPE_MAP,
+  reviewPosition,
+} from "../engine.js";
+import { createBot } from "../bot.js";
+export function simulate({
+  seed = 1,
+  strength = "intermediate",
+  maxTurns = 240,
+} = {}) {
+  const state = newGame(
+    { mode: "casual", names: ["Ada", "Emmy"], first: seed % 2 },
+    0,
+  );
+  state.started = true;
+  const bots = [
+    createBot({ seed: seed * 2 + 11, strength }),
+    createBot({ seed: seed * 2 + 19, strength }),
+  ];
+  const analysis = [];
+  while (!state.ended && state.history.length < maxTurns) {
+    const result = bots[state.turn].choose(state);
+    const event = applyMove(state, result.command, 0);
+    analysis.push(result.analysis);
+    if (!isSupportedState(state))
+      throw Error(`Invalid state after turn ${state.history.length}`);
+    if (
+      event.type === "challenge" &&
+      event.success !== (BigInt(event.number) % BigInt(event.factor) === 0n)
+    )
+      throw Error("Arithmetic mismatch.");
+  }
+  if (!state.ended)
+    throw Error(
+      `Search exceeded ${maxTurns} turns; no result has been invented.`,
+    );
+  const replay = reviewPosition(state, state.history.length);
+  if (
+    JSON.stringify(replay.board) !== JSON.stringify(state.board) ||
+    JSON.stringify(replay.captured) !== JSON.stringify(state.captured)
+  )
+    throw Error("Replay mismatch.");
+  const board = Array.from({ length: 15 }, (_, r) =>
+    Array.from({ length: 15 }, (_, c) => {
+      const t = state.board[r * 15 + c];
+      return t
+        ? `${t.owner === 0 ? "B" : "O"}${TYPE_MAP[t.type].digit}${t.face === "arrow" ? "*" : " "}`
+        : " . ";
+    }).join(" "),
+  ).join("\n");
+  return {
+    seed,
+    strength,
+    scores: scores(state),
+    turns: state.history.length,
+    winner: state.ended.winner,
+    moves: Object.fromEntries(
+      ["drop", "claim", "challenge", "pass"].map((type) => [
+        type,
+        state.history.filter((m) => m.type === type).length,
+      ]),
+    ),
+    board,
+    analysis,
+    state,
+  };
 }

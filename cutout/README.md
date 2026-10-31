@@ -1,6 +1,8 @@
-# Primeria cutout kit
+# Historical Primeria cutout kit
 
-Single-sheet A2 boards for every supported game size: 9 x 9, 11 x 11, 13 x 13, and 15 x 15. The kit also includes a reusable 36-tile sheet and a uniform tile plate with an attached extra-tile row. Print the tile sheet and tile plate twice for two players (72 tiles total). Colors and tile quantities come from the website's current `styles.css` and `engine.js`.
+These PDFs and their generator describe an earlier version of Primeria. They do **not** match the current owned, double-sided 58-tile game. Use [the current rules](../howtoplay.md) for the supply and arrow types. The materials below are retained as historical design files.
+
+Single-sheet A2 boards for every supported game size: 9 x 9, 11 x 11, 13 x 13, and 15 x 15. The kit also includes a reusable 36-tile sheet and a uniform tile plate with an attached extra-tile row. Print the tile sheet and tile plate twice for two players (72 tiles total). The colours and quantities reflect the earlier rules.
 
 ## Files
 
@@ -43,4 +45,4 @@ Each player's starting pile has 2 copies each of 0 and 5; 3 each of 2, 4, 6, and
 
 ## Regenerating
 
-From the repository root, run `python3 cutout/generate.py` with ReportLab installed. The generator uses the bundled website fonts and current digit colors. All artwork is vector-based with embedded fonts.
+From the repository root, run `python3 cutout/generate.py` with ReportLab installed. The generator expects the earlier engine and digit-colour constants and must be adapted before regenerating current materials. All artwork is vector-based with embedded fonts.
