@@ -7,8 +7,8 @@ import {
   validateMove,
   claimPreview,
   scores,
-} from "./engine.js?v=78502c4ec6";
-import { orientationsFor, orientPath } from "./paths.js?v=78502c4ec6";
+} from "./engine.js?v=de4dc0085b";
+import { orientationsFor, orientPath } from "./paths.js?v=de4dc0085b";
 export const BOT_LEVELS = {
   beginner: "Gentle",
   intermediate: "Thoughtful",

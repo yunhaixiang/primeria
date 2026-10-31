@@ -1,4 +1,4 @@
-import { direction, claimPreview, ports } from "./engine.js?v=78502c4ec6";
+import { direction, claimPreview, ports } from "./engine.js?v=de4dc0085b";
 /** Orient a clicked sequence automatically, keeping its physical arrow types. */
 export function orientPath(board, path, owner) {
   if (!path.length) return [];

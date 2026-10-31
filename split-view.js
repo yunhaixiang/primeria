@@ -4,12 +4,12 @@ import {
   MODES,
   total,
   scores,
-} from "./engine.js?v=78502c4ec6";
+} from "./engine.js?v=de4dc0085b";
 import {
   tileHTML,
   factorKeyHTML,
   escapeHTML as escape,
-} from "./tiles.js?v=78502c4ec6";
+} from "./tiles.js?v=de4dc0085b";
 
 export function splitPermissions(
   state,

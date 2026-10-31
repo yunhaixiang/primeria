@@ -1,4 +1,4 @@
-import { TYPE_MAP } from "./engine.js?v=78502c4ec6";
+import { TYPE_MAP } from "./engine.js?v=de4dc0085b";
 export const escapeHTML = (s) =>
   String(s).replace(
     /[&<>"']/g,
@@ -12,12 +12,13 @@ export function routeSVG(type, rotation = 0) {
   const t = TYPE_MAP[type];
   let paths = "";
   for (const d of t.exits) {
+    // The 11-unit rounded shaft ends at 95, matching the outlined head's inset.
     const shaft =
       d === 0
-        ? "M50 94V24"
+        ? "M50 89.5V24"
         : d === 1
-          ? "M50 94V64Q50 50 64 50H76"
-          : "M50 94V64Q50 50 36 50H24";
+          ? "M50 89.5V64Q50 50 64 50H76"
+          : "M50 89.5V64Q50 50 36 50H24";
     const head =
       d === 0
         ? "M38 25 50 6 62 25Z"

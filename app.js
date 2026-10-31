@@ -23,25 +23,25 @@ import {
   reviewPosition,
   isSupportedState,
   clone,
-} from "./engine.js?v=78502c4ec6";
+} from "./engine.js?v=de4dc0085b";
 import {
   tileHTML,
   factorKeyHTML,
   tileLabel,
   escapeHTML as esc,
-} from "./tiles.js?v=78502c4ec6";
-import { orientPath } from "./paths.js?v=78502c4ec6";
+} from "./tiles.js?v=de4dc0085b";
+import { orientPath } from "./paths.js?v=de4dc0085b";
 import {
   extendChallenge,
   challengeReady,
-} from "./challenge-selection.js?v=78502c4ec6";
-import { gameResult } from "./review.js?v=78502c4ec6";
-import { RULES_HTML } from "./rules-content.js?v=78502c4ec6";
+} from "./challenge-selection.js?v=de4dc0085b";
+import { gameResult } from "./review.js?v=de4dc0085b";
+import { RULES_HTML } from "./rules-content.js?v=de4dc0085b";
 import {
   logicalIndex as boardIndex,
   boardLabels,
-} from "./board-view.js?v=78502c4ec6";
-import { splitPanelHTML, splitPermissions } from "./split-view.js?v=78502c4ec6";
+} from "./board-view.js?v=de4dc0085b";
+import { splitPanelHTML, splitPermissions } from "./split-view.js?v=de4dc0085b";
 const $ = (s) => document.querySelector(s),
   $$ = (s) => [...document.querySelectorAll(s)];
 const SAVE = `primeria.owned-paths.v${RULES_VERSION}`,
@@ -1463,7 +1463,7 @@ function updateBot() {
       cancelBot();
       botJob = id;
       worker = new Worker(
-        new URL("./bot-worker.js?v=78502c4ec6", import.meta.url),
+        new URL("./bot-worker.js?v=de4dc0085b", import.meta.url),
         {
           type: "module",
         },
