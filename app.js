@@ -12,7 +12,7 @@ import {
   direction,
   graph,
   isEndpoint,
-  claimPreview,
+  validateMove,
   segments,
   segmentNumber,
   applyMove,
@@ -26,36 +26,33 @@ import {
   reviewPosition,
   isSupportedState,
   clone,
-} from "./engine.js?v=1d923cf797";
+} from "./engine.js?v=b0fb62c34b";
 import {
   tileHTML,
   factorKeyHTML,
   tileLabel,
   escapeHTML as esc,
-} from "./tiles.js?v=1d923cf797";
-import { orientTree } from "./paths.js?v=1d923cf797";
+} from "./tiles.js?v=b0fb62c34b";
 import {
   extendChallenge,
   challengeReady,
-} from "./challenge-selection.js?v=1d923cf797";
-import { gameResult } from "./review.js?v=1d923cf797";
-import { RULES_HTML } from "./rules-content.js?v=1d923cf797";
+} from "./challenge-selection.js?v=b0fb62c34b";
+import { gameResult } from "./review.js?v=b0fb62c34b";
+import { RULES_HTML } from "./rules-content.js?v=b0fb62c34b";
 import {
   logicalIndex as boardIndex,
   boardLabels,
-  boardHomeEdges,
-} from "./board-view.js?v=1d923cf797";
-import { splitPanelHTML, splitPermissions } from "./split-view.js?v=1d923cf797";
+} from "./board-view.js?v=b0fb62c34b";
+import { splitPanelHTML, splitPermissions } from "./split-view.js?v=b0fb62c34b";
 const $ = (s) => document.querySelector(s),
   $$ = (s) => [...document.querySelectorAll(s)];
 const SAVE = `primeria.owned-paths.v${RULES_VERSION}`,
-  ONLINE = 18;
+  ONLINE = 21;
 let state = newGame(),
   action = "drop",
-  selected = "j1",
+  selected = "r4",
   dropAt = null,
-  claim = [],
-  editing = null,
+  dropRotation = 0,
   path = [],
   factor = "",
   rotation = 0,
@@ -154,13 +151,14 @@ function permitted() {
 function reset() {
   if (action === "challenge" && state.challengeUsed) action = "drop";
   dropAt = null;
-  claim = [];
-  editing = null;
+  dropRotation = 0;
   path = [];
   factor = "";
   if (!state.reserves[viewer()][selected])
     selected =
-      TYPES.find((t) => state.reserves[viewer()][t.id] > 0)?.id ?? "j1";
+      TYPES.find((t) => state.reserves[viewer()][t.id] > 0)?.id ?? "r4";
+  if (TYPE_MAP[selected]?.kind === "fork" && !state.board.some(t => t?.owner === viewer()))
+    selected = TYPES.find(t => t.kind !== "fork" && state.reserves[viewer()][t.id] > 0)?.id ?? selected;
 }
 function formatTime(seconds) {
   if (seconds === null) return "∞";
@@ -196,7 +194,7 @@ function renderPlayers() {
   $("#players").innerHTML = [0, 1]
     .map(
       (p) =>
-        `<div class="player owner-${p} ${!s.ended && s.turn === p ? "active" : ""}"><div><div class="player-name"><span class="player-dot"></span>${esc(s.names[p])}</div><div class="player-meta" title="${breakdown[p].eligible} scoring claimed tiles; ${breakdown[p].captured} captured tiles; ${breakdown[p].growing} tiles below nine go to the opponent at the end">${points[p]} points · ${breakdown[p].eligible} claimed · ${breakdown[p].captured} captured${breakdown[p].growing ? ` · ${breakdown[p].growing} below nine` : ""}</div></div><span class="clock" data-clock="${p}">${formatTime(s.clocks[p])}</span></div>`,
+        `<div class="player owner-${p} ${!s.ended && s.turn === p ? "active" : ""}"><div><div class="player-name"><span class="player-dot"></span>${esc(s.names[p])}</div><div class="player-meta" title="${breakdown[p].eligible} scoring board tiles; ${breakdown[p].captured} captured tiles; ${breakdown[p].growing} tiles in groups below nine; ${breakdown[p].unfinished} unfinished tiles go to the opponent at the end">${points[p]} points · ${breakdown[p].eligible} scoring tiles · ${breakdown[p].captured} captured${breakdown[p].growing ? ` · ${breakdown[p].growing} below nine` : ""}${breakdown[p].unfinished ? ` · ${breakdown[p].unfinished} unfinished` : ""}</div></div><span class="clock" data-clock="${p}">${formatTime(s.clocks[p])}</span></div>`,
     )
     .join("");
   renderClocks();
@@ -210,56 +208,32 @@ function renderBoard() {
     allowed = permitted(),
     g = graph(s.board),
     indices =
-      action === "claim"
-        ? claim.map((t) => t.at)
-        : action === "challenge"
+      action === "challenge"
           ? path
           : dropAt !== null
             ? [dropAt]
             : [];
   document.documentElement.style.setProperty("--board-size", BOARD_SIZE);
   $("#board").setAttribute("aria-label", `${BOARD_SIZE} by ${BOARD_SIZE} Primeria board`);
-  const labels = boardLabels(rotation), home = boardHomeEdges(rotation);
-  $(".board-shell").dataset.horizontalHome = home.columns;
-  $("#columns").innerHTML = labels.columns
-    .map((x) => `<span class="home-edge home-${home.columns}" title="${home.columns === 0 ? "Blue" : "Orange"} home edge">${x}</span>`)
-    .join("");
-  $("#rows").innerHTML = labels.rows.map((x) => `<span class="home-edge home-${home.rows}" title="${home.rows === 0 ? "Blue" : "Orange"} home edge">${x}</span>`).join("");
+  const labels = boardLabels(rotation);
+  $("#columns").innerHTML = labels.columns.map((x) => `<span>${x}</span>`).join("");
+  $("#rows").innerHTML = labels.rows.map((x) => `<span>${x}</span>`).join("");
   $("#columns-bottom").innerHTML = $("#columns").innerHTML;
   $("#rows-right").innerHTML = $("#rows").innerHTML;
-  for (const [id, owner] of [
-    ["columns", home.columns], ["columns-bottom", home.columns],
-    ["rows", home.rows], ["rows-right", home.rows],
-  ]) {
-    const rail = $("#" + id), label = `${owner === 0 ? "Blue" : "Orange"} home`;
-    rail.dataset.homeOwner = owner;
-    rail.dataset.homeLabel = label;
-    rail.setAttribute("aria-label", label + " edge");
-  }
-  $(".home-edge-legend").textContent = home.columns === 0
-    ? "Blue home: top & bottom · Orange home: left & right"
-    : "Orange home: top & bottom · Blue home: left & right";
   const last = state.history.at(-1);
   const lastCells =
     last?.type === "drop"
       ? [last.at]
-      : last?.type === "claim"
-        ? last.tiles.map((t) => t.at)
-        : (last?.path ?? []);
+      : (last?.path ?? []);
   $("#board").innerHTML = Array.from({ length: BOARD_CELLS }, (_, visual) => {
     const i = logicalIndex(Math.floor(visual / BOARD_SIZE), visual % BOARD_SIZE),
       actual = s.board[i],
-      draft = claim.find((t) => t.at === i),
-      tile = draft
-        ? { ...actual, face: "arrow", rotation: draft.rotation }
-        : actual,
+      tile = actual,
       order = indices.indexOf(i);
     let next = false,
       clickable = false;
     if (allowed) {
       if (action === "drop") clickable = !actual;
-      else if (action === "claim")
-        clickable = actual?.owner === owner && actual.face === "digit";
       else if (action === "challenge") {
         clickable = actual?.owner === 1 - owner && actual.face === "arrow";
         next =
@@ -273,13 +247,13 @@ function renderBoard() {
     const renderedTile = tile
       ? { ...tile, rotation: (tile.rotation + rotation) % 4 }
       : null;
-    return `<button class="square ${(Math.floor(i / BOARD_SIZE) + (i % BOARD_SIZE)) % 2 ? "alt" : ""} ${actual ? "occupied" : "empty"} owner-${actual?.owner ?? owner} ${order >= 0 ? "selected" : ""} ${next ? "path-next" : ""} ${lastCells.includes(i) ? "last-move" : ""} ${editing === i ? "inspect" : ""}" data-at="${i}" data-order="${order + 1}" aria-label="${esc(label)}" title="${esc(label)}" ${clickable ? "" : "disabled"}>${renderedTile ? tileHTML(renderedTile) : allowed && action === "drop" && TYPE_MAP[selected] ? tileHTML({ type: selected, owner, face: "digit", rotation: 0 }).replace('class="tile', 'class="tile ghost') : ""}</button>`;
+    return `<button class="square ${(Math.floor(i / BOARD_SIZE) + (i % BOARD_SIZE)) % 2 ? "alt" : ""} ${actual ? "occupied" : "empty"} owner-${actual?.owner ?? owner} ${order >= 0 ? "selected" : ""} ${next ? "path-next" : ""} ${lastCells.includes(i) ? "last-move" : ""} " data-at="${i}" data-order="${order + 1}" aria-label="${esc(label)}" title="${esc(label)}" ${clickable ? "" : "disabled"}>${renderedTile ? tileHTML(renderedTile) : allowed && action === "drop" && TYPE_MAP[selected] ? tileHTML({ type: selected, owner, face: "arrow", rotation: (dropRotation + rotation) % 4 }).replace('class="tile', 'class="tile ghost') : ""}</button>`;
   }).join("");
 }
 function reserveHTML(p, interactive, display = shown()) {
   return TYPES.map(
     (t) =>
-      `<button class="reserve-tile owner-${p} ${interactive && selected === t.id ? "active" : ""}" data-tile="${t.id}" ${!interactive || !display.reserves[p][t.id] ? "disabled" : ""} aria-label="${t.digit}, ${t.label}, ${display.reserves[p][t.id]} remaining" title="${t.digit} · ${t.label}">${tileHTML({ type: t.id, owner: p, face: "digit", rotation: 0 })}<span class="count">×${display.reserves[p][t.id]}</span></button>`,
+      `<button class="reserve-tile owner-${p} ${interactive && selected === t.id ? "active" : ""}" data-tile="${t.id}" ${!interactive || !display.reserves[p][t.id] ? "disabled" : ""} aria-label="${t.digit}, ${t.label}, ${display.reserves[p][t.id]} remaining" title="${t.digit} · ${t.label}">${tileHTML({ type: t.id, owner: p, face: "arrow", rotation: dropRotation })}<span class="count">×${display.reserves[p][t.id]}</span></button>`,
   ).join("");
 }
 function renderReserve() {
@@ -289,7 +263,7 @@ function renderReserve() {
     `${state.names[p]}’s reserve`;
   $("#reserve-total").textContent = `${total(display.reserves[p])} tiles`;
   $("#reserve-caption").textContent =
-    "Small arrows are unclaimed. Large arrows are claimed.";
+    "Rotate your tile before placing it. Press R to turn it.";
   $("#reserve").innerHTML = reserveHTML(
     p,
     permitted() && action === "drop",
@@ -298,39 +272,22 @@ function renderReserve() {
   $("#opponent-total").textContent = `${total(display.reserves[1 - p])} tiles`;
 }
 function draftStatus() {
-  if (action === "drop")
-    return {
-      okay: dropAt !== null && state.reserves[viewer()][selected] > 0,
-      text:
-        dropAt !== null
-          ? `Ready to place ${TYPE_MAP[selected].digit} at ${coordinate(dropAt)}.`
-          : "Select an empty square on the board.",
-    };
-  if (action === "claim") {
+  if (action === "drop") {
+    if (dropAt === null) return { okay: false, text: "Select an empty square and choose an arrow direction." };
     try {
-      const p = claimPreview(state.board, claim, viewer());
-      return {
-        okay: true,
-        text: `Legal claim · ${p.length}-tile group${p.length < 9 ? " · needs 9 to survive the endgame" : " · scores points"}.`,
-      };
-    } catch (e) {
-      return {
-        okay: false,
-        text: claim.length
-          ? e.message
-          : "Select at least two unclaimed tiles to connect, including branches.",
-      };
-    }
+      validateMove(state, { type: "drop", at: dropAt, tile: selected, rotation: dropRotation });
+      return { okay: true, text: `Ready to place ${TYPE_MAP[selected].digit} at ${coordinate(dropAt)}.` };
+    } catch (error) { return { okay: false, text: error.message }; }
   }
   if (action === "challenge") {
-    if (state.challengeUsed) return { okay: false, text: "Challenge already attempted. Choose Drop, Claim or Pass." };
+    if (state.challengeUsed) return { okay: false, text: "Challenge already attempted. Choose Drop or Pass." };
     const result = challengeReady(state.board, path, 1 - viewer());
     if (result.error)
       return {
         okay: false,
         text: path.length
           ? result.error
-          : "Choose a junction or end tile, then follow its arrows.",
+          : "Choose a junction tile, then follow its arrows.",
       };
     if (!/^\d+$/.test(factor) || factor.length > TILES_PER_PLAYER)
       return { okay: false, text: "Enter the factor you want to test." };
@@ -347,7 +304,7 @@ function draftStatus() {
   return {
     okay: true,
     text: state.passCount && !state.challengeSucceeded
-      ? "A second consecutive pass ends the game. Unclaimed tiles and groups below nine are captured by the opponent."
+      ? "A second consecutive pass ends the game. Regular tiles outside segments and groups below nine are captured by the opponent."
       : "Passing leaves your reserve untouched.",
   };
 }
@@ -372,8 +329,6 @@ function renderFeedback() {
             ? "Waiting for opponent…"
             : action === "drop"
               ? "Place tile"
-              : action === "claim"
-                ? `Claim ${claim.length || ""} tiles`
                 : action === "challenge"
                   ? "Test factor"
                   : state.passCount && !state.challengeSucceeded
@@ -459,6 +414,7 @@ function renderSplit() {
       reviewAt,
       result: gameResult(state),
       journal: state.history.map(entryText),
+      dropRotation,
       role,
       connected: !!connection?.open,
       networkLost,
@@ -576,14 +532,14 @@ for (const panel of $$(".split-player-panel")) {
     } else if (command === "clear") {
       reset();
       render();
-    } else if (command === "align") $("#auto-orient")?.click();
+    } else if (command === "rotate") rotateDrop(Number(button.dataset.value));
     else if (command === "factor" || command === "delete") {
       factor =
         command === "delete"
           ? factor.slice(0, -1)
           : (factor + button.dataset.value).slice(0, TILES_PER_PLAYER);
       renderControls();
-    } else if (button.matches("[data-edit],[data-rotate]"))
+    } else if (button.matches("[data-rotate]"))
       $("#action-content").onclick(e);
   });
 }
@@ -635,7 +591,7 @@ function renderSession() {
   const b = (command, label, primary = false) =>
     `<button data-session-command="${command}" class="${primary ? "primary-button" : "outline-button"}">${label}</button>`;
   if (ended)
-    session.innerHTML = `<div><h2>${inReview ? "Review Game" : esc(gameResult(state))}</h2><p>${inReview ? `Step ${reviewAt} of ${state.history.length}` : "Each claimed tile in a group of at least nine and each captured tile scores one point. Empty squares do not score. Captured tiles stay out of play."}</p>${inReview ? `<div class="review-navigation">${b("first", "|←")}${b("previous", "←")}${b("next", "→")}${b("last", "→|")}</div>` : ""}<div class="session-actions">${b(inReview ? "result" : "review", inReview ? "Game Result" : "Review Game")}${b("new", "New Game")}</div></div>`;
+    session.innerHTML = `<div><h2>${inReview ? "Review Game" : esc(gameResult(state))}</h2><p>${inReview ? `Step ${reviewAt} of ${state.history.length}` : "After endgame cleanup, each remaining board tile and each captured tile scores one point. Captured tiles stay out of play."}</p>${inReview ? `<div class="review-navigation">${b("first", "|←")}${b("previous", "←")}${b("next", "→")}${b("last", "→|")}</div>` : ""}<div class="session-actions">${b(inReview ? "result" : "review", inReview ? "Game Result" : "Review Game")}${b("new", "New Game")}</div></div>`;
   else if (paused)
     session.innerHTML = `<div><h2>Game is Paused</h2><div class="session-actions">${b("resume", "Resume", true)}${b("new", "New Game")}</div></div>`;
   renderCountdown();
@@ -668,7 +624,7 @@ window.addEventListener("resize", () =>
   ),
 );
 function indicesSelected() {
-  return dropAt !== null || claim.length || path.length;
+  return dropAt !== null || path.length;
 }
 function renderControls() {
   const p = viewer();
@@ -680,23 +636,14 @@ function renderControls() {
       ? "Challenge already attempted this turn" : "Optional: one challenge before your move";
   });
   let content = "";
-  if (action === "drop") content = "";
-  if (action === "claim") {
-    content =
-      '<p class="step">Select at least <b>2 unclaimed tiles</b> to form a connected network of arrows. Groups of <b>9 or more tiles</b> score points.</p>';
-    if (claim.length) {
-      content += `<div class="selected-path">${claim.map((t) => `<button class="path-chip ${editing === t.at ? "selected-edit" : ""}" data-edit="${t.at}" aria-label="Edit ${coordinate(t.at)}">${tileHTML({ ...state.board[t.at], face: "arrow", rotation: t.rotation })}<span class="path-coordinate">${coordinate(t.at)}</span></button>`).join("")}</div><div class="rotation-controls"><span>${editing === null ? "Select a tile" : coordinate(editing)}</span><button data-rotate="-1" aria-label="Rotate selected tile counterclockwise">↶</button><button data-rotate="1" aria-label="Rotate selected tile clockwise">↷</button><button id="auto-orient">Align arrows</button></div>`;
-    } else
-      content +=
-        '<div class="preview-help">Select the tiles of your network, including branches. Arrows align automatically where possible; select a tile to adjust its rotation. Claiming captures surrounded enemy unclaimed tiles. Blue escapes north/south; Orange escapes east/west.</div>';
-  }
+  if (action === "drop") content = `<div class="drop-preview">${tileHTML({ type: selected, owner: p, rotation: dropRotation })}<div><b>${TYPE_MAP[selected].digit} · ${TYPE_MAP[selected].label}</b><p>${TYPE_MAP[selected].kind === "fork" ? "Connect to one of your tiles." : "Choose an empty square."} Rotate before placing.</p></div></div><div class="rotation-controls"><span>Arrow direction</span><button data-rotate="-1" aria-label="Rotate tile counterclockwise">↶</button><button data-rotate="1" aria-label="Rotate tile clockwise">↷</button></div>`;
   if (action === "challenge") {
     const all = segments(state.board, 1 - p, 2000),
       ready = challengeReady(state.board, path, 1 - p);
-    content = `<p class="step">Choose an opponent’s <b>segment</b>, from a junction or end tile to another. Follow the highlighted arrows.</p><select class="segment-picker" id="segment-picker" aria-label="Choose an opponent segment"><option value="">Choose on board or select a segment…</option>${all.map((s, i) => `<option value="${i}" ${path.join(",") === s.path.join(",") ? "selected" : ""}>${coordinate(s.path[0])} → ${coordinate(s.path.at(-1))} · ${s.path.length} tiles · ${esc(s.number)}</option>`).join("")}</select><div class="number-preview"><p class="eyebrow">${ready.number ? "NUMBER TO CHALLENGE" : "READ FROM LAST TILE TO FIRST"}</p><output>${ready.number ?? (path.length > 1 ? esc(segmentNumber(state.board, path)) : "—")}</output><small>Arrows run from the ones digit toward higher places.</small></div><div class="factor-display-row"><label class="factor-label">YOUR PROPOSED FACTOR<input id="factor-input" inputmode="numeric" pattern="[0-9]*" maxlength="${TILES_PER_PLAYER}" autocomplete="off" value="${esc(factor)}" placeholder="Enter a factor" aria-label="Proposed factor"></label><button id="factor-backspace" class="factor-backspace tile-key owner-${p}" aria-label="Delete last factor digit">⌫</button></div><div id="factor-keypad" class="factor-keypad" data-standalone-only role="group" aria-label="Factor digits">${[1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map((d) => factorKeyHTML(d, p)).join("")}</div><p class="inline-note">Optional: one attempt before your move. Afterward, choose Drop, Claim or Pass.</p>`;
+    content = `<p class="step">Choose an opponent’s <b>segment</b>, between two junctions. Follow the highlighted arrows.</p><select class="segment-picker" id="segment-picker" aria-label="Choose an opponent segment"><option value="">Choose on board or select a segment…</option>${all.map((s, i) => `<option value="${i}" ${path.join(",") === s.path.join(",") ? "selected" : ""}>${coordinate(s.path[0])} → ${coordinate(s.path.at(-1))} · ${s.path.length} tiles · ${esc(s.number)}</option>`).join("")}</select><div class="number-preview"><p class="eyebrow">${ready.number ? "NUMBER TO CHALLENGE" : "READ FROM LAST TILE TO FIRST"}</p><output>${ready.number ?? (path.length > 1 ? esc(segmentNumber(state.board, path)) : "—")}</output><small>Arrows run from the ones digit toward higher places.</small></div><div class="factor-display-row"><label class="factor-label">YOUR PROPOSED FACTOR<input id="factor-input" inputmode="numeric" pattern="[0-9]*" maxlength="${TILES_PER_PLAYER}" autocomplete="off" value="${esc(factor)}" placeholder="Enter a factor" aria-label="Proposed factor"></label><button id="factor-backspace" class="factor-backspace tile-key owner-${p}" aria-label="Delete last factor digit">⌫</button></div><div id="factor-keypad" class="factor-keypad" data-standalone-only role="group" aria-label="Factor digits">${[1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map((d) => factorKeyHTML(d, p)).join("")}</div><p class="inline-note">Optional: one attempt before your move. Afterward, choose Drop or Pass.</p>`;
   }
   if (action === "pass")
-    content = `<div class="preview-help">${state.passCount && !state.challengeSucceeded ? "<b>Your opponent passed.</b> Pass now to finish the game." : state.challengeSucceeded ? "Your successful challenge breaks the pass streak. You may pass to finish your turn." : "Take no action this turn. Two consecutive passes finish the game."}<br><br>At the end, unclaimed tiles and claimed groups below nine are captured by the opponent. Claimed tiles in groups of at least nine and captured tiles score one point each. Empty squares and reserve tiles do not score.</div>`;
+    content = `<div class="preview-help">${state.passCount && !state.challengeSucceeded ? "<b>Your opponent passed.</b> Pass now to finish the game." : state.challengeSucceeded ? "Your successful challenge breaks the pass streak. You may pass to finish your turn." : "Take no action this turn. Two consecutive passes finish the game."}<br><br>At the end, regular tiles outside segments are captured first, then groups below nine. Each remaining board tile and each captured tile scores one point. Empty squares and reserve tiles do not score.</div>`;
   $("#action-content").innerHTML = content;
   renderFeedback();
 }
@@ -704,12 +651,7 @@ function entryText(e) {
   if (e.type === "drop")
     return {
       title: `Drop ${TYPE_MAP[e.tile].digit} · ${coordinate(e.at)}`,
-      note: TYPE_MAP[e.tile].label,
-    };
-  if (e.type === "claim")
-    return {
-      title: `Claim ${e.tiles.length} tiles`,
-      note: `${e.length}-tile group${e.enclosureCaptures?.length ? ` · ${e.enclosureCaptures.length} enclosure captures` : ""}`,
+      note: `${TYPE_MAP[e.tile].label} · ${["↑", "→", "↓", "←"][e.rotation]}`,
     };
   if (e.type === "challenge")
     return {
@@ -769,17 +711,17 @@ function render() {
   $("#turn-description").textContent = state.ended
     ? "The board tells the story. Review any turn below."
     : !state.started
-      ? "Build a path. Find a factor. Claim your ground."
+      ? "Connect junctions. Find a factor."
       : state.paused
         ? "Resume when both players are ready."
         : state.passCount
           ? "One pass. Another consecutive pass will end the game."
-          : "Drop, flip, or find a factor. Every turn shapes the board.";
+          : "Connect junctions or find a factor. Every turn shapes the board.";
   $("#result").hidden = !state.ended;
   if (state.ended) {
     const point = scores(state);
     $("#result").innerHTML =
-      `<strong>${esc(state.names[0])} ${point[0]} — ${point[1]} ${esc(state.names[1])}</strong>${state.ended.reason === "passes" ? "Unclaimed tiles and groups below nine have been captured." : state.ended.reason === "time" ? "The active player ran out of time." : "The opponent resigned."}`;
+      `<strong>${esc(state.names[0])} ${point[0]} — ${point[1]} ${esc(state.names[1])}</strong>${state.ended.reason === "passes" ? "Regular tiles outside segments and groups below nine have been captured." : state.ended.reason === "time" ? "The active player ran out of time." : "The opponent resigned."}`;
   }
   buttonLabel($("#sound-button"), muted ? "Sound off" : "Sound on");
   $("#sound-button").setAttribute("aria-pressed", !muted);
@@ -802,27 +744,13 @@ $("#board").addEventListener("click", (e) => {
   if (!button || !permitted()) return;
   const at = Number(button.dataset.at);
   if (action === "drop") dropAt = at;
-  if (action === "claim") {
-    const pos = claim.findIndex((t) => t.at === at);
-    if (pos >= 0) {
-      claim = claim.filter((_, i) => i !== pos);
-      editing = claim.at(-1)?.at ?? null;
-    } else {
-      const indices = [...claim.map((t) => t.at), at],
-        aligned = orientTree(state.board, indices, viewer(), {
-          preferred: claim,
-        });
-      claim = aligned ?? [...claim, { at, rotation: 0 }];
-      editing = at;
-    }
-  }
   if (action === "challenge") {
     const next = extendChallenge(state.board, path, at, 1 - viewer());
     if (next === path)
       return toast(
         path.length
           ? "Follow an arrow into the next tile, or clear the selection."
-          : "Start at a junction or a regular end tile.",
+          : "Start at a junction tile.",
       );
     path = next;
   }
@@ -872,33 +800,8 @@ $("#action-content").onclick = (e) => {
     renderControls();
     return;
   }
-  const edit = e.target.closest("[data-edit]"),
-    rotate = e.target.closest("[data-rotate]");
-  if (edit) {
-    editing = Number(edit.dataset.edit);
-    renderControls();
-    renderBoard();
-  }
-  if (rotate && editing !== null) {
-    const item = claim.find((t) => t.at === editing);
-    item.rotation = (item.rotation + Number(rotate.dataset.rotate) + 4) % 4;
-    renderControls();
-    renderBoard();
-  }
-  if (e.target.id === "auto-orient") {
-    const aligned = orientTree(
-      state.board,
-      claim.map((t) => t.at),
-      viewer(),
-    );
-    if (aligned) claim = aligned;
-    else
-      toast(
-        "No valid orientation found. Adjust the selection or rotate individual tiles.",
-      );
-    renderControls();
-    renderBoard();
-  }
+  const rotate = e.target.closest("[data-rotate]");
+  if (rotate && permitted() && action === "drop") rotateDrop(Number(rotate.dataset.rotate));
 };
 $("#clear-button").onclick = () => {
   reset();
@@ -920,9 +823,10 @@ function renderMobile() {
   tile.hidden = action !== "drop";
   tile.disabled = !permitted();
   tile.innerHTML =
-    tileHTML({ type: selected, owner: viewer(), face: "digit", rotation: 0 }) +
+    tileHTML({ type: selected, owner: viewer(), face: "arrow", rotation: dropRotation }) +
     `<span>Tile<b>${TYPE_MAP[selected].digit}</b></span>`;
-  $("#mobile-rotate").hidden = action !== "claim" || editing === null;
+  $("#mobile-rotate").hidden = action !== "drop";
+  $("#mobile-rotate").disabled = !permitted();
   $("#mobile-clear").hidden = !indicesSelected();
   const commit = $("#mobile-commit"),
     needsFactor =
@@ -947,7 +851,7 @@ $("#mobile-tile").onclick = () => {
   $("#tile-dialog-title").textContent =
     "Choose a tile";
   $("#tile-dialog-note").textContent =
-    "The tilted arrow previews the route on the back.";
+    "Choose a digit, then rotate its arrow before placing.";
   $("#mobile-reserve").innerHTML = reserveHTML(viewer(), true);
   $("#tile-dialog").showModal();
 };
@@ -958,14 +862,13 @@ $("#mobile-reserve").onclick = (e) => {
   $("#tile-dialog").close();
   render();
 };
-$("#mobile-rotate").onclick = () => {
-  if (editing !== null) {
-    const t = claim.find((t) => t.at === editing);
-    t.rotation = (t.rotation + 1) % 4;
-    renderControls();
-    renderBoard();
-  }
-};
+function rotateDrop(delta) {
+  dropRotation = (dropRotation + delta + 4) % 4;
+  renderControls();
+  renderReserve();
+  renderBoard();
+}
+$("#mobile-rotate").onclick = () => { if (permitted()) rotateDrop(1); };
 $("#mobile-clear").onclick = () => {
   reset();
   render();
@@ -1043,10 +946,6 @@ function apply(command, actor = state.turn) {
           ? `Verified: ${event.number} = ${event.factor} × ${BigInt(event.number) / BigInt(event.factor)}. Captured ${event.removed.length} tiles for ${event.removed.length} points. Now make your move.`
           : "The factor does not divide the number. Now make your move.",
       );
-    else if (event.enclosureCaptures?.length)
-      toast(
-        `${event.enclosureCaptures.length} surrounded unclaimed ${event.enclosureCaptures.length === 1 ? "tile captured" : "tiles captured"} for points.`,
-      );
   } else throw Error("Unknown action.");
   reset();
   save();
@@ -1070,8 +969,7 @@ $("#commit-button").onclick = async () => {
     return dispatch({ type: "run", running: true });
   if (!permitted()) return;
   let move;
-  if (action === "drop") move = { type: "drop", at: dropAt, tile: selected };
-  if (action === "claim") move = { type: "claim", tiles: clone(claim) };
+  if (action === "drop") move = { type: "drop", at: dropAt, tile: selected, rotation: dropRotation };
   if (action === "challenge")
     move = { type: "challenge", path: [...path], factor };
   if (action === "pass") {
@@ -1079,7 +977,7 @@ $("#commit-button").onclick = async () => {
       state.passCount && !state.challengeSucceeded &&
       !(await ask(
         "Finish the game?",
-        "Both players will have passed. Unclaimed tiles and groups below nine will be captured by the opponent, then the final score is counted.",
+        "Both players will have passed. Regular tiles outside segments and groups below nine will be captured by the opponent, then the final score is counted.",
       ))
     )
       return;
@@ -1474,17 +1372,7 @@ document.addEventListener("keydown", (e) => {
     reset();
     render();
   }
-  if (
-    e.key.toLowerCase() === "r" &&
-    action === "claim" &&
-    editing !== null &&
-    permitted()
-  ) {
-    const t = claim.find((t) => t.at === editing);
-    t.rotation = (t.rotation + 1) % 4;
-    renderControls();
-    renderBoard();
-  }
+  if (e.key.toLowerCase() === "r" && action === "drop" && permitted()) rotateDrop(1);
   if (reviewAt !== null && ["ArrowLeft", "ArrowRight"].includes(e.key)) {
     e.preventDefault();
     selectReview(reviewAt + (e.key === "ArrowLeft" ? -1 : 1));

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { newGame, applyMove, clone, total } from "../engine.js";
-import { topPocket, put, cell } from "./territory-fixtures.js";
+import { topPocket, put, cell } from "./position-fixtures.js";
 import {
   splitPermissions,
   splitPanelHTML,
@@ -22,7 +22,7 @@ test("only the active seat can move, and permissions switch after a legal drop",
   const s = active();
   assert.equal(splitPermissions(s, 0).canMove, true);
   assert.equal(splitPermissions(s, 1).canMove, false);
-  applyMove(s, { type: "drop", tile: "j1", at: cell("I9") }, 0);
+  applyMove(s, { type: "drop", tile: "r4", at: cell("I9") }, 0);
   assert.equal(splitPermissions(s, 0).canMove, false);
   assert.equal(splitPermissions(s, 1).canMove, true);
   assert.match(panel(s, 0), /data-split-command="action" disabled/);
@@ -64,29 +64,29 @@ test("paused, ended, reviewing and disconnected games disable move submission", 
 });
 test("each player sees their own type-specific reserve and claimed score", () => {
   const s = active();
-  applyMove(s, { type: "drop", tile: "j1", at: cell("I9") }, 0);
+  applyMove(s, { type: "drop", tile: "r4", at: cell("I9") }, 0);
   const zero = panel(s, 0),
     one = panel(s, 1);
-  assert.equal(total(s.reserves[0]), 149);
-  assert.equal(total(s.reserves[1]), 150);
-  assert.match(zero, /1, Three-way fork, 14 remaining/);
-  assert.match(one, /1, Three-way fork, 15 remaining/);
-  assert.match(zero, /data-split-command="tile" data-value="j1"[^>]*disabled/);
+  assert.equal(total(s.reserves[0]), 161);
+  assert.equal(total(s.reserves[1]), 162);
+  assert.match(zero, /4, Straight, 17 remaining/);
+  assert.match(one, /4, Straight, 18 remaining/);
+  assert.match(zero, /data-split-command="tile" data-value="r4"[^>]*disabled/);
   assert.doesNotMatch(
     one,
-    /data-split-command="tile" data-value="j1"[^>]*disabled/,
+    /data-split-command="tile" data-value="r4"[^>]*disabled/,
   );
 });
-test("cloned claim and challenge controls have distinct IDs for both seats", () => {
+test("cloned rotation and challenge controls have distinct IDs for both seats", () => {
   const html =
-    '<select id="segment-picker"></select><input id="factor-input" value="13"><button id="auto-orient">Align</button>';
+    '<select id="segment-picker"></select><input id="factor-input" value="13"><button id="rotate-tile">Rotate</button>';
   const a = splitActionHTML(html, 0),
     b = splitActionHTML(html, 1);
   const ids = [...(a + b).matchAll(/\bid="([^"]+)"/g)].map((x) => x[1]);
   assert.equal(new Set(ids).size, 6);
   assert.match(a, /data-split-field="factor"/);
   assert.match(b, /data-split-field="segment"/);
-  assert.match(b, /data-split-command="align"/);
+  assert.match(b, /split-1-rotate-tile/);
 });
 test("split panels expose the optional challenge, normal moves and a physical keypad", () => {
   const s = active();
@@ -122,7 +122,7 @@ test("each phone panel has its own expandable controls and escaped name", () => 
 });
 test("split review displays the chosen position without changing the game or draft", () => {
   const s = active();
-  applyMove(s, { type: "drop", tile: "j1", at: 0 }, 0);
+  applyMove(s, { type: "drop", tile: "r4", at: 0 }, 0);
   applyMove(s, { type: "pass" }, 0);
   applyMove(s, { type: "pass" }, 0);
   const before = clone(s);
@@ -156,7 +156,7 @@ test("a used challenge disables only the optional challenge, including after a f
   s.challengeUsed = true;
   const html = panel(s, 0);
   assert.match(html, /data-split-command="action" disabled[^>]*data-value="challenge"/);
-  for (const action of ["drop", "claim", "pass"])
+  for (const action of ["drop", "pass"])
     assert.match(html, new RegExp('data-split-command="action"  data-value="' + action + '"'));
   const normal = html.match(/aria-label="Move type for Blue">([\s\S]*?)<\/div>/)[1];
   assert.doesNotMatch(normal, /challenge/);
@@ -164,10 +164,9 @@ test("a used challenge disables only the optional challenge, including after a f
 
 test("split scores show claimed tiles and captured points, without territory", () => {
   const s = active();
-  const claim = topPocket(s);
+  topPocket(s);
   put(s, 5, "r2", 1);
   put(s, cell("F2"), "r4", 1);
-  applyMove(s, { type: "claim", tiles: claim }, 0);
-  assert.match(panel(s, 0), /11 points · 9 claimed · 2 captured/);
-  assert.match(panel(s, 1), /0 points · 0 claimed · 0 captured/);
+  assert.match(panel(s, 0), /9 points · 9 scoring tiles · 0 captured/);
+  assert.match(panel(s, 1), /0 points · 0 scoring tiles · 0 captured/);
 });

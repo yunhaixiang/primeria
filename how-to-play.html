@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="theme-color" content="#f6f3eb" />
     <title>How to play · Primeria</title>
-    <link rel="icon" href="favicon.svg?v=1d923cf797" />
-    <link rel="stylesheet" href="styles.css?v=1d923cf797" />
+    <link rel="icon" href="favicon.svg?v=b0fb62c34b" />
+    <link rel="stylesheet" href="styles.css?v=b0fb62c34b" />
   </head>
   <body>
     <main class="rule-page">
@@ -25,11 +25,11 @@
       ><a href="./">Return to the board ↗</a>
     </footer>
     <script type="module">
-      import { RULES_HTML } from "./rules-content.js?v=1d923cf797";
-      import { tileHTML } from "./tiles.js?v=1d923cf797";
+      import { RULES_HTML } from "./rules-content.js?v=b0fb62c34b";
+      import { tileHTML } from "./tiles.js?v=b0fb62c34b";
       document.querySelector("#rulebook").innerHTML = RULES_HTML;
       document.querySelector("#rule-intro").innerHTML =
-        tileHTML({ type: "r0", owner: 0, face: "digit", rotation: 0 }) +
+        tileHTML({ type: "r2", owner: 0, face: "arrow", rotation: 0 }) +
         tileHTML({ type: "j1", owner: 1, face: "arrow", rotation: 1 }) +
         "<p>Build with digits. Flip them into paths.<br>Challenge a factor to capture an opponent’s segment.</p>";
     </script>

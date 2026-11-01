@@ -65,7 +65,7 @@ export function simulate({
     actions: state.history.length,
     winner: state.ended.winner,
     moves: Object.fromEntries(
-      ["drop", "claim", "challenge", "pass"].map((type) => [
+      ["drop", "challenge", "pass"].map((type) => [
         type,
         state.history.filter((m) => m.type === type).length,
       ]),

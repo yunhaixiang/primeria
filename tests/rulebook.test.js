@@ -8,30 +8,18 @@ test("current rulebook contains the exact supply, path requirements, pass ending
     "utf8",
   );
   for (const text of [
-    "150 tiles",
-    "15 copies of each digit",
-    "Flip at least 2",
-    "capture every surrounded unclaimed enemy tile",
-    "home edges",
-    "all claimed groups of fewer than nine tiles",
-    "each claimed tile in a group of at least nine",
-    "each captured tile",
-    "Empty squares do not score.",
-    "at least nine",
-    "last tile to the first",
-    "two consecutive passes",
-    "No Isolated Arrow Rule",
-    "No Leading Zero Rule",
-    "Casual",
-    "you may attempt one Challenge",
-    "choose one move: Drop, Claim or Pass",
-    "does not end your turn",
-    "Captured tiles stay out of play and score one point each for the capturer.",
-    "A turn with a successful Challenge does not count as a pass.",
-    "increment is added once",
+    "162 tiles", "18 copies of each digit", "at least two of your tiles",
+    "first and last tiles are junction tiles", "A junction must connect",
+    "regular tiles that do not lie on a segment", "groups of fewer than nine",
+    "each of your tiles left on the board", "each tile you captured",
+    "last tile to the first", "two consecutive passes", "Casual",
+    "you may attempt one Challenge", "Then Drop or Pass",
+    "Whether correct or not, then make your Drop or Pass",
+    "Captured tiles stay out of play", "A successful Challenge breaks the pass streak",
+    "Add the increment once",
   ]) {
-    assert.ok(md.includes(text));
-    assert.ok(RULES_HTML.includes(text));
+    assert.ok(md.toLowerCase().includes(text.toLowerCase()), text);
+    assert.ok(RULES_HTML.toLowerCase().includes(text.toLowerCase()), text);
   }
   const page = await readFile(
       new URL("../how-to-play.html", import.meta.url),
@@ -40,9 +28,11 @@ test("current rulebook contains the exact supply, path requirements, pass ending
     app = await readFile(new URL("../app.js", import.meta.url), "utf8");
   assert.ok(page.includes("rules-content.js"));
   assert.ok(app.includes("rules-content.js"));
-  assert.ok(!md.includes("adjacent to a tile you just flipped"));
+  assert.doesNotMatch(md, /Flip at least|No Leading Zero Rule|Drop, Claim|digit side|digit-side/);
   assert.ok(!md.includes("**Territory.**"));
+  assert.ok(!/home edges|surrounded|surrounding/i.test(md));
   assert.ok(!app.includes("captured immediately beside"));
+  assert.doesNotMatch(md, /No Isolated Arrow Rule|at most six|capped at 6/);
 });
 test("every browser module and published asset exists", async () => {
   const files = [

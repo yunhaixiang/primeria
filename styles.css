@@ -3860,19 +3860,8 @@ main {
   color: #3c674a;
   box-shadow: 0 2px #8fa77b;
 }
-.board-shell {
-  position: relative;
-  --horizontal-home-edge: #79b6d4;
-  --vertical-home-edge: #e3a16e;
-}
-.board-shell[data-horizontal-home="1"] {
-  --horizontal-home-edge: #e3a16e;
-  --vertical-home-edge: #79b6d4;
-}
-.board-shell::after {
-  border: 3px solid;
-  border-color: var(--horizontal-home-edge) var(--vertical-home-edge);
-}
+.board-shell { position: relative; }
+.board-shell::after { border: 1px solid #87a18b66; }
 .board-scroll {
   overflow: auto;
   border-radius: 5px;
@@ -3911,8 +3900,6 @@ main {
 #rows-right {
   grid-column: 3;
 }
-.home-edge.home-0 { color: #9bd4ec; }
-.home-edge.home-1 { color: #f0bd91; }
 .opposite-labels span {
   transform: rotate(180deg);
 }
@@ -3940,7 +3927,6 @@ main {
 .square.alt {
   background: #d9dfd0;
 }
-.home-edge-legend { margin: 6px 0; color: var(--muted); font-size: 10px; line-height: 1.5; }
 .square.empty:hover:not(:disabled) {
   background: #f9ebc6;
   box-shadow: inset 0 0 0 2px #c9a664;
@@ -4098,12 +4084,6 @@ main {
 .route .head {
   fill: currentColor;
   stroke-width: 2;
-}
-.digit-face .route {
-  inset: 26%;
-  width: 48%;
-  height: 48%;
-  opacity: 0.5;
 }
 .players {
   display: grid;
@@ -5261,80 +5241,12 @@ main {
 .actions { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .split-controls .actions { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
-/* Ownership rails frame all four edges, including when the board is rotated. */
-.board-shell {
-  --horizontal-home-edge: #719aad;
-  --vertical-home-edge: #b78d68;
-}
-.board-shell[data-horizontal-home="1"] {
-  --horizontal-home-edge: #b78d68;
-  --vertical-home-edge: #719aad;
-}
-.board-shell::after {
-  inset: 3px;
-  border-width: 2px;
-  z-index: 9;
-}
-.board-mat {
-  grid-template-columns: 23px minmax(0, 1fr) 23px;
-  grid-template-rows: 27px minmax(0, 1fr) 27px;
-  gap: 3px;
-}
-.column-labels,
-.row-labels {
-  position: relative;
-  z-index: 9;
-  pointer-events: none;
-  background: var(--home-rail);
-  border-radius: 5px;
-  box-shadow: none;
-  font-weight: 600;
-  font-size: 9px;
-}
-[data-home-owner="0"] { --home-rail: #315663; --home-ink: #c1dbe3; }
-[data-home-owner="1"] { --home-rail: #665440; --home-ink: #ecd1b2; }
-.column-labels { padding-top: 10px; }
-.row-labels { padding-left: 10px; }
-#rows-right { padding-left: 0; padding-right: 10px; }
-.column-labels::before,
-.row-labels::before {
-  content: attr(data-home-label);
-  position: absolute;
-  color: var(--home-ink);
-  font: 600 8px/1 Manrope, sans-serif;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  white-space: nowrap;
-  pointer-events: none;
-}
-.column-labels::before {
-  top: 3px;
-  left: 50%;
-  transform: translateX(-50%);
-}
-#columns-bottom::before { transform: translateX(-50%) rotate(180deg); }
-.row-labels::before {
-  left: 3px;
-  top: 50%;
-  writing-mode: vertical-rl;
-  transform: translateY(-50%) rotate(180deg);
-}
-#rows-right::before {
-  left: auto;
-  right: 3px;
-  transform: translateY(-50%);
-}
-.home-edge.home-0,
-.home-edge.home-1 { color: var(--home-ink); }
-@media (max-width: 780px) {
-  .board-mat {
-    grid-template-columns: 21px minmax(0, 1fr) 21px;
-    grid-template-rows: 25px minmax(0, 1fr) 25px;
-    gap: 3px;
-  }
-  .column-labels,
-  .row-labels { font-size: 8px; }
-  .column-labels::before,
-  .row-labels::before { font-size: 7px; letter-spacing: 0.8px; }
-  .board-shell::after { inset: 3px; border-width: 2px; }
-}
+/* A tile is placed once, with its visible arrow already oriented. */
+.action-tabs.actions, .split-controls .actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.drop-preview { display: flex; align-items: center; gap: 12px; margin: 12px 0; }
+.drop-preview > .tile { width: 64px; height: 64px; flex: 0 0 64px; }
+.drop-preview p { font-size: 12px; margin: 5px 0; color: var(--muted); }
+
+.rotation-controls { justify-content: flex-end; gap: 8px; padding-inline: 8px; }
+.rotation-controls > span { margin-right: auto; }
+.rotation-controls button { min-width: 36px; min-height: 36px; padding: 6px; font-size: 18px; }

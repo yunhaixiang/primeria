@@ -4,13 +4,13 @@ A two-player game of paths and primes, invented by [Yunhai Xiang](https://yunhai
 
 [Play Primeria](https://yunhaixiang.github.io/primeria/) · [How to play](howtoplay.md)
 
-Each player has 150 owned, double-sided tiles (15 of each digit) on a 15 × 15 board. Drop digit tiles, flip at least two into a connected tree of arrows, and optionally challenge an opponent’s segment before your move by giving a factor of its number. Each turn permits one challenge attempt, without a tile fee, followed by Drop, Claim or Pass. Captured tiles stay out of play and score one point each for the capturer. Regular tiles bend or continue; junctions branch. Each digit has one arrow type: 0 bends left, 5 bends right, 2/4/6/8 are straight, and 1/3/7/9 are junctions. A claimed number cannot lead with 0; zeros exposed at the leading end after a capture are also captured.
+Each player has 162 owned tiles: 18 copies of each digit from 1 to 9. On a 15 × 15 board, place a tile with its arrow already oriented, or Pass. Before the move, you may make one optional Challenge by proposing a factor of an opponent’s segment. A segment is a directed path between two junctions, read against the arrows. Captured tiles stay out of play and score one point each.
 
-Blue's home edges are north/south; Orange's are east/west. A Claim captures enemy unclaimed tiles that cannot reach either of their home edges without crossing the claimant's claimed tiles. All other tiles are passable in that test. Mere adjacency never captures, and claimed tiles are protected from enclosure capture.
+Each digit has one arrow type: 2 bends left, 8 bends right, 4/5/6 are straight, and 1/3/7/9 are junctions. Tiles cannot be rotated after placement, and directed cycles are forbidden. A junction must connect to an existing own tile when placed. A successful Challenge captures only its selected segment; disconnected tiles remain until endgame cleanup.
 
-Two consecutive passes end the game (a turn with a successful challenge does not count as a pass): unclaimed tiles and claimed groups below nine become captures for their owners' opponents. Score one point for each remaining claimed tile and each captured tile. Empty squares do not score. Groups use matching arrows, in either direction.
+Segments may pass through intermediate junctions and must contain at least two tiles. Two consecutive passes end the game; a successful Challenge breaks the pass streak, and its turn does not count as a pass. First, regular tiles outside every segment become captures for their owners’ opponents. Then all tiles in groups below nine are captured. Groups use matching arrows in either direction. Each remaining own tile and each captured tile scores one point; empty squares do not score.
 
-The classic green board and compact interface use ivory tiles with blue and orange ownership colours. Both faces have aligned digits in all four corners. Unclaimed tiles show a small, tilted, solid route indicator at half opacity; claimed tiles show a large arrow aligned to the grid. The factor keypad shares the tile finish and digit style. Rotate the board for either seat. The virtual board previews arrow orientations and the exact number of a selected segment.
+The classic green board uses ivory tiles with blue and orange ownership colours, aligned digits in all four corners, and large arrows. The factor keypad shares the tile finish and digit style. Rotate a tile before placing it, or rotate the board for either seat. The virtual board previews the exact number of a selected segment.
 
 ## Play
 
@@ -44,4 +44,4 @@ The current rules use a separate save format and online protocol from the earlie
 
 ## Printed materials
 
-The existing `cutout/` PDFs are historical materials for earlier rules. They are not the current 150-tile double-sided set. See [the current supply](howtoplay.md#setup) before making physical tiles.
+The existing `cutout/` PDFs are historical materials for earlier rules. They are not the current 162-tile set. See [the current supply](howtoplay.md#setup) before making physical tiles.

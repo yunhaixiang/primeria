@@ -12,8 +12,8 @@
       content="Primeria: a two-player game of paths and primes. Play together on one device or online."
     />
     <title>Primeria</title>
-    <link rel="icon" href="favicon.svg?v=1d923cf797" />
-    <link rel="stylesheet" href="styles.css?v=1d923cf797" />
+    <link rel="icon" href="favicon.svg?v=b0fb62c34b" />
+    <link rel="stylesheet" href="styles.css?v=b0fb62c34b" />
   </head>
   <body>
     <main class="classic-main">
@@ -139,8 +139,8 @@
           <div class="board-shell board-surround">
             <div class="board-scroll" id="board-scroll">
               <div class="board-mat">
-                <div class="column-labels" id="columns" role="group" aria-label="Blue home edge"></div>
-                <div class="row-labels" id="rows" role="group" aria-label="Orange home edge"></div>
+                <div class="column-labels" id="columns" role="group" aria-label="Column coordinates"></div>
+                <div class="row-labels" id="rows" role="group" aria-label="Row coordinates"></div>
                 <div
                   class="board"
                   id="board"
@@ -208,7 +208,6 @@
               aria-label="Turn controls"
             >
               <button data-mobile-action="drop">Drop</button
-              ><button data-mobile-action="claim">Claim</button
               ><button data-mobile-action="challenge">Challenge first</button
               ><button data-mobile-action="pass">Pass</button>
             </div>
@@ -240,7 +239,6 @@
             <span id="board-note" aria-live="polite">15 × 15 · Standard</span
             ><span id="board-turn-label">TURN 01</span>
           </div>
-          <p class="home-edge-legend">Blue home: north/south · Orange home: east/west</p>
           <div class="review-bar" id="review-bar" hidden>
             <button id="review-prev" aria-label="Previous turn">←</button
             ><input
@@ -281,7 +279,7 @@
             <details id="opponent-details" class="opponent-supply" open>
               <summary class="panel-label">
                 <span id="opponent-name">OPPONENT’S RESERVE</span
-                ><span id="opponent-total">150 tiles</span>
+                ><span id="opponent-total">162 tiles</span>
               </summary>
               <div id="opponent-reserve" class="reserve compact"></div>
               <p class="sr-only">All reserves are open information.</p>
@@ -341,25 +339,6 @@
                       <path d="M9 8h6M12 8v8" /></svg></span
                   ><strong>Drop</strong></button
                 ><button
-                  data-action="claim"
-                  class="action-tab"
-                  aria-pressed="false"
-                >
-                  <span class="action-icon"
-                    ><svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="1.7"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      aria-hidden="true"
-                    >
-                      <path d="M4 17 9 7l4 5 7-8M16 4h4v4" />
-                      <path d="M4 21h16" /></svg></span
-                  ><strong>Claim</strong></button
-
-                ><button
                   data-action="pass"
                   class="action-tab"
                   aria-pressed="false"
@@ -397,7 +376,7 @@
               <section class="reserve-panel">
                 <div class="rack-heading">
                   <span id="reserve-heading">YOUR TILES</span
-                  ><span id="reserve-total">150 remaining</span>
+                  ><span id="reserve-total">162 remaining</span>
                 </div>
                 <p id="reserve-caption" class="subtle"></p>
                 <div class="reserve tile-rack" id="reserve"></div>
@@ -567,7 +546,7 @@
           </select></label
         >
         <p class="muted">
-          15 × 15 board · 150 tiles each · All reserves visible
+          15 × 15 board · 162 tiles each · All reserves visible
         </p>
         <p class="muted">New games replace the current game on this device.</p>
         <button
@@ -618,7 +597,7 @@
           >Proposed factor<input
             id="mobile-factor-input"
             inputmode="numeric"
-            maxlength="150"
+            maxlength="162"
             autocomplete="off"
             placeholder="Enter a factor" /></label
         ><button
@@ -640,6 +619,6 @@
     </dialog>
     <div id="toast" role="status" aria-live="polite"></div>
     <script src="vendor/peerjs.min.js" defer></script>
-    <script type="module" src="app.js?v=1d923cf797"></script>
+    <script type="module" src="app.js?v=b0fb62c34b"></script>
   </body>
 </html>
