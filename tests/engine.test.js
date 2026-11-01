@@ -1,6 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  BOARD_SIZE,
+  BOARD_CELLS,
+  coordinate,
+  neighbor,
   TYPES,
   TYPE_MAP,
   inventory,
@@ -35,7 +39,7 @@ function put(s, at, type, owner = 0, face = "digit", rotation = 0) {
 }
 function line(
   s,
-  start = 30,
+  start = 26,
   owner = 0,
   types = ["j1", "r2", "r4", "r6", "r8", "r2", "r4", "r6", "j1"],
   face = "digit",
@@ -67,7 +71,7 @@ test("58 tiles per player, one arrow type per digit and exact bends/forks", () =
 });
 test("new game fixes the board and validates its complete supply", () => {
   const s = game();
-  assert.equal(s.board.length, 225);
+  assert.equal(s.board.length, 169);
   assert.ok(isSupportedState(s));
   assert.equal(s.reserves[0].r2, 5);
   assert.equal(s.reserves[0].j1, 7);
@@ -75,11 +79,11 @@ test("new game fixes the board and validates its complete supply", () => {
 });
 test("drop consumes the chosen type, keeps ownership and changes turn", () => {
   const s = game();
-  move(s, { type: "drop", tile: "j1", at: 112 });
+  move(s, { type: "drop", tile: "j1", at: 98 });
   assert.equal(s.reserves[0].j1, 6);
   assert.equal(s.reserves[0].r2, 5);
-  assert.equal(s.board[112].face, "digit");
-  assert.equal(s.board[112].owner, 0);
+  assert.equal(s.board[98].face, "digit");
+  assert.equal(s.board[98].owner, 0);
   assert.equal(s.turn, 1);
   assert.ok(isSupportedState(s));
 });
@@ -88,10 +92,10 @@ test("reject occupied/outside/unavailable drops atomically", () => {
   move(s, { type: "drop", tile: "j1", at: 0 });
   for (const m of [
     { type: "drop", tile: "j1", at: 0 },
-    { type: "drop", tile: "j1", at: 225 },
-    { type: "drop", tile: "r10", at: 20 },
-    { type: "drop", tile: "constructor", at: 20 },
-    { type: "drop", tile: "__proto__", at: 20 },
+    { type: "drop", tile: "j1", at: 169 },
+    { type: "drop", tile: "r10", at: 18 },
+    { type: "drop", tile: "constructor", at: 18 },
+    { type: "drop", tile: "__proto__", at: 18 },
   ]) {
     const old = clone(s);
     assert.throws(() => move(s, m));
@@ -100,19 +104,19 @@ test("reject occupied/outside/unavailable drops atomically", () => {
 });
 test("digit tiles never create arrow connections, opposite owners never connect", () => {
   const s = game();
-  put(s, 30, "j1", 0, "arrow", 1);
-  put(s, 31, "j1", 1, "arrow", 1);
-  put(s, 32, "j1", 1, "digit", 1);
-  assert.equal(graph(s.board).degree(30), 0);
-  assert.equal(graph(s.board).degree(31), 0);
+  put(s, 26, "j1", 0, "arrow", 1);
+  put(s, 27, "j1", 1, "arrow", 1);
+  put(s, 28, "j1", 1, "digit", 1);
+  assert.equal(graph(s.board).degree(26), 0);
+  assert.equal(graph(s.board).degree(27), 0);
 });
 test("a tail must meet an exit; merely touching arrows is not a connection", () => {
   const s = game();
-  put(s, 30, "j1", 0, "arrow", 1);
-  put(s, 31, "j1", 0, "arrow", 0);
-  assert.equal(graph(s.board).degree(30), 0);
-  s.board[31].rotation = 1;
-  assert.deepEqual(graph(s.board).out[30], [31]);
+  put(s, 26, "j1", 0, "arrow", 1);
+  put(s, 27, "j1", 0, "arrow", 0);
+  assert.equal(graph(s.board).degree(26), 0);
+  s.board[27].rotation = 1;
+  assert.deepEqual(graph(s.board).out[26], [27]);
 });
 test("claim nine tiles, read the number from last to first", () => {
   const s = game(),
@@ -120,7 +124,7 @@ test("claim nine tiles, read the number from last to first", () => {
   const e = move(s, { type: "claim", tiles });
   assert.equal(e.length, 9);
   assert.equal(e.number, "164286421");
-  assert.equal(s.board[30].face, "arrow");
+  assert.equal(s.board[26].face, "arrow");
   assert.equal(scores(s)[0], 9);
   assert.equal(
     validateSegment(
@@ -136,14 +140,14 @@ test("claims need two new connected tiles but no nine-tile path", () => {
   const s = game();
   line(s);
   assert.throws(
-    () => move(s, { type: "claim", tiles: [{ at: 30, rotation: 1 }] }),
+    () => move(s, { type: "claim", tiles: [{ at: 26, rotation: 1 }] }),
     /at least two/,
   );
   const event = move(s, {
     type: "claim",
     tiles: [
-      { at: 30, rotation: 1 },
-      { at: 31, rotation: 1 },
+      { at: 26, rotation: 1 },
+      { at: 27, rotation: 1 },
     ],
   });
   assert.equal(event.length, 2);
@@ -163,10 +167,10 @@ test("claim must flip a connected network of own previously unclaimed tiles", ()
     () => move(s, { type: "claim", tiles: [tiles[0], tiles[2]] }),
     /connected network/,
   );
-  s.board[31].face = "arrow";
+  s.board[27].face = "arrow";
   assert.throws(() => move(s, { type: "claim", tiles }), /unclaimed/);
-  s.board[31].face = "digit";
-  s.board[31].owner = 1;
+  s.board[27].face = "digit";
+  s.board[27].owner = 1;
   assert.throws(() => move(s, { type: "claim", tiles }), /your unclaimed/);
 });
 test("claim rejects repeated cells and invalid rotations", () => {
@@ -174,7 +178,7 @@ test("claim rejects repeated cells and invalid rotations", () => {
     tiles = line(s);
   assert.throws(() => claimPreview(s.board, [tiles[0], tiles[0]], 0));
   assert.throws(() =>
-    claimPreview(s.board, [{ at: 30, rotation: 5 }, tiles[1]], 0),
+    claimPreview(s.board, [{ at: 26, rotation: 5 }, tiles[1]], 0),
   );
 });
 test("left/right bends, forks and every rotation have the correct ports", () => {
@@ -193,21 +197,21 @@ test("left/right bends, forks and every rotation have the correct ports", () => 
 });
 test("cycles are detected globally and rejected before a claim is committed", () => {
   const s = game();
-  put(s, 30, "r5", 0, "arrow", 0);
-  put(s, 31, "r5", 0, "arrow", 1);
-  put(s, 46, "r5", 0, "arrow", 2);
-  put(s, 45, "r5", 0, "arrow", 3);
+  put(s, 26, "r5", 0, "arrow", 0);
+  put(s, 27, "r5", 0, "arrow", 1);
+  put(s, 40, "r5", 0, "arrow", 2);
+  put(s, 39, "r5", 0, "arrow", 3);
   assert.ok(hasCycle(graph(s.board)));
-  s.board[45].face = "digit";
-  s.board[46].face = "digit";
+  s.board[39].face = "digit";
+  s.board[40].face = "digit";
   assert.equal(hasCycle(graph(s.board)), false);
   assert.throws(
     () =>
       claimPreview(
         s.board,
         [
-          { at: 46, rotation: 2 },
-          { at: 45, rotation: 3 },
+          { at: 40, rotation: 2 },
+          { at: 39, rotation: 3 },
         ],
         0,
       ),
@@ -218,7 +222,7 @@ test("junction endpoints may also occur inside a longer segment", () => {
   const s = game();
   line(
     s,
-    30,
+    26,
     0,
     ["j1", "r2", "j1", "r4", "r4", "r8", "r2", "r4", "j1"],
     "arrow",
@@ -230,7 +234,7 @@ test("junction endpoints may also occur inside a longer segment", () => {
 });
 test("regular interior tiles cannot serve as segment endpoints", () => {
   const s = game(),
-    tiles = line(s, 30, 0, undefined, "arrow");
+    tiles = line(s, 26, 0, undefined, "arrow");
   assert.throws(
     () =>
       validateSegment(
@@ -240,19 +244,19 @@ test("regular interior tiles cannot serve as segment endpoints", () => {
       ),
     /junction or an end tile/,
   );
-  assert.throws(() => validateSegment(s.board, [30], 0), /at least two/);
-  assert.throws(() => validateSegment(s.board, [31, 30], 0), /Follow/);
+  assert.throws(() => validateSegment(s.board, [26], 0), /at least two/);
+  assert.throws(() => validateSegment(s.board, [27, 26], 0), /Follow/);
 });
 test("successful challenge captures all tiles including junctions and always pays its fee", () => {
   const s = game();
   line(
     s,
-    30,
+    26,
     1,
     ["j1", "r2", "j1", "r4", "r4", "r8", "r2", "r4", "j1"],
     "arrow",
   );
-  const path = Array.from({ length: 9 }, (_, i) => 30 + i),
+  const path = Array.from({ length: 9 }, (_, i) => 26 + i),
     number = segmentNumber(s.board, path);
   assert.equal(BigInt(number) % 3n, 0n);
   const e = move(s, { type: "challenge", fee: "j3", path, factor: "3" });
@@ -266,7 +270,7 @@ test("successful challenge captures all tiles including junctions and always pay
 });
 test("failed challenge spends its fee, ends the turn and does not remove the segment", () => {
   const s = game(),
-    tiles = line(s, 30, 1, undefined, "arrow");
+    tiles = line(s, 26, 1, undefined, "arrow");
   const e = move(s, {
     type: "challenge",
     fee: "r2",
@@ -282,7 +286,7 @@ test("failed challenge spends its fee, ends the turn and does not remove the seg
 });
 test("reject 1, the number itself, malformed factors and missing fees before consuming a tile", () => {
   const s = game(),
-    tiles = line(s, 30, 1, undefined, "arrow"),
+    tiles = line(s, 26, 1, undefined, "arrow"),
     path = tiles.map((t) => t.at);
   for (const factor of ["1", "0", "-2", "1.5", "164286421", "1e3", ""]) {
     const before = clone(s);
@@ -298,27 +302,13 @@ test("reject 1, the number itself, malformed factors and missing fees before con
 });
 test("exact arithmetic works beyond Number safe integer range", () => {
   const s = game();
-  const types = [
-    "j1",
-    "r2",
-    "r4",
-    "r6",
-    "r8",
-    "r2",
-    "j1",
-    "r4",
-    "r6",
-    "r8",
-    "r2",
-    "r4",
-    "r6",
-    "r8",
-    "r5",
-  ];
-  line(s, 30, 1, types, "arrow");
-  put(s, 59, "r5", 1, "arrow", 2);
-  put(s, 58, "j1", 1, "arrow", 3);
-  const path = [...Array.from({ length: 15 }, (_, i) => 30 + i), 59, 58],
+  const types = ["j1", "r2", "r4", "r6", "r8", "r2", "j1", "r4", "r6", "r8", "r2", "r4", "r5"];
+  types.forEach((type, k) => put(s, 26 + k, type, 1, "arrow", 1));
+  put(s, 51, "r6", 1, "arrow", 2);
+  put(s, 64, "r8", 1, "arrow", 2);
+  put(s, 77, "r5", 1, "arrow", 2);
+  put(s, 76, "j1", 1, "arrow", 3);
+  const path = [...Array.from({ length: 13 }, (_, i) => 26 + i), 51, 64, 77, 76],
     number = validateSegment(s.board, path, 1);
   assert.ok(BigInt(number) > BigInt(Number.MAX_SAFE_INTEGER));
   const e = move(s, {
@@ -333,31 +323,31 @@ test("exact arithmetic works beyond Number safe integer range", () => {
 });
 test("capture removes zero-connection arrows, but preserves short connected fragments", () => {
   const s = game();
-  put(s, 30, "j1", 1, "arrow", 1);
-  put(s, 31, "j1", 1, "arrow", 1);
-  put(s, 32, "r2", 1, "arrow", 1);
-  put(s, 16, "j9", 1, "arrow", 0); // fork north feeds 16; reversed number is 91
-  put(s, 33, "j1", 1, "arrow", 1);
+  put(s, 26, "j1", 1, "arrow", 1);
+  put(s, 27, "j1", 1, "arrow", 1);
+  put(s, 28, "r2", 1, "arrow", 1);
+  put(s, 14, "j9", 1, "arrow", 0); // fork north feeds 16; reversed number is 91
+  put(s, 29, "j1", 1, "arrow", 1);
   const e = move(s, {
     type: "challenge",
     fee: "r2",
-    path: [31, 16],
+    path: [27, 14],
     factor: "7",
   });
   assert.ok(e.success);
   assert.deepEqual(
     e.removed.sort((a, b) => a - b),
-    [30, 31, 16].sort((a, b) => a - b),
+    [26, 27, 14].sort((a, b) => a - b),
   );
   assert.equal(s.captured[0].length, 3);
-  assert.ok(s.board[32]);
-  assert.ok(s.board[33]);
-  assert.equal(graph(s.board).degree(32), 1);
+  assert.ok(s.board[28]);
+  assert.ok(s.board[29]);
+  assert.equal(graph(s.board).degree(28), 1);
 });
 test("two consecutive passes capture unclaimed tiles, ignore reserves, and can draw", () => {
   const s = game();
-  put(s, 50, "r2", 0);
-  put(s, 60, "r4", 1);
+  put(s, 44, "r2", 0);
+  put(s, 52, "r4", 1);
   move(s, { type: "pass" });
   assert.equal(s.ended, null);
   move(s, { type: "pass" });
@@ -411,15 +401,15 @@ test("casual has no clock and resignation records the opponent as winner", () =>
 });
 test("review replays actual moves, captures, end cleanup and scores", () => {
   const s = game();
-  move(s, { type: "drop", tile: "j1", at: 20 });
-  move(s, { type: "drop", tile: "r0", at: 21 });
+  move(s, { type: "drop", tile: "j1", at: 18 });
+  move(s, { type: "drop", tile: "r0", at: 19 });
   move(s, { type: "pass" });
   move(s, { type: "pass" });
   const initial = reviewPosition(s, 0),
     afterDrop = reviewPosition(s, 1),
     end = reviewPosition(s, 4);
   assert.equal(initial.board.filter(Boolean).length, 0);
-  assert.equal(afterDrop.board[20].type, "j1");
+  assert.equal(afterDrop.board[18].type, "j1");
   assert.deepEqual(end.board, s.board);
   assert.deepEqual(end.captured, s.captured);
   assert.deepEqual(scores(end), scores(s));
@@ -436,7 +426,7 @@ test("invalid or incompatible saved/network states are rejected", () => {
   for (const change of [
     (x) => (x.rulesVersion = 15),
     (x) => (x.boardSize = 11),
-    (x) => (x.reserves[0].j1 = 99),
+    (x) => (x.reserves[0].j1 = 87),
     (x) => x.board.pop(),
     (x) => (x.clocks = [NaN, null]),
     (x) => (x.turn = 4),
@@ -453,14 +443,14 @@ test("a claim is rejected when an unused fork exit closes a cycle", () => {
   const s = game(),
     types = ["j1", "r2", "j7", "r4", "r6", "r8", "r2", "r4", "j1"];
   const tiles = types.map((type, k) => {
-    put(s, 92 + k, type);
-    return { at: 92 + k, rotation: 1 };
+    put(s, 80 + k, type);
+    return { at: 80 + k, rotation: 1 };
   });
-  put(s, 109, "r5", 0, "arrow", 2);
-  put(s, 108, "j1", 0, "arrow", 3);
-  put(s, 107, "j1", 0, "arrow", 3);
-  put(s, 106, "r5", 0, "arrow", 3);
-  put(s, 91, "r5", 0, "arrow", 0);
+  put(s, 95, "r5", 0, "arrow", 2);
+  put(s, 94, "j1", 0, "arrow", 3);
+  put(s, 93, "j1", 0, "arrow", 3);
+  put(s, 92, "r5", 0, "arrow", 3);
+  put(s, 79, "r5", 0, "arrow", 0);
   assert.equal(hasCycle(graph(s.board)), false);
   assert.throws(() => claimPreview(s.board, tiles, 0), /cycle/);
 });
@@ -504,15 +494,15 @@ test("opening countdown protects the first clock and blocks early moves", async 
 // The zeros bend left; the five turns the path back to the right.
 function zeroPath(s, owner = 0, face = "digit") {
   const route = [
-    [30, "r0", 2],
-    [31, "r2", 1],
-    [32, "r0", 1],
-    [17, "r5", 0],
-    [18, "r4", 1],
-    [19, "r6", 1],
-    [20, "r8", 1],
-    [21, "r2", 1],
-    [22, "j1", 1],
+    [26, "r0", 2],
+    [27, "r2", 1],
+    [28, "r0", 1],
+    [15, "r5", 0],
+    [16, "r4", 1],
+    [17, "r6", 1],
+    [18, "r8", 1],
+    [19, "r2", 1],
+    [20, "j1", 1],
   ];
   route.forEach(([at, type, rotation]) =>
     put(s, at, type, owner, face, rotation),
@@ -532,7 +522,7 @@ test("zero can be dropped anywhere empty without being captured or claimed", () 
 
 test("a leading zero rejects the whole claim without flipping any tile", () => {
   const s = game();
-  const tiles = line(s, 30, 0, [
+  const tiles = line(s, 26, 0, [
     "j1",
     "r2",
     "r4",
@@ -588,47 +578,47 @@ test("a newly flipped zero may end the selection when an older path continues be
 test("capturing a branch removes exposed leading zeros repeatedly, preserving the nonzero fragment", () => {
   const s = game();
   for (const [at, type, rotation] of [
-    [60, "j1", 1],
-    [61, "r2", 1],
-    [62, "r0", 1],
-    [47, "r0", 0],
-    [46, "j1", 3],
-    [45, "j9", 3],
+    [52, "j1", 1],
+    [53, "r2", 1],
+    [54, "r0", 1],
+    [41, "r0", 0],
+    [40, "j1", 3],
+    [39, "j9", 3],
   ])
     put(s, at, type, 1, "arrow", rotation);
-  put(s, 200, "r0", 0);
+  put(s, 150, "r0", 0);
   assert.ok(isSupportedState(s));
   const e = move(s, {
     type: "challenge",
     fee: "r2",
-    path: [46, 45],
+    path: [40, 39],
     factor: "7",
   });
   assert.equal(e.number, "91");
   assert.equal(e.success, true);
-  assert.deepEqual(e.removed, [46, 45, 47, 62]);
+  assert.deepEqual(e.removed, [40, 39, 41, 54]);
   assert.equal(s.captured[0].length, 4);
-  assert.ok(s.board[60] && s.board[61]);
-  assert.equal(s.board[200].face, "digit");
+  assert.ok(s.board[52] && s.board[53]);
+  assert.equal(s.board[150].face, "digit");
   assert.ok(isSupportedState(s));
 });
 
 test("zero removal and isolated-arrow removal repeat together until the board is stable", () => {
   const s = game();
   for (const [at, type, rotation] of [
-    [60, "j1", 1],
-    [61, "r0", 1],
-    [46, "j1", 0],
-    [31, "j9", 0],
+    [52, "j1", 1],
+    [53, "r0", 1],
+    [40, "j1", 0],
+    [27, "j9", 0],
   ])
     put(s, at, type, 1, "arrow", rotation);
   const e = move(s, {
     type: "challenge",
     fee: "r2",
-    path: [46, 31],
+    path: [40, 27],
     factor: "7",
   });
-  assert.deepEqual(e.removed, [46, 31, 61, 60]);
+  assert.deepEqual(e.removed, [40, 27, 53, 52]);
   assert.equal(s.board.filter(Boolean).length, 0);
   assert.equal(s.captured[0].length, 4);
   assert.ok(isSupportedState(s));
@@ -638,7 +628,7 @@ test("leading-zero segments and states are rejected instead of interpreted with 
   const s = game();
   const tiles = line(
     s,
-    30,
+    26,
     0,
     ["j1", "r2", "r4", "r6", "r8", "r2", "r4", "r6", "r0"],
     "arrow",
@@ -655,6 +645,23 @@ test("leading-zero segments and states are rejected instead of interpreted with 
   assert.ok(segments(s.board, 0).every((segment) => segment.number[0] !== "0"));
   assert.equal(isSupportedState(s), false);
   const old = game();
-  old.rulesVersion = 20;
+  old.rulesVersion = 18;
+  assert.equal(isSupportedState(old), false);
+});
+
+test("13-square board edges never wrap into adjacent rows or an old 15-square board", () => {
+  const s = game();
+  assert.equal(BOARD_SIZE, 13);
+  assert.equal(BOARD_CELLS, 169);
+  assert.equal(coordinate(168), "M13");
+  assert.equal(neighbor(12, 1), null);
+  assert.equal(neighbor(13, 3), null);
+  assert.equal(neighbor(156, 2), null);
+  assert.equal(neighbor(12, 2), 25);
+  assert.equal(neighbor(168, 0), 155);
+  assert.throws(() => move(s, { type: "drop", tile: "j1", at: 169 }));
+  const old = clone(s);
+  old.boardSize = 15;
+  old.board = Array(225).fill(null);
   assert.equal(isSupportedState(old), false);
 });

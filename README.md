@@ -4,7 +4,7 @@ A two-player game of paths and primes, invented by [Yunhai Xiang](https://yunhai
 
 [Play Primeria](https://yunhaixiang.github.io/primeria/) · [How to play](howtoplay.md)
 
-Each player has 58 owned, double-sided tiles on a 15 × 15 board. Drop digit tiles, flip at least two into a connected tree of arrows, and challenge an opponent’s segment by giving a factor of its number. Regular tiles bend or continue; junctions branch. Each digit has one arrow type: 0 bends left, 5 bends right, 2/4/6/8 are straight, and 1/3/7/9 are junctions. A claimed number cannot lead with 0; zeros exposed at the leading end after a capture are also captured.
+Each player has 58 owned, double-sided tiles on a 13 × 13 board. Drop digit tiles, flip at least two into a connected tree of arrows, and challenge an opponent’s segment by giving a factor of its number. Regular tiles bend or continue; junctions branch. Each digit has one arrow type: 0 bends left, 5 bends right, 2/4/6/8 are straight, and 1/3/7/9 are junctions. A claimed number cannot lead with 0; zeros exposed at the leading end after a capture are also captured.
 
 Blue's home edges are north/south; Orange's are east/west. A Claim captures enemy unclaimed tiles that cannot reach either of their home edges without crossing the claimant's claimed tiles. All other tiles are passable in that test. Mere adjacency never captures, and claimed tiles are protected from enclosure capture.
 

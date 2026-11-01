@@ -1,5 +1,6 @@
 import {
   newGame,
+  BOARD_SIZE,
   applyMove,
   isSupportedState,
   scores,
@@ -47,9 +48,9 @@ export function simulate({
     JSON.stringify(replay.captured) !== JSON.stringify(state.captured)
   )
     throw Error("Replay mismatch.");
-  const board = Array.from({ length: 15 }, (_, r) =>
-    Array.from({ length: 15 }, (_, c) => {
-      const t = state.board[r * 15 + c];
+  const board = Array.from({ length: BOARD_SIZE }, (_, r) =>
+    Array.from({ length: BOARD_SIZE }, (_, c) => {
+      const t = state.board[r * BOARD_SIZE + c];
       return t
         ? `${t.owner === 0 ? "B" : "O"}${TYPE_MAP[t.type].digit}${t.face === "arrow" ? "*" : " "}`
         : " . ";

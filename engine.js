@@ -1,8 +1,8 @@
 /** Primeria's owned-tile rules. Directions: north, east, south, west. */
-export const RULES_VERSION = 25;
+export const RULES_VERSION = 26;
 export const MIN_SCORING_GROUP = 9;
-export const BOARD_SIZE = 15;
-export const BOARD_CELLS = 225;
+export const BOARD_SIZE = 13;
+export const BOARD_CELLS = BOARD_SIZE * BOARD_SIZE;
 export const MODES = {
   blitz: [600, 10],
   rapid: [1200, 20],
@@ -102,21 +102,21 @@ export const inventory = () =>
   Object.fromEntries(TYPES.map((t) => [t.id, t.count]));
 export const clone = (x) => structuredClone(x);
 export const coordinate = (i) =>
-  `${String.fromCharCode(65 + (i % 15))}${Math.floor(i / 15) + 1}`;
+  `${String.fromCharCode(65 + (i % BOARD_SIZE))}${Math.floor(i / BOARD_SIZE) + 1}`;
 export function neighbor(i, d) {
-  const r = Math.floor(i / 15),
-    c = i % 15;
+  const r = Math.floor(i / BOARD_SIZE),
+    c = i % BOARD_SIZE;
   return d === 0
     ? r
-      ? i - 15
+      ? i - BOARD_SIZE
       : null
     : d === 1
-      ? c < 14
+      ? c < BOARD_SIZE - 1
         ? i + 1
         : null
       : d === 2
-        ? r < 14
-          ? i + 15
+        ? r < BOARD_SIZE - 1
+          ? i + BOARD_SIZE
           : null
         : c
           ? i - 1
@@ -161,9 +161,9 @@ export function ports(tile) {
   return { entry: (2 + r) % 4, exits: t.exits.map((d) => (d + r) % 4) };
 }
 export function graph(board) {
-  const out = Array.from({ length: 225 }, () => []),
-    incoming = Array.from({ length: 225 }, () => []);
-  for (let i = 0; i < 225; i++) {
+  const out = Array.from({ length: BOARD_CELLS }, () => []),
+    incoming = Array.from({ length: BOARD_CELLS }, () => []);
+  for (let i = 0; i < BOARD_CELLS; i++) {
     const t = board[i];
     if (!t || t.face !== "arrow") continue;
     for (const d of ports(t).exits) {
@@ -182,7 +182,7 @@ export function graph(board) {
   return { out, incoming, degree: (i) => out[i].length + incoming[i].length };
 }
 export function hasCycle(g) {
-  const color = new Uint8Array(225);
+  const color = new Uint8Array(BOARD_CELLS);
   function visit(i) {
     if (color[i] === 1) return true;
     if (color[i] === 2) return false;
@@ -292,7 +292,7 @@ export function validateSegment(board, path, owner) {
 export function segments(board, owner, limit = 2000) {
   const g = graph(board),
     result = [];
-  for (let i = 0; i < 225 && result.length < limit; i++) {
+  for (let i = 0; i < BOARD_CELLS && result.length < limit; i++) {
     if (
       board[i]?.owner !== owner ||
       board[i].face !== "arrow" ||
@@ -408,8 +408,8 @@ export function newGame(
     throw Error("Choose a time control and first player.");
   return {
     rulesVersion: RULES_VERSION,
-    boardSize: 15,
-    board: Array(225).fill(null),
+    boardSize: BOARD_SIZE,
+    board: Array(BOARD_CELLS).fill(null),
     reserves: [inventory(), inventory()],
     captured: [[], []],
     names: names.map(
@@ -515,7 +515,7 @@ export function applyMove(s, move, now = Date.now()) {
     if (
       !Number.isInteger(move.at) ||
       move.at < 0 ||
-      move.at >= 225 ||
+      move.at >= BOARD_CELLS ||
       n.board[move.at]
     )
       throw Error("Choose an empty square.");
@@ -590,7 +590,7 @@ export function applyMove(s, move, now = Date.now()) {
       smallGroups = [];
     for (const group of claimedGroups(n.board))
       if (group.size < MIN_SCORING_GROUP) smallGroups.push(...group.tiles);
-    for (let at = 0; at < 225; at++)
+    for (let at = 0; at < BOARD_CELLS; at++)
       if (n.board[at]?.face === "digit") {
         unclaimed.push(at);
         capture(n, at, 1 - n.board[at].owner);
@@ -646,9 +646,9 @@ export function isSupportedState(s) {
   try {
     if (
       s?.rulesVersion !== RULES_VERSION ||
-      s.boardSize !== 15 ||
+      s.boardSize !== BOARD_SIZE ||
       !Array.isArray(s.board) ||
-      s.board.length !== 225 ||
+      s.board.length !== BOARD_CELLS ||
       ![0, 1].includes(s.turn) ||
       !Object.hasOwn(MODES, s.mode) ||
       !Number.isInteger(s.revision) ||
@@ -743,7 +743,7 @@ export function isSupportedState(s) {
     const validCells = (cells, maximum = TILES_PER_PLAYER) =>
       Array.isArray(cells) &&
       cells.length <= maximum &&
-      cells.every((i) => Number.isInteger(i) && i >= 0 && i < 225);
+      cells.every((i) => Number.isInteger(i) && i >= 0 && i < BOARD_CELLS);
     const validRotations = (cells) =>
       Array.isArray(cells) &&
       cells.length >= 2 &&
@@ -752,7 +752,7 @@ export function isSupportedState(s) {
         (t) =>
           Number.isInteger(t.at) &&
           t.at >= 0 &&
-          t.at < 225 &&
+          t.at < BOARD_CELLS &&
           Number.isInteger(t.rotation) &&
           t.rotation >= 0 &&
           t.rotation < 4,
@@ -772,7 +772,7 @@ export function isSupportedState(s) {
           !Object.hasOwn(TYPE_MAP, e.tile) ||
           !Number.isInteger(e.at) ||
           e.at < 0 ||
-          e.at >= 225 ||
+          e.at >= BOARD_CELLS ||
           e.command.at !== e.at ||
           e.command.tile !== e.tile
         )

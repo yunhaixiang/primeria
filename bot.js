@@ -1,5 +1,6 @@
 import {
   TYPES,
+  BOARD_CELLS,
   TYPE_MAP,
   neighbor,
   direction,
@@ -12,8 +13,8 @@ import {
   validateMove,
   scores,
   scoreBreakdown,
-} from "./engine.js?v=5a55683d07";
-import { orientTree } from "./paths.js?v=5a55683d07";
+} from "./engine.js?v=d746a55b94";
+import { orientTree } from "./paths.js?v=d746a55b94";
 export const BOT_LEVELS = {
   beginner: "Gentle",
   intermediate: "Thoughtful",
@@ -220,12 +221,12 @@ export function createBot({ seed = 1, strength = "intermediate" } = {}) {
       available = (at) =>
         !s.board[at] ||
         (s.board[at].owner === p && s.board[at].face === "digit");
-    for (let i = 0; i < 225; i++)
+    for (let i = 0; i < BOARD_CELLS; i++)
       if (available(i)) {
         if (s.board[i]) starts.push(i, i);
         if (around(i).some((j) => s.board[j])) starts.push(i, i);
       }
-    for (let i = 0; i < 225; i++)
+    for (let i = 0; i < BOARD_CELLS; i++)
       if (s.board[i]?.owner === p && s.board[i].face === "arrow")
         for (const d of ports(s.board[i]).exits) {
           const at = neighbor(i, d);
@@ -242,7 +243,7 @@ export function createBot({ seed = 1, strength = "intermediate" } = {}) {
         attachment?.at ??
         (trial % 4 && starts.length
           ? starts[Math.floor(rng() * starts.length)]
-          : Math.floor(rng() * 225));
+          : Math.floor(rng() * BOARD_CELLS));
       if (!available(start)) continue;
       const cells = [start],
         parents = [-1],

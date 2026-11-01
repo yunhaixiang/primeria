@@ -1,18 +1,18 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { newGame, claimPreview, ports, segments } from "../engine.js";
+import { BOARD_SIZE, BOARD_CELLS, newGame, claimPreview, ports, segments } from "../engine.js";
 import { orientPath } from "../paths.js";
 import { extendChallenge, challengeReady } from "../challenge-selection.js";
 import { routeSVG, tileHTML, factorKeyHTML } from "../tiles.js";
 function board() {
   const b = newGame().board;
   for (let k = 0; k < 9; k++)
-    b[30 + k] = { id: k + 1, type: "r2", owner: 0, face: "digit", rotation: 0 };
+    b[26 + k] = { id: k + 1, type: "r2", owner: 0, face: "digit", rotation: 0 };
   return b;
 }
 test("clicked path can orient itself in either straight direction", () => {
   const b = board(),
-    path = Array.from({ length: 9 }, (_, i) => 30 + i);
+    path = Array.from({ length: 9 }, (_, i) => 26 + i);
   const tiles = orientPath(b, path, 0);
   assert.equal(tiles.length, 9);
   assert.ok(tiles.every((t) => t.rotation === 1));
@@ -21,11 +21,11 @@ test("clicked path can orient itself in either straight direction", () => {
 });
 test("left bend fits its printed shape and right bend cannot replace that turn", () => {
   const b = board();
-  b[32].type = "r0";
-  b[17] = { type: "r2", owner: 0, face: "digit", rotation: 0 };
-  const path = [30, 31, 32, 17];
+  b[28].type = "r0";
+  b[15] = { type: "r2", owner: 0, face: "digit", rotation: 0 };
+  const path = [26, 27, 28, 15];
   assert.ok(orientPath(b, path, 0));
-  b[32].type = "r5";
+  b[28].type = "r5";
   assert.equal(orientPath(b, path, 0), null);
 });
 test("challenge selection starts at endpoints and follows valid arrows", () => {
@@ -34,16 +34,16 @@ test("challenge selection starts at endpoints and follows valid arrows", () => {
     t.face = "arrow";
     t.rotation = 1;
   }
-  assert.deepEqual(extendChallenge(b, [], 31, 0), []);
-  let path = extendChallenge(b, [], 30, 0);
-  assert.deepEqual(path, [30]);
-  assert.deepEqual(extendChallenge(b, path, 32, 0), [30]);
-  path = extendChallenge(b, path, 31, 0);
-  assert.deepEqual(path, [30, 31]);
+  assert.deepEqual(extendChallenge(b, [], 27, 0), []);
+  let path = extendChallenge(b, [], 26, 0);
+  assert.deepEqual(path, [26]);
+  assert.deepEqual(extendChallenge(b, path, 28, 0), [26]);
+  path = extendChallenge(b, path, 27, 0);
+  assert.deepEqual(path, [26, 27]);
   assert.ok(challengeReady(b, path, 0).error);
-  for (let i = 32; i <= 38; i++) path = extendChallenge(b, path, i, 0);
+  for (let i = 28; i <= 34; i++) path = extendChallenge(b, path, i, 0);
   assert.equal(challengeReady(b, path, 0).number, "222222222");
-  assert.deepEqual(extendChallenge(b, path, 38, 0), path.slice(0, -1));
+  assert.deepEqual(extendChallenge(b, path, 34, 0), path.slice(0, -1));
 });
 test("both tile faces preserve four aligned corner digits, ownership and route exits", () => {
   const front = tileHTML({ type: "j9", owner: 1, face: "digit", rotation: 0 }),
@@ -59,23 +59,23 @@ test("both tile faces preserve four aligned corner digits, ownership and route e
 test("rotating the board preserves every coordinate and labels its actual row or column", async () => {
   const { logicalIndex, boardLabels, boardHomeEdges } = await import("../board-view.js");
   for (let r = 0; r < 4; r++) {
-    const cells = Array.from({ length: 225 }, (_, i) =>
-      logicalIndex(Math.floor(i / 15), i % 15, r),
+    const cells = Array.from({ length: BOARD_CELLS }, (_, i) =>
+      logicalIndex(Math.floor(i / BOARD_SIZE), i % BOARD_SIZE, r),
     );
-    assert.equal(new Set(cells).size, 225);
+    assert.equal(new Set(cells).size, BOARD_CELLS);
     const labels = boardLabels(r);
     assert.deepEqual(boardHomeEdges(r), { columns: r % 2, rows: 1 - r % 2 });
-    for (let c = 0; c < 15; c++) {
+    for (let c = 0; c < BOARD_SIZE; c++) {
       const i = logicalIndex(0, c, r);
       assert.equal(
         labels.columns[c],
         r % 2
-          ? String(Math.floor(i / 15) + 1)
-          : String.fromCharCode(65 + (i % 15)),
+          ? String(Math.floor(i / BOARD_SIZE) + 1)
+          : String.fromCharCode(65 + (i % BOARD_SIZE)),
       );
     }
   }
-  assert.equal(boardLabels(1).columns[0], "15");
+  assert.equal(boardLabels(1).columns[0], "13");
   assert.equal(boardLabels(3).columns[0], "1");
 });
 

@@ -33,7 +33,7 @@ test("bot prioritizes a verified profitable capture over a new route", () => {
   s.started = true;
   for (let k = 0; k < 3; k++) {
     s.reserves[1].j1--;
-    s.board[30 + k] = {
+    s.board[26 + k] = {
       type: "j1",
       owner: 1,
       face: "arrow",
@@ -55,7 +55,7 @@ test("bot closes an enclosure to capture unfinished construction and score terri
   const s = newGame({ mode: "casual" }, 0);
   s.started = true;
   topPocket(s, 7);
-  for (const at of [5, 20]) put(s, at, "r2", 1);
+  for (const at of [5, 18]) put(s, at, "r2", 1);
   const result = createBot({ seed: 27, strength: "advanced" }).choose(s);
   assert.equal(result.command.type, "claim");
   assert.equal(result.command.tiles.length, 2);
@@ -69,7 +69,7 @@ test("bot connects two new tiles to turn a seven-tile group into a scoring group
   s.started = true;
   const types = ["j1", "r2", "r4", "r6", "r8", "r2", "r4", "r2", "r2"];
   types.forEach((type, k) =>
-    put(s, 30 + k, type, 0, k < 7 ? "arrow" : "digit", 1),
+    put(s, 26 + k, type, 0, k < 7 ? "arrow" : "digit", 1),
   );
   assert.deepEqual(scores(s), [0, 0]);
   const result = createBot({ seed: 9, strength: "advanced" }).choose(s);
@@ -81,9 +81,9 @@ test("bot connects two new tiles to turn a seven-tile group into a scoring group
 test("bot develops and claims tiles beside an established enemy claimed group", () => {
   const s = newGame({ mode: "casual" }, 0);
   s.started = true;
-  put(s, 112, "j1", 1, "arrow", 1);
-  put(s, 113, "j3", 1, "arrow", 1);
-  put(s, 97, "j3"); // adjacent to the old enemy arrows is a valid starting point
+  put(s, 98, "j1", 1, "arrow", 1);
+  put(s, 99, "j3", 1, "arrow", 1);
+  put(s, 85, "j3"); // adjacent to the old enemy arrows is a valid starting point
   const bot = createBot({ seed: 42, strength: "advanced" });
   for (let turn = 0; turn < 3; turn++) {
     const result = bot.choose(s);
@@ -92,9 +92,9 @@ test("bot develops and claims tiles beside an established enemy claimed group", 
     assert.equal(s.captured[1].length, 0);
     applyMove(s, { type: "pass" }, 0);
   }
-  assert.equal(s.board[97].face, "arrow");
-  assert.ok(s.board[112]);
-  assert.ok(s.board[113]);
+  assert.equal(s.board[85].face, "arrow");
+  assert.ok(s.board[98]);
+  assert.ok(s.board[99]);
 });
 test("two search bots complete a replayable game without invalid moves or arithmetic errors", () => {
   const s = newGame({ mode: "casual" }, 0);

@@ -1,5 +1,7 @@
 import {
   RULES_VERSION,
+  BOARD_SIZE,
+  BOARD_CELLS,
   TILES_PER_PLAYER,
   TYPES,
   TYPE_MAP,
@@ -25,30 +27,30 @@ import {
   reviewPosition,
   isSupportedState,
   clone,
-} from "./engine.js?v=5a55683d07";
+} from "./engine.js?v=d746a55b94";
 import {
   tileHTML,
   factorKeyHTML,
   tileLabel,
   escapeHTML as esc,
-} from "./tiles.js?v=5a55683d07";
-import { orientTree } from "./paths.js?v=5a55683d07";
+} from "./tiles.js?v=d746a55b94";
+import { orientTree } from "./paths.js?v=d746a55b94";
 import {
   extendChallenge,
   challengeReady,
-} from "./challenge-selection.js?v=5a55683d07";
-import { gameResult } from "./review.js?v=5a55683d07";
-import { RULES_HTML } from "./rules-content.js?v=5a55683d07";
+} from "./challenge-selection.js?v=d746a55b94";
+import { gameResult } from "./review.js?v=d746a55b94";
+import { RULES_HTML } from "./rules-content.js?v=d746a55b94";
 import {
   logicalIndex as boardIndex,
   boardLabels,
   boardHomeEdges,
-} from "./board-view.js?v=5a55683d07";
-import { splitPanelHTML, splitPermissions } from "./split-view.js?v=5a55683d07";
+} from "./board-view.js?v=d746a55b94";
+import { splitPanelHTML, splitPermissions } from "./split-view.js?v=d746a55b94";
 const $ = (s) => document.querySelector(s),
   $$ = (s) => [...document.querySelectorAll(s)];
 const SAVE = `primeria.owned-paths.v${RULES_VERSION}`,
-  ONLINE = 6;
+  ONLINE = 7;
 let state = newGame(),
   action = "drop",
   selected = "j1",
@@ -235,8 +237,8 @@ function renderBoard() {
       : last?.type === "claim"
         ? last.tiles.map((t) => t.at)
         : (last?.path ?? []);
-  $("#board").innerHTML = Array.from({ length: 225 }, (_, visual) => {
-    const i = logicalIndex(Math.floor(visual / 15), visual % 15),
+  $("#board").innerHTML = Array.from({ length: BOARD_CELLS }, (_, visual) => {
+    const i = logicalIndex(Math.floor(visual / BOARD_SIZE), visual % BOARD_SIZE),
       actual = s.board[i],
       draft = claim.find((t) => t.at === i),
       tile = draft
@@ -262,7 +264,7 @@ function renderBoard() {
     const renderedTile = tile
       ? { ...tile, rotation: (tile.rotation + rotation) % 4 }
       : null;
-    return `<button class="square ${(Math.floor(i / 15) + (i % 15)) % 2 ? "alt" : ""} ${actual ? "occupied" : "empty"} ${land[i] !== null ? `territory-${land[i]}` : ""} owner-${actual?.owner ?? owner} ${order >= 0 ? "selected" : ""} ${next ? "path-next" : ""} ${lastCells.includes(i) ? "last-move" : ""} ${editing === i ? "inspect" : ""}" data-at="${i}" data-order="${order + 1}" aria-label="${esc(label)}" title="${esc(label)}" ${clickable ? "" : "disabled"}>${renderedTile ? tileHTML(renderedTile) : allowed && action === "drop" && TYPE_MAP[selected] ? tileHTML({ type: selected, owner, face: "digit", rotation: 0 }).replace('class="tile', 'class="tile ghost') : ""}</button>`;
+    return `<button class="square ${(Math.floor(i / BOARD_SIZE) + (i % BOARD_SIZE)) % 2 ? "alt" : ""} ${actual ? "occupied" : "empty"} ${land[i] !== null ? `territory-${land[i]}` : ""} owner-${actual?.owner ?? owner} ${order >= 0 ? "selected" : ""} ${next ? "path-next" : ""} ${lastCells.includes(i) ? "last-move" : ""} ${editing === i ? "inspect" : ""}" data-at="${i}" data-order="${order + 1}" aria-label="${esc(label)}" title="${esc(label)}" ${clickable ? "" : "disabled"}>${renderedTile ? tileHTML(renderedTile) : allowed && action === "drop" && TYPE_MAP[selected] ? tileHTML({ type: selected, owner, face: "digit", rotation: 0 }).replace('class="tile', 'class="tile ghost') : ""}</button>`;
   }).join("");
 }
 function reserveHTML(p, interactive, display = shown()) {
@@ -625,7 +627,7 @@ function renderSession() {
         : paused
           ? "Game is paused."
           : !state.started
-            ? `Quick Start · ${state.mode} · 15 × 15`
+            ? `Quick Start · ${state.mode} · 13 × 13`
             : bot
               ? "Bot is thinking…"
               : draftStatus().text;
@@ -1472,7 +1474,7 @@ function updateBot() {
       cancelBot();
       botJob = id;
       worker = new Worker(
-        new URL("./bot-worker.js?v=5a55683d07", import.meta.url),
+        new URL("./bot-worker.js?v=d746a55b94", import.meta.url),
         {
           type: "module",
         },

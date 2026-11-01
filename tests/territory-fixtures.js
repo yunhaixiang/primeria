@@ -5,7 +5,7 @@ export function put(s, at, type, owner = 0, face = "digit", rotation = 0) {
   s.board[at] = { id: s.nextId++, type, owner, face, rotation };
 }
 export function topPocket(s, claimedCount = 0) {
-  const cells = [3, 18, 33, 34, 35, 36, 37, 22, 7];
+  const cells = [3, 16, 29, 30, 31, 32, 33, 20, 7];
   const types = ["j1", "r2", "r0", "r4", "r6", "r8", "r0", "r2", "j3"];
   const rotations = [2, 2, 2, 1, 1, 1, 1, 0, 0];
   cells.forEach((at, k) => put(s, at, types[k], 0, k < claimedCount ? "arrow" : "digit", rotations[k]));

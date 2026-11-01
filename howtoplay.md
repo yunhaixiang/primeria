@@ -5,7 +5,7 @@ Its name refers to prime numbers, such as 2, 3 and 5. A prime is a natural numbe
 
 ## Setup
 
-The game is played on a 15 × 15 board. Blue's **home edges** are north and south; Orange's are east and west. There are two kinds of tiles:
+The game is played on a 13 × 13 board. Blue's **home edges** are north and south; Orange's are east and west. There are two kinds of tiles:
 
 **Regular tiles** carry one of the digits 0, 2, 4, 5, 6 or 8 and a straight arrow, a left bend or a right bend.
 
