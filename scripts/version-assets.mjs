@@ -15,8 +15,6 @@ const files = [
   "split-view.js",
   "review.js",
   "challenge-selection.js",
-  "bot.js",
-  "bot-worker.js",
   "rules-content.js",
 ];
 const contents = await Promise.all(

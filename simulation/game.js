@@ -5,8 +5,7 @@ import {
   isSupportedState,
   scores,
   scoreBreakdown,
-  territory,
-  TILES_PER_PLAYER,
+  MAX_GAME_TURNS,
   TYPE_MAP,
   reviewPosition,
 } from "../engine.js";
@@ -14,7 +13,7 @@ import { createBot } from "../bot.js";
 export function simulate({
   seed = 1,
   strength = "intermediate",
-  maxTurns = 6 * TILES_PER_PLAYER + 2,
+  maxTurns = MAX_GAME_TURNS,
 } = {}) {
   const state = newGame(
     { mode: "casual", names: ["Ada", "Emmy"], first: seed % 2 },
@@ -31,7 +30,7 @@ export function simulate({
     const event = applyMove(state, result.command, 0);
     analysis.push(result.analysis);
     if (!isSupportedState(state))
-      throw Error(`Invalid state after turn ${state.history.length}`);
+      throw Error(`Invalid state after step ${state.history.length}`);
     if (
       event.type === "challenge" &&
       event.success !== (BigInt(event.number) % BigInt(event.factor) === 0n)
@@ -40,11 +39,12 @@ export function simulate({
   }
   if (!state.ended)
     throw Error(
-      `Search exceeded ${maxTurns} turns; no result has been invented.`,
+      `Search exceeded ${maxTurns} steps; no result has been invented.`,
     );
   const replay = reviewPosition(state, state.history.length);
   if (
     JSON.stringify(replay.board) !== JSON.stringify(state.board) ||
+    JSON.stringify(replay.reserves) !== JSON.stringify(state.reserves) ||
     JSON.stringify(replay.captured) !== JSON.stringify(state.captured)
   )
     throw Error("Replay mismatch.");
@@ -61,8 +61,8 @@ export function simulate({
     strength,
     scores: scores(state),
     breakdown: scoreBreakdown(state),
-    territory: territory(state.board),
-    turns: state.history.length,
+    turns: state.turnNumber - 1,
+    actions: state.history.length,
     winner: state.ended.winner,
     moves: Object.fromEntries(
       ["drop", "claim", "challenge", "pass"].map((type) => [

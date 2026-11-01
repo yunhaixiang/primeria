@@ -1,3 +1,4 @@
+import { cell } from "./territory-fixtures.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { BOARD_SIZE, BOARD_CELLS, newGame, claimPreview, ports, segments } from "../engine.js";
@@ -7,12 +8,12 @@ import { routeSVG, tileHTML, factorKeyHTML } from "../tiles.js";
 function board() {
   const b = newGame().board;
   for (let k = 0; k < 9; k++)
-    b[26 + k] = { id: k + 1, type: "r2", owner: 0, face: "digit", rotation: 0 };
+    b[cell("A3") + k] = { id: k + 1, type: "r2", owner: 0, face: "digit", rotation: 0 };
   return b;
 }
 test("clicked path can orient itself in either straight direction", () => {
   const b = board(),
-    path = Array.from({ length: 9 }, (_, i) => 26 + i);
+    path = Array.from({ length: 9 }, (_, i) => cell("A3") + i);
   const tiles = orientPath(b, path, 0);
   assert.equal(tiles.length, 9);
   assert.ok(tiles.every((t) => t.rotation === 1));
@@ -21,11 +22,11 @@ test("clicked path can orient itself in either straight direction", () => {
 });
 test("left bend fits its printed shape and right bend cannot replace that turn", () => {
   const b = board();
-  b[28].type = "r0";
-  b[15] = { type: "r2", owner: 0, face: "digit", rotation: 0 };
-  const path = [26, 27, 28, 15];
+  b[cell("C3")].type = "r0";
+  b[cell("C2")] = { type: "r2", owner: 0, face: "digit", rotation: 0 };
+  const path = [cell("A3"), cell("B3"), cell("C3"), cell("C2")];
   assert.ok(orientPath(b, path, 0));
-  b[28].type = "r5";
+  b[cell("C3")].type = "r5";
   assert.equal(orientPath(b, path, 0), null);
 });
 test("challenge selection starts at endpoints and follows valid arrows", () => {
@@ -34,16 +35,16 @@ test("challenge selection starts at endpoints and follows valid arrows", () => {
     t.face = "arrow";
     t.rotation = 1;
   }
-  assert.deepEqual(extendChallenge(b, [], 27, 0), []);
-  let path = extendChallenge(b, [], 26, 0);
-  assert.deepEqual(path, [26]);
-  assert.deepEqual(extendChallenge(b, path, 28, 0), [26]);
-  path = extendChallenge(b, path, 27, 0);
-  assert.deepEqual(path, [26, 27]);
+  assert.deepEqual(extendChallenge(b, [], cell("B3"), 0), []);
+  let path = extendChallenge(b, [], cell("A3"), 0);
+  assert.deepEqual(path, [cell("A3")]);
+  assert.deepEqual(extendChallenge(b, path, cell("C3"), 0), [cell("A3")]);
+  path = extendChallenge(b, path, cell("B3"), 0);
+  assert.deepEqual(path, [cell("A3"), cell("B3")]);
   assert.ok(challengeReady(b, path, 0).error);
-  for (let i = 28; i <= 34; i++) path = extendChallenge(b, path, i, 0);
+  for (let i = cell("C3"); i <= cell("I3"); i++) path = extendChallenge(b, path, i, 0);
   assert.equal(challengeReady(b, path, 0).number, "222222222");
-  assert.deepEqual(extendChallenge(b, path, 34, 0), path.slice(0, -1));
+  assert.deepEqual(extendChallenge(b, path, cell("I3"), 0), path.slice(0, -1));
 });
 test("both tile faces preserve four aligned corner digits, ownership and route exits", () => {
   const front = tileHTML({ type: "j9", owner: 1, face: "digit", rotation: 0 }),
@@ -75,7 +76,7 @@ test("rotating the board preserves every coordinate and labels its actual row or
       );
     }
   }
-  assert.equal(boardLabels(1).columns[0], "13");
+  assert.equal(boardLabels(1).columns[0], String(BOARD_SIZE));
   assert.equal(boardLabels(3).columns[0], "1");
 });
 

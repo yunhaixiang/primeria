@@ -7,14 +7,13 @@ import {
   ports,
   claimedGroups,
   homeReachability,
-  territory,
   segments,
   total,
   validateMove,
   scores,
   scoreBreakdown,
-} from "./engine.js?v=1beb33ddb1";
-import { orientTree } from "./paths.js?v=1beb33ddb1";
+} from "./engine.js";
+import { orientTree } from "./paths.js";
 export const BOT_LEVELS = {
   beginner: "Gentle",
   intermediate: "Thoughtful",
@@ -41,22 +40,14 @@ function random(seed) {
 }
 const around = (at) =>
   [0, 1, 2, 3].map((d) => neighbor(at, d)).filter((x) => x !== null);
-function feeFor(s, p) {
-  return TYPES.filter((t) => s.reserves[p][t.id] > 0).sort(
-    (a, b) =>
-      (a.kind === "fork") - (b.kind === "fork") ||
-      s.reserves[p][b.id] - s.reserves[p][a.id],
-  )[0]?.id;
-}
-/** Territory and prisoners use exact rules; unfinished groups have future value. */
+/** Claimed groups of nine and captures score; smaller groups have future value. */
 function evaluate(s, p) {
   const points = scores(s);
   let value = points[p] - points[1 - p];
   if (s.ended) return value;
   for (const group of claimedGroups(s.board))
     if (group.size < 9)
-      value +=
-        (group.owner === p ? 1 : -1) * group.size * (0.3 + 0.06 * group.size);
+      value += (group.owner === p ? 1 : -1) * group.size * (0.3 + 0.06 * group.size);
   for (const t of s.board)
     if (t?.face === "digit") value += t.owner === p ? 0.15 : -0.15;
   return value;
@@ -119,14 +110,13 @@ export function createBot({ seed = 1, strength = "intermediate" } = {}) {
   const factorBudget = advanced ? 4000 : gentle ? 100 : 1200;
   let plan = null;
   function captureReply(s, owner, divisionBudget = factorBudget) {
-    const fee = feeFor(s, owner);
-    if (!fee) return null;
-    const view = { ...s, turn: owner };
+    if (owner === s.turn && s.challengeUsed) return null;
+    const view = { ...s, turn: owner, challengeUsed: false, challengeSucceeded: false };
     let best = null;
     for (const seg of segments(s.board, 1 - owner)) {
       const factor = findFactor(seg.number, divisionBudget);
       if (!factor) continue;
-      const command = { type: "challenge", fee, path: seg.path, factor };
+      const command = { type: "challenge", path: seg.path, factor };
       const after = validateMove(view, command);
       const value = evaluate(after, owner) - evaluate(s, owner);
       if (!best || value > best.value) best = { command, after, value };
@@ -214,7 +204,7 @@ export function createBot({ seed = 1, strength = "intermediate" } = {}) {
     const danger = drops.filter((t) => dangerSquares.has(t.at)).length;
     return { owner: p, tiles, value: gain / (drops.length + 1) - danger * 0.5 };
   }
-  function makePlan(s, dangerSquares, land) {
+  function makePlan(s, dangerSquares) {
     const p = s.turn,
       starts = [],
       attachments = [],
@@ -247,7 +237,7 @@ export function createBot({ seed = 1, strength = "intermediate" } = {}) {
       if (!available(start)) continue;
       const cells = [start],
         parents = [-1],
-        wanted = land[start] === 1 - p ? 9 : 2 + Math.floor(rng() * 4);
+        wanted = 2 + Math.floor(rng() * 4);
       for (let k = 1; k < wanted; k++) {
         const candidates = [];
         for (let parent = 0; parent < cells.length; parent++)
@@ -315,6 +305,12 @@ export function createBot({ seed = 1, strength = "intermediate" } = {}) {
   return {
     choose(s) {
       const p = s.turn;
+      const challenge = captureReply(s, p);
+      if (challenge?.value > 0) return {
+        command: challenge.command,
+        analysis: { reason: "Verified capture before the move", budget, value: challenge.value },
+        seconds: 1,
+      };
       const enemyClaims = claimCandidates(s, 1 - p, gentle ? 4 : 12, 200);
       const threatened = new Set(),
         dangerSquares = new Set();
@@ -349,9 +345,9 @@ export function createBot({ seed = 1, strength = "intermediate" } = {}) {
             ...candidate,
             reason: candidate.after.history.at(-1).enclosureCaptures?.length
               ? "Enclose unfinished enemy construction"
-              : scoreBreakdown(candidate.after)[p].territory > scoreBreakdown(s)[p].territory
-                ? "Claim territory"
-                : "Grow a connected group",
+              : scoreBreakdown(candidate.after)[p].eligible > scoreBreakdown(s)[p].eligible
+                  ? "Grow a scoring group"
+                  : "Grow a connected group",
           });
       }
       candidates.sort((a, b) => b.value - a.value);
@@ -369,7 +365,7 @@ export function createBot({ seed = 1, strength = "intermediate" } = {}) {
       checked.sort((a, b) => b.value - a.value);
       if (!planValid(s)) plan = null;
       if (plan) plan = planValue(s, plan.tiles, dangerSquares);
-      const alternative = makePlan(s, dangerSquares, territory(s.board));
+      const alternative = makePlan(s, dangerSquares);
       if (alternative && (!plan || alternative.value > plan.value + 0.3))
         plan = alternative;
       const best = checked[0];

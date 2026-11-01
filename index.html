@@ -9,11 +9,11 @@
     <meta name="theme-color" content="#f6f3eb" />
     <meta
       name="description"
-      content="Primeria: a two-player game of paths and primes. Play together, online, or with a bot."
+      content="Primeria: a two-player game of paths and primes. Play together on one device or online."
     />
     <title>Primeria</title>
-    <link rel="icon" href="favicon.svg?v=1beb33ddb1" />
-    <link rel="stylesheet" href="styles.css?v=1beb33ddb1" />
+    <link rel="icon" href="favicon.svg?v=1d923cf797" />
+    <link rel="stylesheet" href="styles.css?v=1d923cf797" />
   </head>
   <body>
     <main class="classic-main">
@@ -139,13 +139,13 @@
           <div class="board-shell board-surround">
             <div class="board-scroll" id="board-scroll">
               <div class="board-mat">
-                <div class="column-labels" id="columns"></div>
-                <div class="row-labels" id="rows"></div>
+                <div class="column-labels" id="columns" role="group" aria-label="Blue home edge"></div>
+                <div class="row-labels" id="rows" role="group" aria-label="Orange home edge"></div>
                 <div
                   class="board"
                   id="board"
                   role="group"
-                  aria-label="13 by 13 Primeria board"
+                  aria-label="15 by 15 Primeria board"
                 ></div>
                 <div
                   class="column-labels opposite-labels"
@@ -205,11 +205,11 @@
             <div
               class="mobile-actions"
               role="group"
-              aria-label="Quick move type"
+              aria-label="Turn controls"
             >
               <button data-mobile-action="drop">Drop</button
               ><button data-mobile-action="claim">Claim</button
-              ><button data-mobile-action="challenge">Challenge</button
+              ><button data-mobile-action="challenge">Challenge first</button
               ><button data-mobile-action="pass">Pass</button>
             </div>
             <div
@@ -237,10 +237,10 @@
           </div>
 
           <div class="board-footer">
-            <span id="board-note" aria-live="polite">13 × 13 · Standard</span
+            <span id="board-note" aria-live="polite">15 × 15 · Standard</span
             ><span id="board-turn-label">TURN 01</span>
           </div>
-          <p class="territory-legend">Blue home: north/south · Orange home: east/west · Tinted empty squares: territory</p>
+          <p class="home-edge-legend">Blue home: north/south · Orange home: east/west</p>
           <div class="review-bar" id="review-bar" hidden>
             <button id="review-prev" aria-label="Previous turn">←</button
             ><input
@@ -281,7 +281,7 @@
             <details id="opponent-details" class="opponent-supply" open>
               <summary class="panel-label">
                 <span id="opponent-name">OPPONENT’S RESERVE</span
-                ><span id="opponent-total">58 tiles</span>
+                ><span id="opponent-total">150 tiles</span>
               </summary>
               <div id="opponent-reserve" class="reserve compact"></div>
               <p class="sr-only">All reserves are open information.</p>
@@ -297,6 +297,26 @@
             <div id="result" class="result" hidden></div>
             <div id="session-panel" hidden></div>
             <div id="move-options">
+              <div class="optional-challenge">
+                <button
+                  data-action="challenge"
+                  class="action-tab optional-challenge-button"
+                  aria-pressed="false"
+                >
+                  <span class="action-icon"
+                    ><svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.7"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <circle cx="10" cy="10" r="6" />
+                      <path d="m15 15 6 6M8 10h4" /></svg></span
+                  ><strong>Challenge first · optional</strong></button>
+              </div>
               <div
                 class="actions action-tabs"
                 role="group"
@@ -338,24 +358,7 @@
                       <path d="M4 17 9 7l4 5 7-8M16 4h4v4" />
                       <path d="M4 21h16" /></svg></span
                   ><strong>Claim</strong></button
-                ><button
-                  data-action="challenge"
-                  class="action-tab"
-                  aria-pressed="false"
-                >
-                  <span class="action-icon"
-                    ><svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="1.7"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      aria-hidden="true"
-                    >
-                      <circle cx="10" cy="10" r="6" />
-                      <path d="m15 15 6 6M8 10h4" /></svg></span
-                  ><strong>Challenge</strong></button
+
                 ><button
                   data-action="pass"
                   class="action-tab"
@@ -394,7 +397,7 @@
               <section class="reserve-panel">
                 <div class="rack-heading">
                   <span id="reserve-heading">YOUR TILES</span
-                  ><span id="reserve-total">58 remaining</span>
+                  ><span id="reserve-total">150 remaining</span>
                 </div>
                 <p id="reserve-caption" class="subtle"></p>
                 <div class="reserve tile-rack" id="reserve"></div>
@@ -481,37 +484,8 @@
               ><input type="radio" name="location" value="online" /><strong
                 >Over the internet</strong
               ><span>Invite a friend</span></label
-            ><label
-              ><input type="radio" name="location" value="bot" /><strong
-                >With a Bot</strong
-              ><span>Choose a strength</span></label
             >
           </div>
-        </fieldset>
-        <fieldset id="bot-options" class="bot-options" hidden>
-          <legend>BOT STRENGTH</legend>
-          <div class="bot-strength-options">
-            <label
-              ><input type="radio" name="strength" value="beginner" /><strong
-                >Beginner</strong
-              ></label
-            ><label
-              ><input
-                type="radio"
-                name="strength"
-                value="intermediate"
-                checked
-              /><strong>Intermediate</strong></label
-            ><label
-              ><input type="radio" name="strength" value="advanced" /><strong
-                >Advanced</strong
-              ></label
-            >
-          </div>
-          <small
-            >The computer uses a bounded search. Its playing strength is
-            experimental.</small
-          >
         </fieldset>
         <section id="online-options" hidden>
           <fieldset class="room-choice">
@@ -593,7 +567,7 @@
           </select></label
         >
         <p class="muted">
-          13 × 13 board · 58 tiles each · All reserves visible
+          15 × 15 board · 150 tiles each · All reserves visible
         </p>
         <p class="muted">New games replace the current game on this device.</p>
         <button
@@ -644,7 +618,7 @@
           >Proposed factor<input
             id="mobile-factor-input"
             inputmode="numeric"
-            maxlength="58"
+            maxlength="150"
             autocomplete="off"
             placeholder="Enter a factor" /></label
         ><button
@@ -661,11 +635,11 @@
         role="group"
         aria-label="Factor digits"
       ></div>
-      <p class="subtle" id="mobile-fee-note"></p>
+      <p class="subtle" id="mobile-challenge-note"></p>
       <button id="mobile-test" class="commit-button">Test factor</button>
     </dialog>
     <div id="toast" role="status" aria-live="polite"></div>
     <script src="vendor/peerjs.min.js" defer></script>
-    <script type="module" src="app.js?v=1beb33ddb1"></script>
+    <script type="module" src="app.js?v=1d923cf797"></script>
   </body>
 </html>

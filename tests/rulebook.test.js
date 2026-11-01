@@ -8,19 +8,27 @@ test("current rulebook contains the exact supply, path requirements, pass ending
     "utf8",
   );
   for (const text of [
-    "58 tiles",
+    "150 tiles",
+    "15 copies of each digit",
     "Flip at least 2",
     "capture every surrounded unclaimed enemy tile",
-    "Territory",
     "home edges",
     "all claimed groups of fewer than nine tiles",
-    "each empty territory square",
+    "each claimed tile in a group of at least nine",
+    "each captured tile",
+    "Empty squares do not score.",
     "at least nine",
     "last tile to the first",
     "two consecutive passes",
     "No Isolated Arrow Rule",
     "No Leading Zero Rule",
     "Casual",
+    "you may attempt one Challenge",
+    "choose one move: Drop, Claim or Pass",
+    "does not end your turn",
+    "Captured tiles stay out of play and score one point each for the capturer.",
+    "A turn with a successful Challenge does not count as a pass.",
+    "increment is added once",
   ]) {
     assert.ok(md.includes(text));
     assert.ok(RULES_HTML.includes(text));
@@ -33,6 +41,7 @@ test("current rulebook contains the exact supply, path requirements, pass ending
   assert.ok(page.includes("rules-content.js"));
   assert.ok(app.includes("rules-content.js"));
   assert.ok(!md.includes("adjacent to a tile you just flipped"));
+  assert.ok(!md.includes("**Territory.**"));
   assert.ok(!app.includes("captured immediately beside"));
 });
 test("every browser module and published asset exists", async () => {
@@ -48,8 +57,6 @@ test("every browser module and published asset exists", async () => {
     "paths.js",
     "review.js",
     "challenge-selection.js",
-    "bot.js",
-    "bot-worker.js",
     "rules-content.js",
   ];
   for (const file of files) {

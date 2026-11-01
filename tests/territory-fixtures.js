@@ -1,11 +1,13 @@
-import { direction, ports } from "../engine.js";
+import { direction, ports, BOARD_SIZE } from "../engine.js";
+/** Readable square coordinates keep geometric fixtures independent of board width. */
+export const cell = (square) => (Number(square.slice(1)) - 1) * BOARD_SIZE + square.charCodeAt(0) - 65;
 export function put(s, at, type, owner = 0, face = "digit", rotation = 0) {
   if (!s.reserves[owner][type]) throw Error("Fixture exhausted " + type);
   s.reserves[owner][type]--;
   s.board[at] = { id: s.nextId++, type, owner, face, rotation };
 }
 export function topPocket(s, claimedCount = 0) {
-  const cells = [3, 16, 29, 30, 31, 32, 33, 20, 7];
+  const cells = [3, cell("D2"), cell("D3"), cell("E3"), cell("F3"), cell("G3"), cell("H3"), cell("H2"), 7];
   const types = ["j1", "r2", "r0", "r4", "r6", "r8", "r0", "r2", "j3"];
   const rotations = [2, 2, 2, 1, 1, 1, 1, 0, 0];
   cells.forEach((at, k) => put(s, at, types[k], 0, k < claimedCount ? "arrow" : "digit", rotations[k]));
@@ -27,4 +29,12 @@ export function placePath(s, cells, owner = 0, claimed = true) {
         }
     throw Error("Cannot fit fixture at " + at);
   });
+}
+
+export function largePocket(s) {
+  return placePath(s, [
+    ...Array.from({ length: 12 }, (_, r) => r * BOARD_SIZE + 1),
+    ...Array.from({ length: 10 }, (_, c) => 11 * BOARD_SIZE + 2 + c),
+    ...Array.from({ length: 11 }, (_, r) => (10 - r) * BOARD_SIZE + 11),
+  ]);
 }

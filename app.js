@@ -23,34 +23,33 @@ import {
   resign,
   scores,
   scoreBreakdown,
-  territory,
   reviewPosition,
   isSupportedState,
   clone,
-} from "./engine.js?v=1beb33ddb1";
+} from "./engine.js?v=1d923cf797";
 import {
   tileHTML,
   factorKeyHTML,
   tileLabel,
   escapeHTML as esc,
-} from "./tiles.js?v=1beb33ddb1";
-import { orientTree } from "./paths.js?v=1beb33ddb1";
+} from "./tiles.js?v=1d923cf797";
+import { orientTree } from "./paths.js?v=1d923cf797";
 import {
   extendChallenge,
   challengeReady,
-} from "./challenge-selection.js?v=1beb33ddb1";
-import { gameResult } from "./review.js?v=1beb33ddb1";
-import { RULES_HTML } from "./rules-content.js?v=1beb33ddb1";
+} from "./challenge-selection.js?v=1d923cf797";
+import { gameResult } from "./review.js?v=1d923cf797";
+import { RULES_HTML } from "./rules-content.js?v=1d923cf797";
 import {
   logicalIndex as boardIndex,
   boardLabels,
   boardHomeEdges,
-} from "./board-view.js?v=1beb33ddb1";
-import { splitPanelHTML, splitPermissions } from "./split-view.js?v=1beb33ddb1";
+} from "./board-view.js?v=1d923cf797";
+import { splitPanelHTML, splitPermissions } from "./split-view.js?v=1d923cf797";
 const $ = (s) => document.querySelector(s),
   $$ = (s) => [...document.querySelectorAll(s)];
 const SAVE = `primeria.owned-paths.v${RULES_VERSION}`,
-  ONLINE = 7;
+  ONLINE = 18;
 let state = newGame(),
   action = "drop",
   selected = "j1",
@@ -67,9 +66,6 @@ let state = newGame(),
   networkLost = false,
   lastReceived = 0,
   heartbeatAt = 0,
-  worker = null,
-  botJob = null,
-  botKey = null,
   toastTimer,
   syncAt = 0,
   savedAt = 0,
@@ -83,6 +79,7 @@ try {
   const saved = JSON.parse(localStorage.getItem(SAVE));
   if (isSupportedState(saved)) {
     state = saved;
+    delete state.bot;
     delete state.startCountdown;
     state.paused = state.started && !state.ended;
     state.lastTick = Date.now();
@@ -142,10 +139,7 @@ function shown() {
   return reviewAt === null ? state : reviewPosition(state, reviewAt);
 }
 function viewer() {
-  return role ?? (state.bot ? 0 : state.turn);
-}
-function isBotTurn() {
-  return !!state.bot && state.turn === state.bot.player;
+  return role ?? state.turn;
 }
 function permitted() {
   return (
@@ -154,11 +148,11 @@ function permitted() {
     state.started &&
     !state.startCountdown &&
     !state.paused &&
-    !isBotTurn() &&
     (role === null || (connection?.open && state.turn === role))
   );
 }
 function reset() {
+  if (action === "challenge" && state.challengeUsed) action = "drop";
   dropAt = null;
   claim = [];
   editing = null;
@@ -202,7 +196,7 @@ function renderPlayers() {
   $("#players").innerHTML = [0, 1]
     .map(
       (p) =>
-        `<div class="player owner-${p} ${!s.ended && s.turn === p ? "active" : ""}"><div><div class="player-name"><span class="player-dot"></span>${esc(s.names[p])}${state.bot?.player === p ? " · CPU" : ""}</div><div class="player-meta" title="${breakdown[p].scoring} scoring tiles; ${breakdown[p].territory} territory; ${breakdown[p].growing} tiles captured by opponent if the game ends now">${points[p]} points · ${breakdown[p].territory} territory · ${s.captured[p].length} captured${breakdown[p].growing ? ` · ${breakdown[p].growing} below nine` : ""}</div></div><span class="clock" data-clock="${p}">${formatTime(s.clocks[p])}</span></div>`,
+        `<div class="player owner-${p} ${!s.ended && s.turn === p ? "active" : ""}"><div><div class="player-name"><span class="player-dot"></span>${esc(s.names[p])}</div><div class="player-meta" title="${breakdown[p].eligible} scoring claimed tiles; ${breakdown[p].captured} captured tiles; ${breakdown[p].growing} tiles below nine go to the opponent at the end">${points[p]} points · ${breakdown[p].eligible} claimed · ${breakdown[p].captured} captured${breakdown[p].growing ? ` · ${breakdown[p].growing} below nine` : ""}</div></div><span class="clock" data-clock="${p}">${formatTime(s.clocks[p])}</span></div>`,
     )
     .join("");
   renderClocks();
@@ -214,7 +208,7 @@ function renderBoard() {
   const s = shown(),
     owner = viewer(),
     allowed = permitted(),
-    g = graph(s.board), land = territory(s.board),
+    g = graph(s.board),
     indices =
       action === "claim"
         ? claim.map((t) => t.at)
@@ -223,6 +217,8 @@ function renderBoard() {
           : dropAt !== null
             ? [dropAt]
             : [];
+  document.documentElement.style.setProperty("--board-size", BOARD_SIZE);
+  $("#board").setAttribute("aria-label", `${BOARD_SIZE} by ${BOARD_SIZE} Primeria board`);
   const labels = boardLabels(rotation), home = boardHomeEdges(rotation);
   $(".board-shell").dataset.horizontalHome = home.columns;
   $("#columns").innerHTML = labels.columns
@@ -231,6 +227,18 @@ function renderBoard() {
   $("#rows").innerHTML = labels.rows.map((x) => `<span class="home-edge home-${home.rows}" title="${home.rows === 0 ? "Blue" : "Orange"} home edge">${x}</span>`).join("");
   $("#columns-bottom").innerHTML = $("#columns").innerHTML;
   $("#rows-right").innerHTML = $("#rows").innerHTML;
+  for (const [id, owner] of [
+    ["columns", home.columns], ["columns-bottom", home.columns],
+    ["rows", home.rows], ["rows-right", home.rows],
+  ]) {
+    const rail = $("#" + id), label = `${owner === 0 ? "Blue" : "Orange"} home`;
+    rail.dataset.homeOwner = owner;
+    rail.dataset.homeLabel = label;
+    rail.setAttribute("aria-label", label + " edge");
+  }
+  $(".home-edge-legend").textContent = home.columns === 0
+    ? "Blue home: top & bottom · Orange home: left & right"
+    : "Orange home: top & bottom · Blue home: left & right";
   const last = state.history.at(-1);
   const lastCells =
     last?.type === "drop"
@@ -261,32 +269,30 @@ function renderBoard() {
             : isEndpoint(s.board, g, i));
       }
     }
-    const label = `${coordinate(i)}${actual ? `, ${tileLabel(actual)}` : land[i] !== null ? `, empty ${land[i] === 0 ? "Blue" : "Orange"} territory` : ", empty neutral square"}${order >= 0 ? `, selected ${order + 1}` : ""}`;
+    const label = `${coordinate(i)}${actual ? `, ${tileLabel(actual)}` : ", empty square"}${order >= 0 ? `, selected ${order + 1}` : ""}`;
     const renderedTile = tile
       ? { ...tile, rotation: (tile.rotation + rotation) % 4 }
       : null;
-    return `<button class="square ${(Math.floor(i / BOARD_SIZE) + (i % BOARD_SIZE)) % 2 ? "alt" : ""} ${actual ? "occupied" : "empty"} ${land[i] !== null ? `territory-${land[i]}` : ""} owner-${actual?.owner ?? owner} ${order >= 0 ? "selected" : ""} ${next ? "path-next" : ""} ${lastCells.includes(i) ? "last-move" : ""} ${editing === i ? "inspect" : ""}" data-at="${i}" data-order="${order + 1}" aria-label="${esc(label)}" title="${esc(label)}" ${clickable ? "" : "disabled"}>${renderedTile ? tileHTML(renderedTile) : allowed && action === "drop" && TYPE_MAP[selected] ? tileHTML({ type: selected, owner, face: "digit", rotation: 0 }).replace('class="tile', 'class="tile ghost') : ""}</button>`;
+    return `<button class="square ${(Math.floor(i / BOARD_SIZE) + (i % BOARD_SIZE)) % 2 ? "alt" : ""} ${actual ? "occupied" : "empty"} owner-${actual?.owner ?? owner} ${order >= 0 ? "selected" : ""} ${next ? "path-next" : ""} ${lastCells.includes(i) ? "last-move" : ""} ${editing === i ? "inspect" : ""}" data-at="${i}" data-order="${order + 1}" aria-label="${esc(label)}" title="${esc(label)}" ${clickable ? "" : "disabled"}>${renderedTile ? tileHTML(renderedTile) : allowed && action === "drop" && TYPE_MAP[selected] ? tileHTML({ type: selected, owner, face: "digit", rotation: 0 }).replace('class="tile', 'class="tile ghost') : ""}</button>`;
   }).join("");
 }
 function reserveHTML(p, interactive, display = shown()) {
   return TYPES.map(
     (t) =>
-      `<button class="reserve-tile owner-${p} ${interactive && selected === t.id ? "active" : ""}" data-tile="${t.id}" ${!interactive || !display.reserves[p][t.id] ? "disabled" : ""} aria-label="${t.digit}, ${t.label}, ${display.reserves[p][t.id]} remaining${interactive && action === "challenge" ? ", challenge fee" : ""}" title="${t.digit} · ${t.label}">${tileHTML({ type: t.id, owner: p, face: "digit", rotation: 0 })}<span class="count">×${display.reserves[p][t.id]}</span></button>`,
+      `<button class="reserve-tile owner-${p} ${interactive && selected === t.id ? "active" : ""}" data-tile="${t.id}" ${!interactive || !display.reserves[p][t.id] ? "disabled" : ""} aria-label="${t.digit}, ${t.label}, ${display.reserves[p][t.id]} remaining" title="${t.digit} · ${t.label}">${tileHTML({ type: t.id, owner: p, face: "digit", rotation: 0 })}<span class="count">×${display.reserves[p][t.id]}</span></button>`,
   ).join("");
 }
 function renderReserve() {
   const p = viewer(),
     display = shown();
   $("#reserve-heading").textContent =
-    action === "challenge" ? "Challenge fee" : `${state.names[p]}’s reserve`;
+    `${state.names[p]}’s reserve`;
   $("#reserve-total").textContent = `${total(display.reserves[p])} tiles`;
   $("#reserve-caption").textContent =
-    action === "challenge"
-      ? "Your chosen tile goes to the opponent, even if the challenge fails."
-      : "Small arrows are unclaimed. Large arrows are claimed.";
+    "Small arrows are unclaimed. Large arrows are claimed.";
   $("#reserve").innerHTML = reserveHTML(
     p,
-    permitted() && ["drop", "challenge"].includes(action),
+    permitted() && action === "drop",
   );
   $("#opponent-reserve").innerHTML = reserveHTML(1 - p, false);
   $("#opponent-total").textContent = `${total(display.reserves[1 - p])} tiles`;
@@ -305,7 +311,7 @@ function draftStatus() {
       const p = claimPreview(state.board, claim, viewer());
       return {
         okay: true,
-        text: `Legal claim · ${p.length}-tile group${p.length < 9 ? " · needs 9 to survive the endgame" : " · contests territory"}.`,
+        text: `Legal claim · ${p.length}-tile group${p.length < 9 ? " · needs 9 to survive the endgame" : " · scores points"}.`,
       };
     } catch (e) {
       return {
@@ -317,6 +323,7 @@ function draftStatus() {
     }
   }
   if (action === "challenge") {
+    if (state.challengeUsed) return { okay: false, text: "Challenge already attempted. Choose Drop, Claim or Pass." };
     const result = challengeReady(state.board, path, 1 - viewer());
     if (result.error)
       return {
@@ -324,11 +331,6 @@ function draftStatus() {
         text: path.length
           ? result.error
           : "Choose a junction or end tile, then follow its arrows.",
-      };
-    if (!state.reserves[viewer()][selected])
-      return {
-        okay: false,
-        text: "A challenge needs one unused tile as its fee.",
       };
     if (!/^\d+$/.test(factor) || factor.length > TILES_PER_PLAYER)
       return { okay: false, text: "Enter the factor you want to test." };
@@ -339,13 +341,13 @@ function draftStatus() {
       text:
         f <= 1n || f >= n
           ? "Use a factor greater than 1 and smaller than the number."
-          : "The fee is paid for either outcome.",
+          : "One attempt before your move. You still play after either outcome.",
     };
   }
   return {
     okay: true,
-    text: state.passCount
-      ? "A second consecutive pass ends the game. All unclaimed tiles will be captured."
+    text: state.passCount && !state.challengeSucceeded
+      ? "A second consecutive pass ends the game. Unclaimed tiles and groups below nine are captured by the opponent."
       : "Passing leaves your reserve untouched.",
   };
 }
@@ -366,19 +368,17 @@ function renderFeedback() {
         ? "Start game"
         : state.paused
           ? "Resume game"
-          : isBotTurn()
-            ? "Computer is thinking…"
-            : role !== null && state.turn !== role
-              ? "Waiting for opponent…"
-              : action === "drop"
-                ? "Place tile"
-                : action === "claim"
-                  ? `Claim ${claim.length || ""} tiles`
-                  : action === "challenge"
-                    ? "Test factor"
-                    : state.passCount
-                      ? "Pass & finish"
-                      : "Pass turn";
+          : role !== null && state.turn !== role
+            ? "Waiting for opponent…"
+            : action === "drop"
+              ? "Place tile"
+              : action === "claim"
+                ? `Claim ${claim.length || ""} tiles`
+                : action === "challenge"
+                  ? "Test factor"
+                  : state.passCount && !state.challengeSucceeded
+                    ? "Pass & finish"
+                    : "Pass turn";
   button.disabled =
     !!state.ended ||
     !!state.startCountdown ||
@@ -399,7 +399,7 @@ function renderFeedback() {
   renderSession();
 }
 function splitAvailable() {
-  return role === null && !state.bot;
+  return role === null;
 }
 function orientDialogs(seat = 0) {
   $$("dialog").forEach((d) =>
@@ -461,7 +461,6 @@ function renderSplit() {
       journal: state.history.map(entryText),
       role,
       connected: !!connection?.open,
-      botPlayer: state.bot?.player ?? null,
       networkLost,
       muted,
     });
@@ -604,8 +603,7 @@ function renderCountdown() {
 function renderSession() {
   const inReview = reviewAt !== null,
     ended = !!state.ended,
-    paused = state.started && state.paused && !ended,
-    bot = isBotTurn() && state.started && !state.paused && !ended;
+    paused = state.started && state.paused && !ended;
   $("#quick-start").hidden =
     state.started ||
     ended ||
@@ -615,12 +613,12 @@ function renderSession() {
   $$("[data-result-title]").forEach((n) => (n.textContent = gameResult(state)));
   $("#board-turn-label").textContent =
     reviewAt !== null
-      ? `TURN ${String(reviewAt).padStart(2, "0")}`
+      ? `TURN ${state.history[reviewAt - 1]?.turnNumber ?? 0}`
       : state.ended
-        ? `${state.history.length} MOVES`
-        : `TURN ${String(state.history.length + 1).padStart(2, "0")}`;
+        ? `${state.turnNumber - 1} TURNS`
+        : `TURN ${String(state.turnNumber).padStart(2, "0")}`;
   $("#board-note").textContent = inReview
-    ? `Review · Turn ${reviewAt} of ${state.history.length}`
+    ? `Review · Step ${reviewAt} of ${state.history.length}`
     : state.startCountdown
       ? "Game is starting."
       : ended
@@ -628,22 +626,18 @@ function renderSession() {
         : paused
           ? "Game is paused."
           : !state.started
-            ? `Quick Start · ${state.mode} · 13 × 13`
-            : bot
-              ? "Bot is thinking…"
-              : draftStatus().text;
+            ? `Quick Start · ${state.mode} · ${BOARD_SIZE} × ${BOARD_SIZE}`
+            : draftStatus().text;
   const session = $("#session-panel"),
-    show = ended || paused || bot;
+    show = ended || paused;
   session.hidden = !show;
   $("#move-options").hidden = show;
   const b = (command, label, primary = false) =>
     `<button data-session-command="${command}" class="${primary ? "primary-button" : "outline-button"}">${label}</button>`;
   if (ended)
-    session.innerHTML = `<div><h2>${inReview ? "Review Game" : esc(gameResult(state))}</h2><p>${inReview ? `Turn ${reviewAt} of ${state.history.length}` : "Claimed groups of nine or more, empty territory and captured tiles score points."}</p>${inReview ? `<div class="review-navigation">${b("first", "|←")}${b("previous", "←")}${b("next", "→")}${b("last", "→|")}</div>` : ""}<div class="session-actions">${b(inReview ? "result" : "review", inReview ? "Game Result" : "Review Game")}${b("new", "New Game")}</div></div>`;
+    session.innerHTML = `<div><h2>${inReview ? "Review Game" : esc(gameResult(state))}</h2><p>${inReview ? `Step ${reviewAt} of ${state.history.length}` : "Each claimed tile in a group of at least nine and each captured tile scores one point. Empty squares do not score. Captured tiles stay out of play."}</p>${inReview ? `<div class="review-navigation">${b("first", "|←")}${b("previous", "←")}${b("next", "→")}${b("last", "→|")}</div>` : ""}<div class="session-actions">${b(inReview ? "result" : "review", inReview ? "Game Result" : "Review Game")}${b("new", "New Game")}</div></div>`;
   else if (paused)
     session.innerHTML = `<div><h2>Game is Paused</h2><div class="session-actions">${b("resume", "Resume", true)}${b("new", "New Game")}</div></div>`;
-  else if (bot)
-    session.innerHTML = `<div><h2>Bot is thinking…</h2><p>${state.bot.strength === "advanced" ? "Advanced" : state.bot.strength === "beginner" ? "Beginner" : "Intermediate"}</p><div class="session-actions">${b("pause", "Pause")}${b("resign", "Resign")}</div></div>`;
   renderCountdown();
 }
 $$("[data-quick-start]").forEach(
@@ -680,7 +674,10 @@ function renderControls() {
   const p = viewer();
   $$("[data-action]").forEach((b) => {
     b.setAttribute("aria-pressed", b.dataset.action === action);
-    b.disabled = !!state.ended || reviewAt !== null;
+    b.disabled = !!state.ended || reviewAt !== null ||
+      (b.dataset.action === "challenge" && state.challengeUsed);
+    if (b.dataset.action === "challenge") b.title = state.challengeUsed
+      ? "Challenge already attempted this turn" : "Optional: one challenge before your move";
   });
   let content = "";
   if (action === "drop") content = "";
@@ -696,10 +693,10 @@ function renderControls() {
   if (action === "challenge") {
     const all = segments(state.board, 1 - p, 2000),
       ready = challengeReady(state.board, path, 1 - p);
-    content = `<p class="step">Choose an opponent’s <b>segment</b>, from a junction or end tile to another. Follow the highlighted arrows.</p><select class="segment-picker" id="segment-picker" aria-label="Choose an opponent segment"><option value="">Choose on board or select a segment…</option>${all.map((s, i) => `<option value="${i}" ${path.join(",") === s.path.join(",") ? "selected" : ""}>${coordinate(s.path[0])} → ${coordinate(s.path.at(-1))} · ${s.path.length} tiles · ${esc(s.number)}</option>`).join("")}</select><div class="number-preview"><p class="eyebrow">${ready.number ? "NUMBER TO CHALLENGE" : "READ FROM LAST TILE TO FIRST"}</p><output>${ready.number ?? (path.length > 1 ? esc(segmentNumber(state.board, path)) : "—")}</output><small>Arrows run from the ones digit toward higher places.</small></div><div class="factor-display-row"><label class="factor-label">YOUR PROPOSED FACTOR<input id="factor-input" inputmode="numeric" pattern="[0-9]*" maxlength="${TILES_PER_PLAYER}" autocomplete="off" value="${esc(factor)}" placeholder="Enter a factor" aria-label="Proposed factor"></label><button id="factor-backspace" class="factor-backspace tile-key owner-${p}" aria-label="Delete last factor digit">⌫</button></div><div id="factor-keypad" class="factor-keypad" data-standalone-only role="group" aria-label="Factor digits">${[1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map((d) => factorKeyHTML(d, p)).join("")}</div><p class="inline-note">Fee: <b>${TYPE_MAP[selected].digit} · ${TYPE_MAP[selected].label}</b>. Choose a different fee in your reserve below.</p>`;
+    content = `<p class="step">Choose an opponent’s <b>segment</b>, from a junction or end tile to another. Follow the highlighted arrows.</p><select class="segment-picker" id="segment-picker" aria-label="Choose an opponent segment"><option value="">Choose on board or select a segment…</option>${all.map((s, i) => `<option value="${i}" ${path.join(",") === s.path.join(",") ? "selected" : ""}>${coordinate(s.path[0])} → ${coordinate(s.path.at(-1))} · ${s.path.length} tiles · ${esc(s.number)}</option>`).join("")}</select><div class="number-preview"><p class="eyebrow">${ready.number ? "NUMBER TO CHALLENGE" : "READ FROM LAST TILE TO FIRST"}</p><output>${ready.number ?? (path.length > 1 ? esc(segmentNumber(state.board, path)) : "—")}</output><small>Arrows run from the ones digit toward higher places.</small></div><div class="factor-display-row"><label class="factor-label">YOUR PROPOSED FACTOR<input id="factor-input" inputmode="numeric" pattern="[0-9]*" maxlength="${TILES_PER_PLAYER}" autocomplete="off" value="${esc(factor)}" placeholder="Enter a factor" aria-label="Proposed factor"></label><button id="factor-backspace" class="factor-backspace tile-key owner-${p}" aria-label="Delete last factor digit">⌫</button></div><div id="factor-keypad" class="factor-keypad" data-standalone-only role="group" aria-label="Factor digits">${[1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map((d) => factorKeyHTML(d, p)).join("")}</div><p class="inline-note">Optional: one attempt before your move. Afterward, choose Drop, Claim or Pass.</p>`;
   }
   if (action === "pass")
-    content = `<div class="preview-help">${state.passCount ? "<b>Your opponent passed.</b> Pass now to finish the game." : "Take no action this turn. Two consecutive passes finish the game."}<br><br>At the end, unclaimed tiles and claimed groups below nine go to the opponent as captured tiles. Empty territory scores. Unused reserve tiles do not score.</div>`;
+    content = `<div class="preview-help">${state.passCount && !state.challengeSucceeded ? "<b>Your opponent passed.</b> Pass now to finish the game." : state.challengeSucceeded ? "Your successful challenge breaks the pass streak. You may pass to finish your turn." : "Take no action this turn. Two consecutive passes finish the game."}<br><br>At the end, unclaimed tiles and claimed groups below nine are captured by the opponent. Claimed tiles in groups of at least nine and captured tiles score one point each. Empty squares and reserve tiles do not score.</div>`;
   $("#action-content").innerHTML = content;
   renderFeedback();
 }
@@ -719,7 +716,7 @@ function entryText(e) {
       title: e.success
         ? `Capture ${e.removed.length} tiles`
         : "Challenge failed",
-      note: `${e.number} ÷ ${e.factor}${e.success ? " = " + (BigInt(e.number) / BigInt(e.factor)).toString() : ""} · fee ${TYPE_MAP[e.fee].digit}`,
+      note: `${e.number} ÷ ${e.factor}${e.success ? " = " + (BigInt(e.number) / BigInt(e.factor)).toString() : ""} · before move`,
     };
   return {
     title: "Pass",
@@ -733,13 +730,13 @@ function renderJournal() {
   $("#journal").innerHTML = state.history
     .map((e, i) => {
       const text = entryText(e);
-      return `<li><button data-review="${i + 1}" class="owner-${e.player} ${reviewAt === i + 1 ? "selected-review" : ""}" aria-label="Review turn ${i + 1}: ${esc(text.title)}"><span class="turn-num">${i + 1}.</span><span class="move-dot"></span><span>${esc(text.title)}<small class="move-note">${esc(text.note)}</small></span></button></li>`;
+      return `<li><button data-review="${i + 1}" class="owner-${e.player} ${reviewAt === i + 1 ? "selected-review" : ""}" aria-label="Review turn ${e.turnNumber}${e.type === "challenge" ? " challenge" : ""}: ${esc(text.title)}"><span class="turn-num">${e.turnNumber}${e.type === "challenge" ? "c" : "."}</span><span class="move-dot"></span><span>${esc(text.title)}<small class="move-note">${esc(text.note)}</small></span></button></li>`;
     })
     .join("");
   $("#journal").scrollTop = atBottom ? $("#journal").scrollHeight : previous;
   $("#empty-journal").hidden = !!state.history.length;
   $("#turn-count").textContent =
-    `${state.history.length} ${state.history.length === 1 ? "move" : "moves"}`;
+    `${state.turnNumber - 1} completed turns`;
   $("#download-button").disabled = !state.history.length;
 }
 function render() {
@@ -761,11 +758,9 @@ function render() {
           ? "READY WHEN YOU ARE"
           : state.paused
             ? "GAME PAUSED"
-            : isBotTurn()
-              ? "COMPUTER’S TURN"
-              : role !== null && state.turn !== role
-                ? "OPPONENT’S TURN"
-                : "NEXT MOVE";
+            : role !== null && state.turn !== role
+              ? "OPPONENT’S TURN"
+              : "NEXT MOVE";
   $("#turn-title").textContent =
     reviewAt !== null ? "Game Review" : state.ended ? "Game Over" : "Your move";
   $("#move-owner").textContent = state.names[state.turn].toUpperCase();
@@ -784,7 +779,7 @@ function render() {
   if (state.ended) {
     const point = scores(state);
     $("#result").innerHTML =
-      `<strong>${esc(state.names[0])} ${point[0]} — ${point[1]} ${esc(state.names[1])}</strong>${state.ended.reason === "passes" ? "Unclaimed tiles and groups below nine have been captured. Territory is counted." : state.ended.reason === "time" ? "The active player ran out of time." : "The opponent resigned."}`;
+      `<strong>${esc(state.names[0])} ${point[0]} — ${point[1]} ${esc(state.names[1])}</strong>${state.ended.reason === "passes" ? "Unclaimed tiles and groups below nine have been captured." : state.ended.reason === "time" ? "The active player ran out of time." : "The opponent resigned."}`;
   }
   buttonLabel($("#sound-button"), muted ? "Sound off" : "Sound on");
   $("#sound-button").setAttribute("aria-pressed", !muted);
@@ -914,21 +909,19 @@ function renderMobile() {
   dock.hidden = !!state.ended || reviewAt !== null;
   $$("[data-mobile-action]").forEach((b) => {
     b.setAttribute("aria-pressed", b.dataset.mobileAction === action);
-    b.disabled = !permitted();
+    b.disabled = !permitted() || (b.dataset.mobileAction === "challenge" && state.challengeUsed);
   });
   $("#mobile-feedback").textContent = !state.started
     ? "Start when both players are ready."
     : state.paused
       ? "Game paused."
-      : isBotTurn()
-        ? "Computer is thinking…"
-        : draftStatus().text;
+      : draftStatus().text;
   const tile = $("#mobile-tile");
-  tile.hidden = !["drop", "challenge"].includes(action);
+  tile.hidden = action !== "drop";
   tile.disabled = !permitted();
   tile.innerHTML =
     tileHTML({ type: selected, owner: viewer(), face: "digit", rotation: 0 }) +
-    `<span>${action === "challenge" ? "Fee" : "Tile"}<b>${TYPE_MAP[selected].digit}</b></span>`;
+    `<span>Tile<b>${TYPE_MAP[selected].digit}</b></span>`;
   $("#mobile-rotate").hidden = action !== "claim" || editing === null;
   $("#mobile-clear").hidden = !indicesSelected();
   const commit = $("#mobile-commit"),
@@ -936,7 +929,7 @@ function renderMobile() {
       permitted() &&
       action === "challenge" &&
       !!challengeReady(state.board, path, 1 - viewer()).number &&
-      state.reserves[viewer()][selected] > 0;
+      !state.challengeUsed;
   commit.textContent = needsFactor
     ? "Enter factor"
     : $("#commit-button").textContent;
@@ -952,11 +945,9 @@ $$("[data-mobile-action]").forEach(
 );
 $("#mobile-tile").onclick = () => {
   $("#tile-dialog-title").textContent =
-    action === "challenge" ? "Choose your fee" : "Choose a tile";
+    "Choose a tile";
   $("#tile-dialog-note").textContent =
-    action === "challenge"
-      ? "This tile goes to the opponent, for either outcome."
-      : "The tilted arrow previews the route on the back.";
+    "The tilted arrow previews the route on the back.";
   $("#mobile-reserve").innerHTML = reserveHTML(viewer(), true);
   $("#tile-dialog").showModal();
 };
@@ -990,8 +981,8 @@ $("#mobile-commit").onclick = () => {
       .join("");
     $("#mobile-factor-backspace").className =
       `factor-backspace tile-key owner-${viewer()}`;
-    $("#mobile-fee-note").textContent =
-      `Fee: ${TYPE_MAP[selected].digit} · ${TYPE_MAP[selected].label}. Paid for either outcome.`;
+    $("#mobile-challenge-note").textContent =
+      "One attempt before your move. You still play after either outcome.";
     $("#mobile-test").disabled = !draftStatus().okay;
     $("#factor-dialog").showModal();
     $("#mobile-factor-input").focus();
@@ -1049,12 +1040,12 @@ function apply(command, actor = state.turn) {
     if (event.type === "challenge")
       toast(
         event.success
-          ? `Verified: ${event.number} = ${event.factor} × ${BigInt(event.number) / BigInt(event.factor)}. Captured ${event.removed.length} tiles.`
-          : "The factor does not divide the number. The fee stays with your opponent.",
+          ? `Verified: ${event.number} = ${event.factor} × ${BigInt(event.number) / BigInt(event.factor)}. Captured ${event.removed.length} tiles for ${event.removed.length} points. Now make your move.`
+          : "The factor does not divide the number. Now make your move.",
       );
     else if (event.enclosureCaptures?.length)
       toast(
-        `${event.enclosureCaptures.length} surrounded unclaimed ${event.enclosureCaptures.length === 1 ? "tile captured" : "tiles captured"}.`,
+        `${event.enclosureCaptures.length} surrounded unclaimed ${event.enclosureCaptures.length === 1 ? "tile captured" : "tiles captured"} for points.`,
       );
   } else throw Error("Unknown action.");
   reset();
@@ -1082,13 +1073,13 @@ $("#commit-button").onclick = async () => {
   if (action === "drop") move = { type: "drop", at: dropAt, tile: selected };
   if (action === "claim") move = { type: "claim", tiles: clone(claim) };
   if (action === "challenge")
-    move = { type: "challenge", fee: selected, path: [...path], factor };
+    move = { type: "challenge", path: [...path], factor };
   if (action === "pass") {
     if (
-      state.passCount &&
+      state.passCount && !state.challengeSucceeded &&
       !(await ask(
         "Finish the game?",
-        "Both players will have passed. Unclaimed tiles will be captured and the final score counted.",
+        "Both players will have passed. Unclaimed tiles and groups below nine will be captured by the opponent, then the final score is counted.",
       ))
     )
       return;
@@ -1178,7 +1169,6 @@ $$("[data-close]").forEach(
 const setup = $("#setup-form");
 function setupOptions() {
   const location = setup.elements.location.value;
-  $("#bot-options").hidden = location !== "bot";
   $("#online-options").hidden = location !== "online";
   $("#view-options").hidden = location !== "local";
   $("#room-code-label").hidden = setup.elements.roomAction.value !== "join";
@@ -1193,7 +1183,7 @@ setup.addEventListener("change", setupOptions);
 function openSetup(seat = 0, where = null) {
   orientDialogs(seat);
   setup.elements.location.value =
-    where ?? (role !== null ? "online" : state.bot ? "bot" : "local");
+    where ?? (role !== null ? "online" : "local");
   setup.elements.mode.value = state.mode;
   setup.elements.one.value = state.names[0];
   setup.elements.two.value = state.names[1];
@@ -1203,12 +1193,6 @@ function openSetup(seat = 0, where = null) {
 }
 $("#new-button").onclick = () => openSetup();
 $("#online-button").onclick = () => openSetup(0, "online");
-function cancelBot() {
-  worker?.terminate();
-  worker = null;
-  botJob = null;
-  botKey = null;
-}
 setup.onsubmit = async (e) => {
   e.preventDefault();
   const data = new FormData(setup),
@@ -1238,7 +1222,6 @@ setup.onsubmit = async (e) => {
       return toast("Paste a Primeria invitation link or room code.");
   }
   leaveRoom(false);
-  cancelBot();
   state = newGame({
     mode: data.get("mode"),
     names: [data.get("one"), data.get("two")],
@@ -1246,15 +1229,6 @@ setup.onsubmit = async (e) => {
       data.get("first") === "random"
         ? crypto.getRandomValues(new Uint8Array(1))[0] % 2
         : Number(data.get("first")),
-    bot:
-      where === "bot"
-        ? {
-            player: 1,
-            strength: data.get("strength"),
-            seed: crypto.getRandomValues(new Uint32Array(1))[0],
-            id: crypto.randomUUID(),
-          }
-        : null,
   });
   if (where === "local") {
     splitPreference = data.get("view") === "split";
@@ -1453,73 +1427,6 @@ $("#leave-button").onclick = async () => {
   )
     leaveRoom();
 };
-function updateBot() {
-  if (
-    !state.bot ||
-    role !== null ||
-    !state.started ||
-    state.paused ||
-    state.ended ||
-    !isBotTurn()
-  ) {
-    if (botJob) {
-      cancelBot();
-    }
-    return;
-  }
-  if (botJob) return;
-  const id = `${state.bot.id}:${state.revision}`;
-  botJob = id;
-  try {
-    if (!worker || botKey !== state.bot.id) {
-      cancelBot();
-      botJob = id;
-      worker = new Worker(
-        new URL("./bot-worker.js?v=1beb33ddb1", import.meta.url),
-        {
-          type: "module",
-        },
-      );
-      botKey = state.bot.id;
-      worker.onmessage = ({ data }) => {
-        if (data.id !== botJob) return;
-        if (data.error) return botFailure(data.error);
-        setTimeout(() => {
-          if (botJob !== data.id) return;
-          botJob = null;
-          try {
-            apply(
-              { type: "move", move: data.result.command },
-              state.bot.player,
-            );
-          } catch (e) {
-            botFailure(e.message);
-          }
-        }, 450);
-      };
-      worker.onerror = (e) => {
-        e.preventDefault();
-        botFailure("The computer could not finish its search.");
-      };
-    }
-    worker.postMessage({
-      id,
-      key: state.bot.id,
-      state: clone(state),
-      seed: state.bot.seed,
-    });
-  } catch (e) {
-    botFailure(e.message);
-  }
-}
-function botFailure(message) {
-  cancelBot();
-  state.paused = true;
-  state.revision++;
-  save();
-  render();
-  toast(`${message} Resume to retry.`);
-}
 setInterval(() => {
   const now = Date.now();
   if (role !== null && connection?.open && !networkLost) {
@@ -1544,7 +1451,6 @@ setInterval(() => {
       sendState();
       render();
     }
-    updateBot();
     if (Date.now() - syncAt > 1000) {
       sendState();
       syncAt = Date.now();
@@ -1559,7 +1465,6 @@ setInterval(() => {
 }, 200);
 window.addEventListener("pagehide", () => {
   save();
-  cancelBot();
   connection?.close();
   peer?.destroy();
 });

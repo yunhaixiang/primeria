@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createBot, findFactor } from "../bot.js";
-import { topPocket } from "./territory-fixtures.js";
+import { topPocket, cell } from "./territory-fixtures.js";
 import {
   newGame,
   applyMove,
@@ -9,7 +9,7 @@ import {
   TYPE_MAP,
   reviewPosition,
   scores,
-  TILES_PER_PLAYER,
+  MAX_GAME_TURNS,
 } from "../engine.js";
 test("elementary factors are exact and never charged to the trial-division budget", () => {
   for (const n of [
@@ -33,7 +33,7 @@ test("bot prioritizes a verified profitable capture over a new route", () => {
   s.started = true;
   for (let k = 0; k < 3; k++) {
     s.reserves[1].j1--;
-    s.board[26 + k] = {
+    s.board[cell("A3") + k] = {
       type: "j1",
       owner: 1,
       face: "arrow",
@@ -51,26 +51,23 @@ function put(s, at, type, owner = 0, face = "digit", rotation = 0) {
   s.reserves[owner][type]--;
   s.board[at] = { id: s.nextId++, type, owner, face, rotation };
 }
-test("bot closes an enclosure to capture unfinished construction and score territory", () => {
+test("bot closes an enclosure to capture unfinished construction and score claimed tiles", () => {
   const s = newGame({ mode: "casual" }, 0);
   s.started = true;
   topPocket(s, 7);
-  for (const at of [5, 18]) put(s, at, "r2", 1);
+  for (const at of [5, cell("F2")]) put(s, at, "r2", 1);
   const result = createBot({ seed: 27, strength: "advanced" }).choose(s);
   assert.equal(result.command.type, "claim");
   assert.equal(result.command.tiles.length, 2);
   const e = applyMove(s, result.command, 0);
   assert.equal(e.enclosureCaptures.length, 2);
-  assert.deepEqual(scores(s), [17, 0]);
+  assert.deepEqual(scores(s), [11, 0]);
   assert.ok(isSupportedState(s));
 });
-test("bot connects two new tiles to turn a seven-tile group into a scoring group", () => {
+test("bot connects two new tiles to complete a nine-tile scoring group", () => {
   const s = newGame({ mode: "casual" }, 0);
   s.started = true;
-  const types = ["j1", "r2", "r4", "r6", "r8", "r2", "r4", "r2", "r2"];
-  types.forEach((type, k) =>
-    put(s, 26 + k, type, 0, k < 7 ? "arrow" : "digit", 1),
-  );
+  topPocket(s, 7);
   assert.deepEqual(scores(s), [0, 0]);
   const result = createBot({ seed: 9, strength: "advanced" }).choose(s);
   assert.equal(result.command.type, "claim");
@@ -81,29 +78,36 @@ test("bot connects two new tiles to turn a seven-tile group into a scoring group
 test("bot develops and claims tiles beside an established enemy claimed group", () => {
   const s = newGame({ mode: "casual" }, 0);
   s.started = true;
-  put(s, 98, "j1", 1, "arrow", 1);
-  put(s, 99, "j3", 1, "arrow", 1);
-  put(s, 85, "j3"); // adjacent to the old enemy arrows is a valid starting point
+  put(s, cell("H8"), "j1", 1, "arrow", 1);
+  put(s, cell("I8"), "j3", 1, "arrow", 1);
+  put(s, cell("H7"), "j3"); // adjacent to the old enemy arrows is a valid starting point
   const bot = createBot({ seed: 42, strength: "advanced" });
   for (let turn = 0; turn < 3; turn++) {
     const result = bot.choose(s);
     applyMove(s, result.command, 0);
     assert.ok(isSupportedState(s));
-    assert.equal(s.captured[1].length, 0);
     applyMove(s, { type: "pass" }, 0);
   }
-  assert.equal(s.board[85].face, "arrow");
-  assert.ok(s.board[98]);
-  assert.ok(s.board[99]);
+  assert.equal(s.board[cell("H7")].face, "arrow");
+  assert.ok(s.board[cell("H8")]);
+  assert.ok(s.board[cell("I8")]);
 });
 test("two search bots complete a replayable game without invalid moves or arithmetic errors", () => {
   const s = newGame({ mode: "casual" }, 0);
   s.started = true;
-  const bots = [createBot({ seed: 42 }), createBot({ seed: 57 })];
+  // Start from a legal enclosure race so this regression exercises claims
+  // with enclosure captures rather than assuming empty-board strength.
+  const fixture = newGame({ mode: "casual" }, 0), tiles = topPocket(fixture);
+  tiles.forEach(({ at }, k) => {
+    applyMove(s, { type: "drop", at, tile: fixture.board[at].type }, 0);
+    applyMove(s, k < 2 ? { type: "drop", at: k ? cell("F2") : 5, tile: "r2" } : { type: "pass" }, 0);
+  });
+  applyMove(s, { type: "claim", tiles: tiles.slice(0, 6) }, 0);
+  applyMove(s, { type: "pass" }, 0);
+  const bots = [createBot({ seed: 27 }), createBot({ seed: 57 })];
   let turns = 0;
-  // At most 116 drops/challenges and 58 claims, each separated by a pass,
-  // followed by the two ending passes. Contact is no longer self-capture.
-  const maxTurns = 6 * TILES_PER_PLAYER + 2;
+  // Include optional challenge steps as well as completed turns.
+  const maxTurns = 2000; // Regression search budget, not a rule of play.
   while (!s.ended && turns < maxTurns) {
     const result = bots[s.turn].choose(s);
     assert.ok(result.analysis.budget > 0);
@@ -117,6 +121,6 @@ test("two search bots complete a replayable game without invalid moves or arithm
   assert.ok(s.history.some((e) => e.type === "claim"));
   const replay = reviewPosition(s, s.history.length);
   assert.deepEqual(replay.board, s.board);
-  assert.deepEqual(replay.captured, s.captured);
+  assert.deepEqual(replay.reserves, s.reserves);
   assert.deepEqual(scores(replay), scores(s));
 });

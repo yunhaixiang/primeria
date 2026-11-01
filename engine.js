@@ -1,7 +1,7 @@
 /** Primeria's owned-tile rules. Directions: north, east, south, west. */
-export const RULES_VERSION = 26;
+export const RULES_VERSION = 37;
 export const MIN_SCORING_GROUP = 9;
-export const BOARD_SIZE = 13;
+export const BOARD_SIZE = 15;
 export const BOARD_CELLS = BOARD_SIZE * BOARD_SIZE;
 export const MODES = {
   blitz: [600, 10],
@@ -16,7 +16,7 @@ export const TYPES = [
     digit: 0,
     kind: "left",
     exits: [3],
-    count: 5,
+    count: 15,
     label: "Left bend",
   },
   {
@@ -24,7 +24,7 @@ export const TYPES = [
     digit: 1,
     kind: "fork",
     exits: [0, 3, 1],
-    count: 7,
+    count: 15,
     label: "Three-way fork",
   },
   {
@@ -32,7 +32,7 @@ export const TYPES = [
     digit: 2,
     kind: "straight",
     exits: [0],
-    count: 5,
+    count: 15,
     label: "Straight",
   },
   {
@@ -40,7 +40,7 @@ export const TYPES = [
     digit: 3,
     kind: "fork",
     exits: [0, 3],
-    count: 7,
+    count: 15,
     label: "Straight + left",
   },
   {
@@ -48,7 +48,7 @@ export const TYPES = [
     digit: 4,
     kind: "straight",
     exits: [0],
-    count: 5,
+    count: 15,
     label: "Straight",
   },
   {
@@ -56,7 +56,7 @@ export const TYPES = [
     digit: 5,
     kind: "right",
     exits: [1],
-    count: 5,
+    count: 15,
     label: "Right bend",
   },
   {
@@ -64,7 +64,7 @@ export const TYPES = [
     digit: 6,
     kind: "straight",
     exits: [0],
-    count: 5,
+    count: 15,
     label: "Straight",
   },
   {
@@ -72,7 +72,7 @@ export const TYPES = [
     digit: 7,
     kind: "fork",
     exits: [0, 1],
-    count: 7,
+    count: 15,
     label: "Straight + right",
   },
   {
@@ -80,7 +80,7 @@ export const TYPES = [
     digit: 8,
     kind: "straight",
     exits: [0],
-    count: 5,
+    count: 15,
     label: "Straight",
   },
   {
@@ -88,11 +88,13 @@ export const TYPES = [
     digit: 9,
     kind: "fork",
     exits: [3, 1],
-    count: 7,
+    count: 15,
     label: "Left + right",
   },
 ];
 export const TILES_PER_PLAYER = TYPES.reduce((n, type) => n + type.count, 0);
+// Safety limit for imported/network records, including optional challenge steps.
+export const MAX_GAME_TURNS = 100_000;
 const FACTOR_PATTERN = new RegExp(`^\\d{1,${TILES_PER_PLAYER}}$`);
 const NUMBER_PATTERN = new RegExp(`^[1-9]\\d{1,${TILES_PER_PLAYER - 1}}$`);
 export const TYPE_MAP = Object.fromEntries(TYPES.map((t) => [t.id, t]));
@@ -211,8 +213,7 @@ export function claimedGroups(board, g = graph(board)) {
   }
   return groups;
 }
-/** Only nine-tile arrow groups form territory boundaries. Other tiles are
- * ignored as barriers, but an occupied square is never an empty territory point. */
+/** Geometry helper for analysis; empty regions do not score. */
 export function territory(board, groups = claimedGroups(board)) {
   const walls = new Map();
   for (const group of groups)
@@ -288,7 +289,7 @@ export function validateSegment(board, path, owner) {
     throw Error("No Leading Zero Rule: a number cannot start with 0.");
   return number;
 }
-/** Enumerate actual directed segments, with a cap for bounded bot/UI search. */
+/** Enumerate actual directed segments, with a cap for bounded analysis/UI search. */
 export function segments(board, owner, limit = 2000) {
   const g = graph(board),
     result = [];
@@ -376,24 +377,21 @@ export function claimPreview(board, tiles, owner) {
   };
 }
 export function scoreBreakdown(s) {
-  const groups = claimedGroups(s.board),
-    areas = territory(s.board, groups);
+  const groups = claimedGroups(s.board);
   return [0, 1].map((p) => {
     const own = groups.filter((x) => x.owner === p);
-    const scoring = own
+    const eligible = own
       .filter((x) => x.size >= MIN_SCORING_GROUP)
       .reduce((n, x) => n + x.size, 0);
     const growing = own
       .filter((x) => x.size < MIN_SCORING_GROUP)
       .reduce((n, x) => n + x.size, 0);
-    const land = areas.filter((owner) => owner === p).length;
     return {
-      scoring,
+      eligible,
       growing,
-      territory: land,
       captured: s.captured[p].length,
       groups: own.map((x) => x.size),
-      total: scoring + land + s.captured[p].length,
+      total: eligible + s.captured[p].length,
     };
   });
 }
@@ -401,7 +399,7 @@ export function scores(s) {
   return scoreBreakdown(s).map((x) => x.total);
 }
 export function newGame(
-  { mode = "standard", names = ["Blue", "Orange"], first = 0, bot = null } = {},
+  { mode = "standard", names = ["Blue", "Orange"], first = 0 } = {},
   now = Date.now(),
 ) {
   if (!Object.hasOwn(MODES, mode) || ![0, 1].includes(first))
@@ -427,10 +425,12 @@ export function newGame(
     lastTick: now,
     ended: null,
     passCount: 0,
+    challengeUsed: false,
+    challengeSucceeded: false,
+    turnNumber: 1,
     history: [],
     revision: 0,
     nextId: 1,
-    bot,
   };
 }
 export function tick(s, now = Date.now()) {
@@ -478,9 +478,9 @@ export function setRunning(s, running, now = Date.now()) {
   s.lastTick = now;
   s.revision++;
 }
-function capture(s, at, by) {
+function capture(s, at) {
   const t = s.board[at];
-  s.captured[by].push({ ...t, at });
+  s.captured[1 - t.owner].push({ ...t, at });
   s.board[at] = null;
 }
 export function validateMove(s, move) {
@@ -530,6 +530,7 @@ export function applyMove(s, move, now = Date.now()) {
       number: result.number,
     };
   } else if (move.type === "challenge") {
+    if (n.challengeUsed) throw Error("Only one challenge attempt is allowed per turn.");
     const number = validateSegment(n.board, move.path, 1 - p);
     if (typeof move.factor !== "string" || !FACTOR_PATTERN.test(move.factor))
       throw Error("Enter a positive whole-number factor.");
@@ -539,14 +540,12 @@ export function applyMove(s, move, now = Date.now()) {
       throw Error(
         "The factor must be greater than 1 and smaller than the number.",
       );
-    const fee = take(move.fee);
-    n.captured[1 - p].push(fee);
     const success = value % factor === 0n,
       removed = [];
     if (success) {
       for (const at of move.path) {
         removed.push(at);
-        capture(n, at, p);
+        capture(n, at);
       }
       // Removing a leading zero can expose another zero or isolate an arrow.
       for (;;) {
@@ -560,7 +559,7 @@ export function applyMove(s, move, now = Date.now()) {
         if (!cleanup.length) break;
         for (const at of cleanup) {
           removed.push(at);
-          capture(n, at, 1 - n.board[at].owner);
+          capture(n, at);
         }
       }
     }
@@ -568,12 +567,14 @@ export function applyMove(s, move, now = Date.now()) {
       path: [...move.path],
       number,
       factor: factor.toString(),
-      fee: move.fee,
       success,
       removed,
     };
+    n.challengeUsed = true;
+    n.challengeSucceeded = success;
+    if (success) n.passCount = 0;
   } else if (move.type === "pass") {
-  } else throw Error("Choose Drop, Claim, Challenge or Pass.");
+  } else throw Error("Choose Drop, Claim or Pass, or challenge before your move.");
   const enclosureCaptures = [];
   if (move.type === "claim") {
     const escape = homeReachability(n.board, 1 - p);
@@ -582,9 +583,12 @@ export function applyMove(s, move, now = Date.now()) {
         enclosureCaptures.push({ at, by: p });
     });
   }
-  for (const { at, by } of enclosureCaptures) capture(n, at, by);
+  for (const { at } of enclosureCaptures) capture(n, at);
   if (enclosureCaptures.length) detail.enclosureCaptures = enclosureCaptures;
-  n.passCount = move.type === "pass" ? n.passCount + 1 : 0;
+  const completesTurn = move.type !== "challenge",
+    turnNumber = n.turnNumber;
+  if (completesTurn)
+    n.passCount = move.type === "pass" && !n.challengeSucceeded ? n.passCount + 1 : 0;
   if (n.passCount === 2) {
     const unclaimed = [],
       smallGroups = [];
@@ -593,9 +597,9 @@ export function applyMove(s, move, now = Date.now()) {
     for (let at = 0; at < BOARD_CELLS; at++)
       if (n.board[at]?.face === "digit") {
         unclaimed.push(at);
-        capture(n, at, 1 - n.board[at].owner);
+        capture(n, at);
       }
-    for (const at of smallGroups) capture(n, at, 1 - n.board[at].owner);
+    for (const at of smallGroups) capture(n, at);
     const points = scores(n);
     n.ended = {
       winner: points[0] === points[1] ? null : points[0] > points[1] ? 0 : 1,
@@ -605,12 +609,19 @@ export function applyMove(s, move, now = Date.now()) {
     detail.unclaimed = unclaimed;
     detail.smallGroups = smallGroups;
   }
-  if (n.clocks[p] !== null) n.clocks[p] += n.increment;
-  n.turn = 1 - p;
+  if (completesTurn) {
+    if (n.clocks[p] !== null) n.clocks[p] += n.increment;
+    n.turn = 1 - p;
+    n.turnNumber++;
+    n.challengeUsed = false;
+    n.challengeSucceeded = false;
+  }
   n.lastTick = now;
   n.revision++;
   const event = {
     player: p,
+    turnNumber,
+    completesTurn,
     type: move.type,
     ...detail,
     command: clone(move),
@@ -654,7 +665,7 @@ export function isSupportedState(s) {
       !Number.isInteger(s.revision) ||
       s.revision < 0 ||
       !Array.isArray(s.history) ||
-      s.history.length > 500 ||
+      s.history.length > MAX_GAME_TURNS ||
       typeof s.started !== "boolean" ||
       typeof s.paused !== "boolean" ||
       !Array.isArray(s.names) ||
@@ -671,8 +682,14 @@ export function isSupportedState(s) {
       s.reserves.length !== 2 ||
       !Array.isArray(s.captured) ||
       s.captured.length !== 2 ||
+      !s.captured.every((pile) => Array.isArray(pile) && pile.length <= TILES_PER_PLAYER) ||
       ![0, 1, 2].includes(s.passCount) ||
-      !Number.isInteger(s.nextId) ||
+      typeof s.challengeUsed !== "boolean" ||
+      typeof s.challengeSucceeded !== "boolean" ||
+      (s.challengeSucceeded && !s.challengeUsed) ||
+      !Number.isSafeInteger(s.turnNumber) ||
+      s.turnNumber < 1 ||
+      !Number.isSafeInteger(s.nextId) ||
       s.nextId < 1 ||
       !Number.isFinite(s.lastTick)
     )
@@ -682,7 +699,6 @@ export function isSupportedState(s) {
       (s.started || s.ended || !Number.isFinite(s.startCountdown.finishAt))
     )
       return false;
-    let count = 0;
     const ids = new Set();
     const validTile = (t) => {
       if (
@@ -694,14 +710,13 @@ export function isSupportedState(s) {
         !Number.isInteger(t.rotation) ||
         t.rotation < 0 ||
         t.rotation > 3 ||
-        !Number.isInteger(t.id) ||
+        !Number.isSafeInteger(t.id) ||
         t.id < 1 ||
         ids.has(t.id) ||
         t.id >= s.nextId
       )
         return false;
       ids.add(t.id);
-      count++;
       return true;
     };
     const supplies = [inventory(), inventory()];
@@ -710,11 +725,12 @@ export function isSupportedState(s) {
         if (!validTile(t)) return false;
         supplies[t.owner][t.type]--;
       }
-    for (let p = 0; p < 2; p++) {
-      if (!s.captured[p].every((t) => validTile(t) && t.owner === 1 - p))
-        return false;
-      for (const t of s.captured[p]) supplies[t.owner][t.type]--;
-    }
+    for (let p = 0; p < 2; p++)
+      for (const t of s.captured[p]) {
+        if (!validTile(t) || t.owner !== 1 - p) return false;
+        supplies[t.owner][t.type]--;
+      }
+    if (s.nextId !== ids.size + 1) return false;
     for (let p = 0; p < 2; p++) {
       for (const type of TYPES) {
         const n = s.reserves[p][type.id];
@@ -727,7 +743,6 @@ export function isSupportedState(s) {
           return false;
       }
     }
-    if (count > TILES_PER_PLAYER * 2 || s.nextId !== count + 1) return false;
     if (
       s.ended &&
       (!["passes", "time", "resign"].includes(s.ended.reason) ||
@@ -736,7 +751,7 @@ export function isSupportedState(s) {
         s.ended.scores.length !== 2 ||
         !s.ended.scores.every(
           (n) => Number.isInteger(n) && n >= 0 &&
-            n <= BOARD_CELLS + TILES_PER_PLAYER * 2,
+            n <= BOARD_CELLS + TILES_PER_PLAYER,
         ))
     )
       return false;
@@ -757,7 +772,21 @@ export function isSupportedState(s) {
           t.rotation >= 0 &&
           t.rotation < 4,
       );
+    let turnNumber = 1, challengeUsed = false, challengeSucceeded = false,
+      actor = s.history[0]?.player ?? s.turn;
     for (const e of s.history) {
+      if (e.player !== actor || e.turnNumber !== turnNumber ||
+          e.completesTurn !== (e.type !== "challenge")) return false;
+      if (e.type === "challenge") {
+        if (challengeUsed) return false;
+        challengeUsed = true;
+        challengeSucceeded = e.success;
+      } else {
+        actor = 1 - actor;
+        turnNumber++;
+        challengeUsed = false;
+        challengeSucceeded = false;
+      }
       if (
         ![0, 1].includes(e.player) ||
         !e.command ||
@@ -791,7 +820,6 @@ export function isSupportedState(s) {
           !validCells(e.path) ||
           e.path.length < 2 ||
           !validCells(e.removed) ||
-          !Object.hasOwn(TYPE_MAP, e.fee) ||
           typeof e.success !== "boolean" ||
           typeof e.number !== "string" ||
           !NUMBER_PATTERN.test(e.number) ||
@@ -801,8 +829,7 @@ export function isSupportedState(s) {
           BigInt(e.factor) >= BigInt(e.number) ||
           !validCells(e.command.path) ||
           typeof e.command.factor !== "string" ||
-          !FACTOR_PATTERN.test(e.command.factor) ||
-          !Object.hasOwn(TYPE_MAP, e.command.fee)
+          !FACTOR_PATTERN.test(e.command.factor)
         )
           return false;
       } else if (e.type !== "pass") return false;
@@ -821,6 +848,8 @@ export function isSupportedState(s) {
       )
         return false;
     }
+    if (s.turn !== actor || s.turnNumber !== turnNumber ||
+        s.challengeUsed !== challengeUsed || s.challengeSucceeded !== challengeSucceeded) return false;
     const g = graph(s.board);
     return (
       !hasCycle(g) &&

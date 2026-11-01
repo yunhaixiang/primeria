@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { newGame, applyMove, clone, total } from "../engine.js";
+import { topPocket, put, cell } from "./territory-fixtures.js";
 import {
   splitPermissions,
   splitPanelHTML,
@@ -21,13 +22,13 @@ test("only the active seat can move, and permissions switch after a legal drop",
   const s = active();
   assert.equal(splitPermissions(s, 0).canMove, true);
   assert.equal(splitPermissions(s, 1).canMove, false);
-  applyMove(s, { type: "drop", tile: "j1", at: 112 }, 0);
+  applyMove(s, { type: "drop", tile: "j1", at: cell("I9") }, 0);
   assert.equal(splitPermissions(s, 0).canMove, false);
   assert.equal(splitPermissions(s, 1).canMove, true);
   assert.match(panel(s, 0), /data-split-command="action" disabled/);
   assert.doesNotMatch(panel(s, 1), /data-split-command="action" disabled/);
 });
-test("online and computer seats never gain authority through split controls", () => {
+test("online seats never gain authority through another player’s split controls", () => {
   const s = active();
   s.turn = 1;
   assert.equal(splitPermissions(s, 1, { role: 0 }).canMove, false);
@@ -39,8 +40,8 @@ test("online and computer seats never gain authority through split controls", ()
     splitPermissions(s, 1, { role: 1, connected: false }).canMove,
     false,
   );
-  assert.equal(splitPermissions(s, 1, { botPlayer: 1 }).canMove, false);
-  assert.equal(splitPermissions(s, 0, { botPlayer: 1 }).canResign, true);
+  assert.equal(splitPermissions(s, 0).canResign, false);
+  assert.equal(splitPermissions(s, 1).canResign, true);
 });
 test("paused, ended, reviewing and disconnected games disable move submission", () => {
   for (const options of [{ networkLost: true }, { reviewAt: 0 }])
@@ -61,15 +62,15 @@ test("paused, ended, reviewing and disconnected games disable move submission", 
   assert.match(panel(s, 0), /Resume game/);
   assert.equal(splitPermissions(newGame(), 1).canStart, true);
 });
-test("each player sees their own type-specific reserve, score and captured tiles", () => {
+test("each player sees their own type-specific reserve and claimed score", () => {
   const s = active();
-  applyMove(s, { type: "drop", tile: "j1", at: 112 }, 0);
+  applyMove(s, { type: "drop", tile: "j1", at: cell("I9") }, 0);
   const zero = panel(s, 0),
     one = panel(s, 1);
-  assert.equal(total(s.reserves[0]), 57);
-  assert.equal(total(s.reserves[1]), 58);
-  assert.match(zero, /1, Three-way fork, 6 remaining/);
-  assert.match(one, /1, Three-way fork, 7 remaining/);
+  assert.equal(total(s.reserves[0]), 149);
+  assert.equal(total(s.reserves[1]), 150);
+  assert.match(zero, /1, Three-way fork, 14 remaining/);
+  assert.match(one, /1, Three-way fork, 15 remaining/);
   assert.match(zero, /data-split-command="tile" data-value="j1"[^>]*disabled/);
   assert.doesNotMatch(
     one,
@@ -87,17 +88,19 @@ test("cloned claim and challenge controls have distinct IDs for both seats", () 
   assert.match(b, /data-split-field="segment"/);
   assert.match(b, /data-split-command="align"/);
 });
-test("split panels expose the current path rules, fee control and a physical keypad", () => {
+test("split panels expose the optional challenge, normal moves and a physical keypad", () => {
   const s = active();
   const html = panel(s, 0, {
     action: "challenge",
     content: '<input id="factor-input" value="13">',
-    feedback: "The fee is paid for either outcome.",
+    feedback: "One attempt before your move.",
     commitLabel: "Test factor",
     commitDisabled: false,
   });
   assert.match(html, /data-split-command="commit"[^>]*>Test factor/);
-  assert.match(html, /Your challenge fee/);
+  assert.match(html, /Challenge first · optional/);
+  assert.match(html, /Your reserve/);
+  assert.doesNotMatch(html, /challenge fee/);
   assert.match(html, /Factor digit 0/);
   assert.match(html, /Factor digit 9/);
   assert.match(html, /Delete last factor digit/);
@@ -129,8 +132,8 @@ test("split review displays the chosen position without changing the game or dra
     journal: [{ title: "Drop 1", note: "A1" }],
   });
   assert.match(html, /Starting position/);
-  assert.match(html, /Previous turn/);
-  assert.match(html, /Next turn/);
+  assert.match(html, /Previous step/);
+  assert.match(html, /Next step/);
   assert.match(html, /Show result/);
   assert.match(html, /data-split-command="history"/);
   assert.deepEqual(s, before);
@@ -146,4 +149,25 @@ test("countdowns block both seats and only one keypad is rendered per panel", ()
   const html = splitActionHTML(content, 0);
   assert.doesNotMatch(html, /factor-keypad/);
   assert.match(html, /data-split-command="delete"/);
+});
+
+test("a used challenge disables only the optional challenge, including after a failed attempt", () => {
+  const s = active();
+  s.challengeUsed = true;
+  const html = panel(s, 0);
+  assert.match(html, /data-split-command="action" disabled[^>]*data-value="challenge"/);
+  for (const action of ["drop", "claim", "pass"])
+    assert.match(html, new RegExp('data-split-command="action"  data-value="' + action + '"'));
+  const normal = html.match(/aria-label="Move type for Blue">([\s\S]*?)<\/div>/)[1];
+  assert.doesNotMatch(normal, /challenge/);
+});
+
+test("split scores show claimed tiles and captured points, without territory", () => {
+  const s = active();
+  const claim = topPocket(s);
+  put(s, 5, "r2", 1);
+  put(s, cell("F2"), "r4", 1);
+  applyMove(s, { type: "claim", tiles: claim }, 0);
+  assert.match(panel(s, 0), /11 points · 9 claimed · 2 captured/);
+  assert.match(panel(s, 1), /0 points · 0 claimed · 0 captured/);
 });

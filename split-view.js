@@ -5,12 +5,12 @@ import {
   total,
   scores,
   scoreBreakdown,
-} from "./engine.js?v=1beb33ddb1";
+} from "./engine.js?v=1d923cf797";
 import {
   tileHTML,
   factorKeyHTML,
   escapeHTML as escape,
-} from "./tiles.js?v=1beb33ddb1";
+} from "./tiles.js?v=1d923cf797";
 
 export function splitPermissions(
   state,
@@ -18,13 +18,12 @@ export function splitPermissions(
   {
     role = null,
     connected = true,
-    botPlayer = null,
     networkLost = false,
     reviewAt = null,
   } = {},
 ) {
   const human =
-    seat !== botPlayer && (role === null || (connected && role === seat));
+    role === null || (connected && role === seat);
   const available =
     human &&
     !networkLost &&
@@ -39,7 +38,7 @@ export function splitPermissions(
       available &&
       state.started &&
       !state.paused &&
-      (state.turn === seat || state.turn === botPlayer),
+      state.turn === seat,
   };
 }
 
@@ -96,10 +95,10 @@ export function splitPanelHTML(state, options) {
               : current
                 ? "Your turn"
                 : `Waiting for ${escape(state.names[state.turn])}`;
-  const actions = `<div class="actions" role="group" aria-label="Move type for ${escape(state.names[seat])}">${["drop", "claim", "challenge", "pass"].map((value) => button("action", value[0].toUpperCase() + value.slice(1), !canMove, `data-value="${value}" aria-pressed="${current && action === value}"`)).join("")}</div>`;
+  const actions = `<div class="optional-challenge">${button("action", "Challenge first · optional", !canMove || state.challengeUsed, `data-value="challenge" aria-pressed="${current && action === "challenge"}"`)}</div><div class="actions" role="group" aria-label="Move type for ${escape(state.names[seat])}">${["drop", "claim", "pass"].map((value) => button("action", value[0].toUpperCase() + value.slice(1), !canMove, `data-value="${value}" aria-pressed="${current && action === value}"`)).join("")}</div>`;
   let controls = "";
   if (state.ended) {
-    controls = `<div class="preview-help"><b>${escape(result)}</b>${reviewAt === null ? `<p>Review the turns to explore the game.</p>${button("review", "Review game", !state.history.length)}` : `<p>Turn ${reviewAt} of ${state.history.length}</p><div class="split-review-nav">${button("first", "|←", reviewAt === 0, 'aria-label="Starting position"')}${button("previous", "←", reviewAt === 0, 'aria-label="Previous turn"')}${button("next", "→", reviewAt === state.history.length, 'aria-label="Next turn"')}${button("last", "→|", reviewAt === state.history.length, 'aria-label="Final position"')}</div>${button("live", "Show result")}`}</div>`;
+    controls = `<div class="preview-help"><b>${escape(result)}</b>${reviewAt === null ? `<p>Review the turns to explore the game.</p>${button("review", "Review game", !state.history.length)}` : `<p>Step ${reviewAt} of ${state.history.length}</p><div class="split-review-nav">${button("first", "|←", reviewAt === 0, 'aria-label="Starting position"')}${button("previous", "←", reviewAt === 0, 'aria-label="Previous step"')}${button("next", "→", reviewAt === state.history.length, 'aria-label="Next step"')}${button("last", "→|", reviewAt === state.history.length, 'aria-label="Final position"')}</div>${button("live", "Show result")}`}</div>`;
   } else if (!state.started || state.paused) {
     controls = `<div class="preview-help">${!state.started ? "Begin when both players are ready." : "Resume when both players are ready."}</div>${button("commit", !state.started ? "Start game" : "Resume game", !(canStart || canPause), 'class="commit-button"')}`;
   } else {
@@ -115,14 +114,14 @@ export function splitPanelHTML(state, options) {
   }
   const reserveHTML = TYPES.map(
     (type) =>
-      `<button class="reserve-tile owner-${seat} ${current && selected === type.id ? "active" : ""} ${reserve[type.id] ? "" : "exhausted"}" data-split-command="tile" data-value="${type.id}" aria-label="${type.digit}, ${type.label}, ${reserve[type.id]} remaining" ${canMove && ["drop", "challenge"].includes(action) && reserve[type.id] > 0 ? "" : "disabled"} title="${type.digit} · ${type.label}">${tileHTML({ type: type.id, owner: seat, face: "digit", rotation: 0 })}<span class="count">×${reserve[type.id]}</span></button>`,
+      `<button class="reserve-tile owner-${seat} ${current && selected === type.id ? "active" : ""} ${reserve[type.id] ? "" : "exhausted"}" data-split-command="tile" data-value="${type.id}" aria-label="${type.digit}, ${type.label}, ${reserve[type.id]} remaining" ${canMove && action === "drop" && reserve[type.id] > 0 ? "" : "disabled"} title="${type.digit} · ${type.label}">${tileHTML({ type: type.id, owner: seat, face: "digit", rotation: 0 })}<span class="count">×${reserve[type.id]}</span></button>`,
   ).join("");
   const rows = journal
     .map(
       (item, index) =>
-        `<li>${button("history", `<span class="turn-num">${index + 1}.</span><span>${escape(item.title)}<small class="move-note">${escape(item.note)}</small></span>`, !state.ended, `data-value="${index + 1}" ${reviewAt === index + 1 ? 'aria-current="step"' : ""}`)}</li>`,
+        `<li>${button("history", `<span class="turn-num">${state.history[index]?.turnNumber ?? index + 1}${state.history[index]?.type === "challenge" ? "c" : "."}</span><span>${escape(item.title)}<small class="move-note">${escape(item.note)}</small></span>`, !state.ended, `data-value="${index + 1}" ${reviewAt === index + 1 ? 'aria-current="step"' : ""}`)}</li>`,
     )
     .join("");
   return `<header class="split-seat-heading owner-${seat}"><div><p class="eyebrow">PLAYER ${seat + 1}</p><h2>${escape(state.names[seat])}</h2><p class="split-status">${status}</p></div><span class="clock" data-clock="${seat}">${formatTime(display.clocks[seat])}</span>${button("panel", phoneOpen ? "Close" : "Moves", false, `class="split-panel-toggle" aria-expanded="${phoneOpen}" aria-controls="split-body-${seat}" aria-label="${phoneOpen ? "Close" : "Open"} controls for ${escape(state.names[seat])}"`)}</header>
- <div id="split-body-${seat}" class="split-body" data-phone-open="${phoneOpen}"><div class="split-score"><span>${points[seat]} points · ${breakdown[seat].territory} territory · ${display.captured[seat].length} captured${breakdown[seat].growing ? ` · ${breakdown[seat].growing} below nine` : ""}</span><span>${mode[0] === null ? "Casual" : state.mode + " · " + mode[0] / 60 + " + " + mode[1]}</span></div><div class="split-opponent-summary"><span>${escape(state.names[1 - seat])} · ${points[1 - seat]} points</span><b data-clock="${1 - seat}">${formatTime(display.clocks[1 - seat])}</b></div><div class="split-session-tools">${button("new", "New game")}${button("pause", !state.started ? "Start" : state.paused ? "Resume" : "Pause", !(canPause || canStart))}${button("rules", "Rules")}${button("sound", muted ? "Sound off" : "Sound on")}${button("resign", "Resign", !canResign)}</div><div class="split-controls">${controls}</div><section class="split-reserve"><div class="section-title"><h3>${current && action === "challenge" ? "Your challenge fee" : "Your reserve"}</h3><span>${total(reserve)} tiles</span></div><div class="reserve">${reserveHTML}</div></section><details class="split-history" ${historyOpen ? "open" : ""}><summary>Turn journal · ${state.history.length}</summary><ol class="journal">${rows || '<li class="subtle">No moves yet.</li>'}</ol>${button("download", "Save game record ↓", !state.history.length, 'class="text-button small"')}</details></div>`;
+ <div id="split-body-${seat}" class="split-body" data-phone-open="${phoneOpen}"><div class="split-score"><span>${points[seat]} points · ${breakdown[seat].eligible} claimed · ${breakdown[seat].captured} captured${breakdown[seat].growing ? ` · ${breakdown[seat].growing} below nine` : ""}</span><span>${mode[0] === null ? "Casual" : state.mode + " · " + mode[0] / 60 + " + " + mode[1]}</span></div><div class="split-opponent-summary"><span>${escape(state.names[1 - seat])} · ${points[1 - seat]} points</span><b data-clock="${1 - seat}">${formatTime(display.clocks[1 - seat])}</b></div><div class="split-session-tools">${button("new", "New game")}${button("pause", !state.started ? "Start" : state.paused ? "Resume" : "Pause", !(canPause || canStart))}${button("rules", "Rules")}${button("sound", muted ? "Sound off" : "Sound on")}${button("resign", "Resign", !canResign)}</div><div class="split-controls">${controls}</div><section class="split-reserve"><div class="section-title"><h3>Your reserve</h3><span>${total(reserve)} tiles</span></div><div class="reserve">${reserveHTML}</div></section><details class="split-history" ${historyOpen ? "open" : ""}><summary>Turn journal · ${state.turnNumber - 1} completed</summary><ol class="journal">${rows || '<li class="subtle">No moves yet.</li>'}</ol>${button("download", "Save game record ↓", !state.history.length, 'class="text-button small"')}</details></div>`;
 }
