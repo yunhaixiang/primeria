@@ -27,26 +27,26 @@ import {
   reviewPosition,
   isSupportedState,
   clone,
-} from "./engine.js?v=d746a55b94";
+} from "./engine.js?v=1beb33ddb1";
 import {
   tileHTML,
   factorKeyHTML,
   tileLabel,
   escapeHTML as esc,
-} from "./tiles.js?v=d746a55b94";
-import { orientTree } from "./paths.js?v=d746a55b94";
+} from "./tiles.js?v=1beb33ddb1";
+import { orientTree } from "./paths.js?v=1beb33ddb1";
 import {
   extendChallenge,
   challengeReady,
-} from "./challenge-selection.js?v=d746a55b94";
-import { gameResult } from "./review.js?v=d746a55b94";
-import { RULES_HTML } from "./rules-content.js?v=d746a55b94";
+} from "./challenge-selection.js?v=1beb33ddb1";
+import { gameResult } from "./review.js?v=1beb33ddb1";
+import { RULES_HTML } from "./rules-content.js?v=1beb33ddb1";
 import {
   logicalIndex as boardIndex,
   boardLabels,
   boardHomeEdges,
-} from "./board-view.js?v=d746a55b94";
-import { splitPanelHTML, splitPermissions } from "./split-view.js?v=d746a55b94";
+} from "./board-view.js?v=1beb33ddb1";
+import { splitPanelHTML, splitPermissions } from "./split-view.js?v=1beb33ddb1";
 const $ = (s) => document.querySelector(s),
   $$ = (s) => [...document.querySelectorAll(s)];
 const SAVE = `primeria.owned-paths.v${RULES_VERSION}`,
@@ -224,6 +224,7 @@ function renderBoard() {
             ? [dropAt]
             : [];
   const labels = boardLabels(rotation), home = boardHomeEdges(rotation);
+  $(".board-shell").dataset.horizontalHome = home.columns;
   $("#columns").innerHTML = labels.columns
     .map((x) => `<span class="home-edge home-${home.columns}" title="${home.columns === 0 ? "Blue" : "Orange"} home edge">${x}</span>`)
     .join("");
@@ -1474,7 +1475,7 @@ function updateBot() {
       cancelBot();
       botJob = id;
       worker = new Worker(
-        new URL("./bot-worker.js?v=d746a55b94", import.meta.url),
+        new URL("./bot-worker.js?v=1beb33ddb1", import.meta.url),
         {
           type: "module",
         },

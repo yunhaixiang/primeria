@@ -13,8 +13,8 @@ import {
   validateMove,
   scores,
   scoreBreakdown,
-} from "./engine.js?v=d746a55b94";
-import { orientTree } from "./paths.js?v=d746a55b94";
+} from "./engine.js?v=1beb33ddb1";
+import { orientTree } from "./paths.js?v=1beb33ddb1";
 export const BOT_LEVELS = {
   beginner: "Gentle",
   intermediate: "Thoughtful",

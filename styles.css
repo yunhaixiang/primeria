@@ -3939,6 +3939,16 @@ main {
 }
 .board-shell {
   position: relative;
+  --horizontal-home-edge: #79b6d4;
+  --vertical-home-edge: #e3a16e;
+}
+.board-shell[data-horizontal-home="1"] {
+  --horizontal-home-edge: #e3a16e;
+  --vertical-home-edge: #79b6d4;
+}
+.board-shell::after {
+  border: 3px solid;
+  border-color: var(--horizontal-home-edge) var(--vertical-home-edge);
 }
 .board-scroll {
   overflow: auto;
