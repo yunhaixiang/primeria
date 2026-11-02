@@ -1,6 +1,6 @@
 import {
   TYPES, BOARD_SIZE, BOARD_CELLS, TYPE_MAP, MIN_SCORING_GROUP, neighbor, graph, hasCycle, scoringTiles,
-  claimedGroups, segments, total, validateMove, scores, territory, endgameProjection,
+  claimedGroups, segments, total, validateMove, scores, endgameProjection,
 } from "./engine.js";
 export const BOT_LEVELS = { beginner: "Gentle", intermediate: "Thoughtful", advanced: "Deep" };
 /** Elementary tests are compulsory, independent of the trial-division budget. */
@@ -29,23 +29,9 @@ function evaluate(s, p) {
   // prisoner liability as the available building space runs out.
   const room = Math.min(1, s.board.filter(t => !t).length / 90);
   const g = graph(s.board), complete = scoringTiles(s.board, g), groups = claimedGroups(s.board, g);
-  const developed = new Set();
   for (const group of groups) {
     value += (group.owner === p ? 1 : -1) * group.size *
       (group.size < MIN_SCORING_GROUP ? room * (1.1 + 0.04 * group.size) : 0.4);
-    if (group.size >= 3) for (const at of group.tiles) developed.add(at);
-  }
-  // Developing a wall matters before all its tiles survive cleanup. This is
-  // only a search estimate; the actual score always comes from the engine.
-  const prospective = territory(s.board.map((t, at) => developed.has(at) ? t : null)).counts;
-  value += 0.35 * (prospective[p] - prospective[1 - p]);
-  for (let at = 0; at < BOARD_CELLS; at++) {
-    if (s.board[at] || around(at).length < 4) continue;
-    const walls = [0, 0];
-    for (const j of around(at)) if (s.board[j] && developed.has(j)) walls[s.board[j].owner]++;
-    for (const owner of [0, 1])
-      if (walls[owner] >= 2 && !walls[1 - owner])
-        value += (owner === p ? 1 : -1) * 0.08 * walls[owner] ** 2;
   }
   for (let i = 0; i < BOARD_CELLS; i++) if (s.board[i]) {
     const sign = s.board[i].owner === p ? 1 : -1;

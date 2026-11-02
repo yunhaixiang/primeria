@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="theme-color" content="#f6f3eb" />
     <title>How to play · Primeria</title>
-    <link rel="icon" href="favicon.svg?v=d4cefab90c" />
-    <link rel="stylesheet" href="styles.css?v=d4cefab90c" />
+    <link rel="icon" href="favicon.svg?v=6aff4fabfe" />
+    <link rel="stylesheet" href="styles.css?v=6aff4fabfe" />
   </head>
   <body>
     <main class="rule-page">
@@ -25,13 +25,13 @@
       ><a href="./">Return to the board ↗</a>
     </footer>
     <script type="module">
-      import { RULES_HTML } from "./rules-content.js?v=d4cefab90c";
-      import { tileHTML } from "./tiles.js?v=d4cefab90c";
+      import { RULES_HTML } from "./rules-content.js?v=6aff4fabfe";
+      import { tileHTML } from "./tiles.js?v=6aff4fabfe";
       document.querySelector("#rulebook").innerHTML = RULES_HTML;
       document.querySelector("#rule-intro").innerHTML =
         tileHTML({ type: "r2", owner: 0, face: "arrow", rotation: 0 }) +
         tileHTML({ type: "j1", owner: 1, face: "arrow", rotation: 1 }) +
-        "<p>Build networks. Enclose territory.<br>Challenge a factor to capture an opponent’s segment.</p>";
+        "<p>Build networks. Protect your numbers.<br>Challenge a factor to capture an opponent’s segment.</p>";
     </script>
   </body>
 </html>

@@ -40,21 +40,21 @@ test("unfinished tails cannot bring a five-tile completed group over the six-til
   assert.deepEqual(scores(s),[0,0]); assert.equal(scoreBreakdown(s)[0].growing,5);
   assert.equal(scoreBreakdown(s)[0].unfinished,1);
 });
-test("six completed tiles survive without scoring while a five-tile group is captured", () => {
+test("six completed tiles score and survive while a five-tile group is captured", () => {
   const s=active();
   line(s,cell("A3"),0,["j1",...Array(4).fill("r4"),"j3"]);
   line(s,cell("A5"),1,["j1",...Array(3).fill("r4"),"j3"]);
-  assert.deepEqual(scores(s),[0,0]);
+  assert.deepEqual(scores(s),[6,0]);
   assert.equal(scoreBreakdown(s)[0].eligible,6);
   assert.equal(scoreBreakdown(s)[1].growing,5);
   applyMove(s,{type:"pass"},0); const end=applyMove(s,{type:"pass"},0);
   assert.equal(end.smallGroups.length,5);
-  assert.deepEqual(scores(s),[5,0]);
+  assert.deepEqual(scores(s),[11,0]);
   assert.equal(s.board.filter(Boolean).length,6);
 });
-test("surviving board tiles do not score while unfinished extensions are tracked", () => {
+test("surviving board tiles score while unfinished extensions do not", () => {
   const s=active(); line(s); put(s,cell("J3"),"r6",0,"arrow",1);
-  assert.deepEqual(scores(s),[0,0]); assert.equal(scoreBreakdown(s)[0].eligible,9); assert.equal(scoreBreakdown(s)[0].unfinished,1);
+  assert.deepEqual(scores(s),[9,0]); assert.equal(scoreBreakdown(s)[0].eligible,9); assert.equal(scoreBreakdown(s)[0].unfinished,1);
   assert.deepEqual(claimedGroups(s.board).map(g=>g.size),[9]);
 });
 test("challenge endpoints must both be junctions, even when a regular end has degree one", () => {
@@ -71,7 +71,7 @@ test("segments may pass through intermediate junctions and the search cap never 
 });
 test("a broken completed path becomes unfinished immediately and loses its scoring eligibility", () => {
   const s=active(); line(s,cell("A3"),1,["j1","r4","r4","r4","r4","r4","r4","j3","j3"]);
-  assert.deepEqual(scores(s),[0,0]);
+  assert.deepEqual(scores(s),[0,9]);
   applyMove(s,{type:"challenge",path:[cell("H3"),cell("I3")],factor:"3"},0);
   assert.equal(completedTiles(s.board).size,0); assert.equal(scoreBreakdown(s)[1].unfinished,6);
   assert.deepEqual(scores(s),[2,0]);

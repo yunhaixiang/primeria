@@ -56,7 +56,7 @@ test("bot finishes a nine-tile path with a safe junction instead of flipping", (
   assert.equal(result.command.type,"drop"); assert.equal(result.command.at,cell("I3"));
   assert.equal(TYPE_MAP[result.command.tile].kind,"fork");
   const e=applyMove(s,result.command,0);
-  assert.equal(e.enclosureCaptures,undefined); assert.deepEqual(scores(s),[0,0]); assert.equal(scoreBreakdown(s)[0].eligible,9);
+  assert.equal(e.enclosureCaptures,undefined); assert.deepEqual(scores(s),[9,0]); assert.equal(scoreBreakdown(s)[0].eligible,9);
   assert.ok(isSupportedState(s));
   for(const seg of segments(s.board,0)) assert.equal(findFactor(seg.number),null);
 });

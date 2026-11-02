@@ -37,9 +37,7 @@ Two consecutive passes end the game. A successful Challenge breaks the pass stre
 
 First, remove all regular tiles that do not lie on a segment. Then remove all tiles in groups of fewer than six. Give each removed tile to its owner’s opponent as a capture.
 
-An **empty region** consists of empty squares connected horizontally or vertically. It is your **territory** if it does not touch the board edge and every tile bordering it is yours. Other regions are neutral.
-
-Score one point for each square in your territory and each captured tile. Tiles left on the board do not score. The higher score wins; equal scores are a draw.
+Score one point for each of your tiles left on the board and each captured tile. Empty squares do not score. The higher score wins; equal scores are a draw.
 
 A player also loses by resigning or running out of time.
 

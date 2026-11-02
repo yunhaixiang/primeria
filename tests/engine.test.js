@@ -76,7 +76,7 @@ test("two passes capture unfinished tiles and completed groups below six", () =>
   put(s, cell("L12"), "r4"); // An unfinished blue tile.
   assert.deepEqual(scoreBreakdown(s).map(x => [x.eligible, x.growing, x.unfinished]), [[9,0,1],[0,2,0]]);
   move(s, { type: "pass" }); move(s, { type: "pass" });
-  assert.deepEqual(scores(s), [2,1]);
+  assert.deepEqual(scores(s), [11,1]);
   assert.equal(s.ended.winner, 0); assert.equal(s.board.filter(Boolean).length, 9);
   assert.ok(isSupportedState(s));
 });

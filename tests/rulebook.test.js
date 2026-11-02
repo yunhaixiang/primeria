@@ -11,9 +11,8 @@ test("current rulebook contains the exact supply, path requirements, pass ending
     "162 tiles", "18 copies of each digit", "at least two of your tiles",
     "first and last tiles are junction tiles", "Tiles cannot be rotated after placement",
     "regular tiles that do not lie on a segment", "groups of fewer than six",
-    "each square in your territory", "each captured tile",
-    "Tiles left on the board do not score", "does not touch the board edge",
-    "every tile bordering it is yours",
+    "each of your tiles left on the board", "each captured tile",
+    "Empty squares do not score",
     "last tile to the first", "two consecutive passes", "Casual",
     "you may attempt one Challenge", "Then Drop or Pass",
     "Whether correct or not, then make your Drop or Pass",
@@ -31,7 +30,7 @@ test("current rulebook contains the exact supply, path requirements, pass ending
   assert.ok(page.includes("rules-content.js"));
   assert.ok(app.includes("rules-content.js"));
   assert.doesNotMatch(md, /Flip at least|No Leading Zero Rule|Drop, Claim|digit side|digit-side/);
-  assert.ok(md.includes("**territory**"));
+  assert.doesNotMatch(md, /territory|empty region|enclosed/i);
   assert.doesNotMatch(md, /A junction must connect/);
   assert.ok(!/home edges|surrounded|surrounding/i.test(md));
   assert.ok(!app.includes("captured immediately beside"));

@@ -23,32 +23,31 @@ import {
   resign,
   scores,
   scoreBreakdown,
-  territoryPreview,
   reviewPosition,
   isSupportedState,
   clone,
-} from "./engine.js?v=d4cefab90c";
+} from "./engine.js?v=6aff4fabfe";
 import {
   tileHTML,
   factorKeyHTML,
   tileLabel,
   escapeHTML as esc,
-} from "./tiles.js?v=d4cefab90c";
+} from "./tiles.js?v=6aff4fabfe";
 import {
   extendChallenge,
   challengeReady,
-} from "./challenge-selection.js?v=d4cefab90c";
-import { gameResult } from "./review.js?v=d4cefab90c";
-import { RULES_HTML } from "./rules-content.js?v=d4cefab90c";
+} from "./challenge-selection.js?v=6aff4fabfe";
+import { gameResult } from "./review.js?v=6aff4fabfe";
+import { RULES_HTML } from "./rules-content.js?v=6aff4fabfe";
 import {
   logicalIndex as boardIndex,
   boardLabels,
-} from "./board-view.js?v=d4cefab90c";
-import { splitPanelHTML, splitPermissions } from "./split-view.js?v=d4cefab90c";
+} from "./board-view.js?v=6aff4fabfe";
+import { splitPanelHTML, splitPermissions } from "./split-view.js?v=6aff4fabfe";
 const $ = (s) => document.querySelector(s),
   $$ = (s) => [...document.querySelectorAll(s)];
 const SAVE = `primeria.owned-paths.v${RULES_VERSION}`,
-  ONLINE = 23;
+  ONLINE = 24;
 let state = newGame(),
   action = "drop",
   selected = "r4",
@@ -193,7 +192,7 @@ function renderPlayers() {
   $("#players").innerHTML = [0, 1]
     .map(
       (p) =>
-        `<div class="player owner-${p} ${!s.ended && s.turn === p ? "active" : ""}"><div><div class="player-name"><span class="player-dot"></span>${esc(s.names[p])}</div><div class="player-meta" title="${breakdown[p].territory} territory points after cleanup; ${breakdown[p].captured} captured tiles; ${breakdown[p].growing} tiles in groups below six; ${breakdown[p].unfinished} unfinished tiles go to the opponent at the end">${points[p]} points · ${breakdown[p].territory} territory · ${breakdown[p].captured} captured${breakdown[p].growing ? ` · ${breakdown[p].growing} below six` : ""}${breakdown[p].unfinished ? ` · ${breakdown[p].unfinished} unfinished` : ""}</div></div><span class="clock" data-clock="${p}">${formatTime(s.clocks[p])}</span></div>`,
+        `<div class="player owner-${p} ${!s.ended && s.turn === p ? "active" : ""}"><div><div class="player-name"><span class="player-dot"></span>${esc(s.names[p])}</div><div class="player-meta" title="${breakdown[p].eligible} scoring board tiles; ${breakdown[p].captured} captured tiles; ${breakdown[p].growing} tiles in groups below six; ${breakdown[p].unfinished} unfinished tiles go to the opponent at the end">${points[p]} points · ${breakdown[p].eligible} scoring tiles · ${breakdown[p].captured} captured${breakdown[p].growing ? ` · ${breakdown[p].growing} below six` : ""}${breakdown[p].unfinished ? ` · ${breakdown[p].unfinished} unfinished` : ""}</div></div><span class="clock" data-clock="${p}">${formatTime(s.clocks[p])}</span></div>`,
     )
     .join("");
   renderClocks();
@@ -206,7 +205,6 @@ function renderBoard() {
     owner = viewer(),
     allowed = permitted(),
     g = graph(s.board),
-    land = territoryPreview(s.board),
     indices =
       action === "challenge"
           ? path
@@ -229,8 +227,7 @@ function renderBoard() {
     const i = logicalIndex(Math.floor(visual / BOARD_SIZE), visual % BOARD_SIZE),
       actual = s.board[i],
       tile = actual,
-      order = indices.indexOf(i),
-      territoryOwner = actual ? null : land.owners[i];
+      order = indices.indexOf(i);
     let next = false,
       clickable = false;
     if (allowed) {
@@ -244,11 +241,11 @@ function renderBoard() {
             : isEndpoint(s.board, g, i));
       }
     }
-    const label = `${coordinate(i)}${actual ? `, ${tileLabel(actual)}` : `, empty square${territoryOwner !== null ? `, ${s.names[territoryOwner]} territory after cleanup` : ""}`}${order >= 0 ? `, selected ${order + 1}` : ""}`;
+    const label = `${coordinate(i)}${actual ? `, ${tileLabel(actual)}` : ", empty square"}${order >= 0 ? `, selected ${order + 1}` : ""}`;
     const renderedTile = tile
       ? { ...tile, rotation: (tile.rotation + rotation) % 4 }
       : null;
-    return `<button class="square ${(Math.floor(i / BOARD_SIZE) + (i % BOARD_SIZE)) % 2 ? "alt" : ""} ${actual ? "occupied" : "empty"} owner-${actual?.owner ?? owner} ${order >= 0 ? "selected" : ""} ${next ? "path-next" : ""} ${lastCells.includes(i) ? "last-move" : ""} " data-at="${i}" data-order="${order + 1}" aria-label="${esc(label)}" title="${esc(label)}" ${clickable ? "" : "disabled"}>${territoryOwner !== null ? `<span class="territory-point owner-${territoryOwner}" aria-hidden="true"></span>` : ""}${renderedTile ? tileHTML(renderedTile) : allowed && action === "drop" && TYPE_MAP[selected] ? tileHTML({ type: selected, owner, face: "arrow", rotation: (dropRotation + rotation) % 4 }).replace('class="tile', 'class="tile ghost') : ""}</button>`;
+    return `<button class="square ${(Math.floor(i / BOARD_SIZE) + (i % BOARD_SIZE)) % 2 ? "alt" : ""} ${actual ? "occupied" : "empty"} owner-${actual?.owner ?? owner} ${order >= 0 ? "selected" : ""} ${next ? "path-next" : ""} ${lastCells.includes(i) ? "last-move" : ""} " data-at="${i}" data-order="${order + 1}" aria-label="${esc(label)}" title="${esc(label)}" ${clickable ? "" : "disabled"}>${renderedTile ? tileHTML(renderedTile) : allowed && action === "drop" && TYPE_MAP[selected] ? tileHTML({ type: selected, owner, face: "arrow", rotation: (dropRotation + rotation) % 4 }).replace('class="tile', 'class="tile ghost') : ""}</button>`;
   }).join("");
 }
 function reserveHTML(p, interactive, display = shown()) {
@@ -592,7 +589,7 @@ function renderSession() {
   const b = (command, label, primary = false) =>
     `<button data-session-command="${command}" class="${primary ? "primary-button" : "outline-button"}">${label}</button>`;
   if (ended)
-    session.innerHTML = `<div><h2>${inReview ? "Review Game" : esc(gameResult(state))}</h2><p>${inReview ? `Step ${reviewAt} of ${state.history.length}` : "After cleanup, each owned empty square and each captured tile scores one point. Tiles on the board do not score. Captured tiles stay out of play."}</p>${inReview ? `<div class="review-navigation">${b("first", "|←")}${b("previous", "←")}${b("next", "→")}${b("last", "→|")}</div>` : ""}<div class="session-actions">${b(inReview ? "result" : "review", inReview ? "Game Result" : "Review Game")}${b("new", "New Game")}</div></div>`;
+    session.innerHTML = `<div><h2>${inReview ? "Review Game" : esc(gameResult(state))}</h2><p>${inReview ? `Step ${reviewAt} of ${state.history.length}` : "After cleanup, each remaining board tile and each captured tile scores one point. Captured tiles stay out of play."}</p>${inReview ? `<div class="review-navigation">${b("first", "|←")}${b("previous", "←")}${b("next", "→")}${b("last", "→|")}</div>` : ""}<div class="session-actions">${b(inReview ? "result" : "review", inReview ? "Game Result" : "Review Game")}${b("new", "New Game")}</div></div>`;
   else if (paused)
     session.innerHTML = `<div><h2>Game is Paused</h2><div class="session-actions">${b("resume", "Resume", true)}${b("new", "New Game")}</div></div>`;
   renderCountdown();
@@ -644,7 +641,7 @@ function renderControls() {
     content = `<p class="step">Choose an opponent’s <b>segment</b>, between two junctions. Follow the highlighted arrows.</p><select class="segment-picker" id="segment-picker" aria-label="Choose an opponent segment"><option value="">Choose on board or select a segment…</option>${all.map((s, i) => `<option value="${i}" ${path.join(",") === s.path.join(",") ? "selected" : ""}>${coordinate(s.path[0])} → ${coordinate(s.path.at(-1))} · ${s.path.length} tiles · ${esc(s.number)}</option>`).join("")}</select><div class="number-preview"><p class="eyebrow">${ready.number ? "NUMBER TO CHALLENGE" : "READ FROM LAST TILE TO FIRST"}</p><output>${ready.number ?? (path.length > 1 ? esc(segmentNumber(state.board, path)) : "—")}</output><small>Arrows run from the ones digit toward higher places.</small></div><div class="factor-display-row"><label class="factor-label">YOUR PROPOSED FACTOR<input id="factor-input" inputmode="numeric" pattern="[0-9]*" maxlength="${TILES_PER_PLAYER}" autocomplete="off" value="${esc(factor)}" placeholder="Enter a factor" aria-label="Proposed factor"></label><button id="factor-backspace" class="factor-backspace tile-key owner-${p}" aria-label="Delete last factor digit">⌫</button></div><div id="factor-keypad" class="factor-keypad" data-standalone-only role="group" aria-label="Factor digits">${[1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map((d) => factorKeyHTML(d, p)).join("")}</div><p class="inline-note">Optional: one attempt before your move. Afterward, choose Drop or Pass.</p>`;
   }
   if (action === "pass")
-    content = `<div class="preview-help">${state.passCount && !state.challengeSucceeded ? "<b>Your opponent passed.</b> Pass now to finish the game." : state.challengeSucceeded ? "Your successful challenge breaks the pass streak. You may pass to finish your turn." : "Take no action this turn. Two consecutive passes finish the game."}<br><br>At the end, regular tiles outside segments are captured first, then groups below six. Each territory square and each captured tile scores one point. Tiles on the board and in reserve do not score. Territory is counted after cleanup; regions touching an edge or both colours are neutral.</div>`;
+    content = `<div class="preview-help">${state.passCount && !state.challengeSucceeded ? "<b>Your opponent passed.</b> Pass now to finish the game." : state.challengeSucceeded ? "Your successful challenge breaks the pass streak. You may pass to finish your turn." : "Take no action this turn. Two consecutive passes finish the game."}<br><br>At the end, regular tiles outside segments are captured first, then groups below six. Each remaining board tile and each captured tile scores one point. Empty squares and reserve tiles do not score.</div>`;
   $("#action-content").innerHTML = content;
   renderFeedback();
 }

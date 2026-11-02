@@ -1,4 +1,4 @@
-import { BOARD_SIZE } from "./engine.js?v=d4cefab90c";
+import { BOARD_SIZE } from "./engine.js?v=6aff4fabfe";
 /** Map displayed board coordinates to the fixed, stored board coordinates. */
 export function logicalIndex(row, column, rotation = 0) {
   for (let q = 0; q < rotation % 4; q++) [row, column] = [BOARD_SIZE - 1 - column, row];

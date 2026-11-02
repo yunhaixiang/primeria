@@ -1,5 +1,5 @@
 /** Primeria's owned-tile rules. Directions: north, east, south, west. */
-export const RULES_VERSION = 42;
+export const RULES_VERSION = 43;
 export const MIN_SCORING_GROUP = 6;
 export const BOARD_SIZE = 15;
 export const BOARD_CELLS = BOARD_SIZE * BOARD_SIZE;
@@ -280,39 +280,8 @@ export function endgameProjection(board) {
       }
   return { board: cleaned, unclaimed, smallGroups };
 }
-/** Empty regions use orthogonal contact. Board edges and mixed boundaries are neutral. */
-export function territory(board) {
-  const owners = Array(BOARD_CELLS).fill(null), counts = [0, 0], seen = new Set(), regions = [];
-  for (let at = 0; at < BOARD_CELLS; at++) {
-    if (board[at] || seen.has(at)) continue;
-    const cells = [at], boundary = new Set();
-    let edge = false;
-    seen.add(at);
-    for (let k = 0; k < cells.length; k++)
-      for (let d = 0; d < 4; d++) {
-        const next = neighbor(cells[k], d);
-        if (next === null) edge = true;
-        else if (board[next]) boundary.add(board[next].owner);
-        else if (!seen.has(next)) {
-          seen.add(next);
-          cells.push(next);
-        }
-      }
-    const owner = !edge && boundary.size === 1 ? [...boundary][0] : null;
-    if (owner !== null) {
-      counts[owner] += cells.length;
-      for (const cell of cells) owners[cell] = owner;
-    }
-    regions.push({ cells, owner });
-  }
-  return { owners, counts, regions };
-}
-export function territoryPreview(board) {
-  return territory(endgameProjection(board).board);
-}
 export function scoreBreakdown(s) {
   const groups = claimedGroups(s.board), supported = scoringTiles(s.board);
-  const land = territoryPreview(s.board);
   return [0, 1].map((p) => {
     const own = groups.filter((x) => x.owner === p);
     const eligible = own
@@ -326,9 +295,8 @@ export function scoreBreakdown(s) {
       growing,
       unfinished: s.board.filter((t, at) => t?.owner === p && !supported.has(at)).length,
       captured: s.captured[p].length,
-      territory: land.counts[p],
       groups: own.map((x) => x.size),
-      total: land.counts[p] + s.captured[p].length,
+      total: eligible + s.captured[p].length,
     };
   });
 }
