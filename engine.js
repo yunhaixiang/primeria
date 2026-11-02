@@ -1,6 +1,6 @@
 /** Primeria's owned-tile rules. Directions: north, east, south, west. */
-export const RULES_VERSION = 40;
-export const MIN_SCORING_GROUP = 9;
+export const RULES_VERSION = 41;
+export const MIN_SCORING_GROUP = 6;
 export const BOARD_SIZE = 15;
 export const BOARD_CELLS = BOARD_SIZE * BOARD_SIZE;
 export const MODES = {

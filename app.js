@@ -26,28 +26,28 @@ import {
   reviewPosition,
   isSupportedState,
   clone,
-} from "./engine.js?v=b0fb62c34b";
+} from "./engine.js?v=510a47bc24";
 import {
   tileHTML,
   factorKeyHTML,
   tileLabel,
   escapeHTML as esc,
-} from "./tiles.js?v=b0fb62c34b";
+} from "./tiles.js?v=510a47bc24";
 import {
   extendChallenge,
   challengeReady,
-} from "./challenge-selection.js?v=b0fb62c34b";
-import { gameResult } from "./review.js?v=b0fb62c34b";
-import { RULES_HTML } from "./rules-content.js?v=b0fb62c34b";
+} from "./challenge-selection.js?v=510a47bc24";
+import { gameResult } from "./review.js?v=510a47bc24";
+import { RULES_HTML } from "./rules-content.js?v=510a47bc24";
 import {
   logicalIndex as boardIndex,
   boardLabels,
-} from "./board-view.js?v=b0fb62c34b";
-import { splitPanelHTML, splitPermissions } from "./split-view.js?v=b0fb62c34b";
+} from "./board-view.js?v=510a47bc24";
+import { splitPanelHTML, splitPermissions } from "./split-view.js?v=510a47bc24";
 const $ = (s) => document.querySelector(s),
   $$ = (s) => [...document.querySelectorAll(s)];
 const SAVE = `primeria.owned-paths.v${RULES_VERSION}`,
-  ONLINE = 21;
+  ONLINE = 22;
 let state = newGame(),
   action = "drop",
   selected = "r4",
@@ -194,7 +194,7 @@ function renderPlayers() {
   $("#players").innerHTML = [0, 1]
     .map(
       (p) =>
-        `<div class="player owner-${p} ${!s.ended && s.turn === p ? "active" : ""}"><div><div class="player-name"><span class="player-dot"></span>${esc(s.names[p])}</div><div class="player-meta" title="${breakdown[p].eligible} scoring board tiles; ${breakdown[p].captured} captured tiles; ${breakdown[p].growing} tiles in groups below nine; ${breakdown[p].unfinished} unfinished tiles go to the opponent at the end">${points[p]} points · ${breakdown[p].eligible} scoring tiles · ${breakdown[p].captured} captured${breakdown[p].growing ? ` · ${breakdown[p].growing} below nine` : ""}${breakdown[p].unfinished ? ` · ${breakdown[p].unfinished} unfinished` : ""}</div></div><span class="clock" data-clock="${p}">${formatTime(s.clocks[p])}</span></div>`,
+        `<div class="player owner-${p} ${!s.ended && s.turn === p ? "active" : ""}"><div><div class="player-name"><span class="player-dot"></span>${esc(s.names[p])}</div><div class="player-meta" title="${breakdown[p].eligible} scoring board tiles; ${breakdown[p].captured} captured tiles; ${breakdown[p].growing} tiles in groups below six; ${breakdown[p].unfinished} unfinished tiles go to the opponent at the end">${points[p]} points · ${breakdown[p].eligible} scoring tiles · ${breakdown[p].captured} captured${breakdown[p].growing ? ` · ${breakdown[p].growing} below six` : ""}${breakdown[p].unfinished ? ` · ${breakdown[p].unfinished} unfinished` : ""}</div></div><span class="clock" data-clock="${p}">${formatTime(s.clocks[p])}</span></div>`,
     )
     .join("");
   renderClocks();
@@ -304,7 +304,7 @@ function draftStatus() {
   return {
     okay: true,
     text: state.passCount && !state.challengeSucceeded
-      ? "A second consecutive pass ends the game. Regular tiles outside segments and groups below nine are captured by the opponent."
+      ? "A second consecutive pass ends the game. Regular tiles outside segments and groups below six are captured by the opponent."
       : "Passing leaves your reserve untouched.",
   };
 }
@@ -643,7 +643,7 @@ function renderControls() {
     content = `<p class="step">Choose an opponent’s <b>segment</b>, between two junctions. Follow the highlighted arrows.</p><select class="segment-picker" id="segment-picker" aria-label="Choose an opponent segment"><option value="">Choose on board or select a segment…</option>${all.map((s, i) => `<option value="${i}" ${path.join(",") === s.path.join(",") ? "selected" : ""}>${coordinate(s.path[0])} → ${coordinate(s.path.at(-1))} · ${s.path.length} tiles · ${esc(s.number)}</option>`).join("")}</select><div class="number-preview"><p class="eyebrow">${ready.number ? "NUMBER TO CHALLENGE" : "READ FROM LAST TILE TO FIRST"}</p><output>${ready.number ?? (path.length > 1 ? esc(segmentNumber(state.board, path)) : "—")}</output><small>Arrows run from the ones digit toward higher places.</small></div><div class="factor-display-row"><label class="factor-label">YOUR PROPOSED FACTOR<input id="factor-input" inputmode="numeric" pattern="[0-9]*" maxlength="${TILES_PER_PLAYER}" autocomplete="off" value="${esc(factor)}" placeholder="Enter a factor" aria-label="Proposed factor"></label><button id="factor-backspace" class="factor-backspace tile-key owner-${p}" aria-label="Delete last factor digit">⌫</button></div><div id="factor-keypad" class="factor-keypad" data-standalone-only role="group" aria-label="Factor digits">${[1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map((d) => factorKeyHTML(d, p)).join("")}</div><p class="inline-note">Optional: one attempt before your move. Afterward, choose Drop or Pass.</p>`;
   }
   if (action === "pass")
-    content = `<div class="preview-help">${state.passCount && !state.challengeSucceeded ? "<b>Your opponent passed.</b> Pass now to finish the game." : state.challengeSucceeded ? "Your successful challenge breaks the pass streak. You may pass to finish your turn." : "Take no action this turn. Two consecutive passes finish the game."}<br><br>At the end, regular tiles outside segments are captured first, then groups below nine. Each remaining board tile and each captured tile scores one point. Empty squares and reserve tiles do not score.</div>`;
+    content = `<div class="preview-help">${state.passCount && !state.challengeSucceeded ? "<b>Your opponent passed.</b> Pass now to finish the game." : state.challengeSucceeded ? "Your successful challenge breaks the pass streak. You may pass to finish your turn." : "Take no action this turn. Two consecutive passes finish the game."}<br><br>At the end, regular tiles outside segments are captured first, then groups below six. Each remaining board tile and each captured tile scores one point. Empty squares and reserve tiles do not score.</div>`;
   $("#action-content").innerHTML = content;
   renderFeedback();
 }
@@ -721,7 +721,7 @@ function render() {
   if (state.ended) {
     const point = scores(state);
     $("#result").innerHTML =
-      `<strong>${esc(state.names[0])} ${point[0]} — ${point[1]} ${esc(state.names[1])}</strong>${state.ended.reason === "passes" ? "Regular tiles outside segments and groups below nine have been captured." : state.ended.reason === "time" ? "The active player ran out of time." : "The opponent resigned."}`;
+      `<strong>${esc(state.names[0])} ${point[0]} — ${point[1]} ${esc(state.names[1])}</strong>${state.ended.reason === "passes" ? "Regular tiles outside segments and groups below six have been captured." : state.ended.reason === "time" ? "The active player ran out of time." : "The opponent resigned."}`;
   }
   buttonLabel($("#sound-button"), muted ? "Sound off" : "Sound on");
   $("#sound-button").setAttribute("aria-pressed", !muted);
@@ -977,7 +977,7 @@ $("#commit-button").onclick = async () => {
       state.passCount && !state.challengeSucceeded &&
       !(await ask(
         "Finish the game?",
-        "Both players will have passed. Regular tiles outside segments and groups below nine will be captured by the opponent, then the final score is counted.",
+        "Both players will have passed. Regular tiles outside segments and groups below six will be captured by the opponent, then the final score is counted.",
       ))
     )
       return;

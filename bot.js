@@ -1,5 +1,5 @@
 import {
-  TYPES, BOARD_CELLS, TYPE_MAP, neighbor, graph, hasCycle, scoringTiles,
+  TYPES, BOARD_CELLS, TYPE_MAP, MIN_SCORING_GROUP, neighbor, graph, hasCycle, scoringTiles,
   claimedGroups, segments, total, validateMove, scores,
 } from "./engine.js";
 export const BOT_LEVELS = { beginner: "Gentle", intermediate: "Thoughtful", advanced: "Deep" };
@@ -24,7 +24,7 @@ function evaluate(s, p) {
   if (s.ended) return value;
   const g = graph(s.board), complete = scoringTiles(s.board, g);
   for (const group of claimedGroups(s.board, g))
-    if (group.size < 9) value += (group.owner === p ? 1 : -1) * group.size * (0.25 + 0.06 * group.size);
+    if (group.size < MIN_SCORING_GROUP) value += (group.owner === p ? 1 : -1) * group.size * (0.25 + 0.06 * group.size);
   for (let i = 0; i < BOARD_CELLS; i++) if (s.board[i]) {
     const sign = s.board[i].owner === p ? 1 : -1;
     if (!complete.has(i)) value += sign * (0.06 + 0.18 * g.degree(i));

@@ -27,15 +27,15 @@ Flip a coin to decide who goes first. Players take turns. Before your move, you 
 
 **Pass.** End your turn without placing a tile.
 
-**Challenge.** Choose an opponent’s segment and read its number from the last tile to the first, against the arrows. Propose a positive integer factor greater than 1 and smaller than the number, then verify it with a calculator. If correct, remove all tiles in the segment and keep them as captures. Whether correct or not, then make your Drop or Pass.
+**Challenge.** Choose an opponent’s segment and read its number from the last tile to the first, against the arrows. Propose a positive integer factor greater than 1 and smaller than the number, then verify it with a calculator. If correct, remove all tiles in the segment and keep them as captures. Captured tiles stay out of play. Whether correct or not, then make your Drop or Pass.
 
-*Note: On a virtual board, factor verification is automatic. Captured tiles stay out of play.*
+*Note: On a virtual board, factor verification is automatic.*
 
 ## Endgame
 
 Two consecutive passes end the game. A successful Challenge breaks the pass streak; a turn with a successful Challenge does not count as a pass.
 
-First, remove all regular tiles that do not lie on a segment. Then remove all tiles in groups of fewer than nine. Give each removed tile to its owner’s opponent as a capture.
+First, remove all regular tiles that do not lie on a segment. Then remove all tiles in groups of fewer than six. Give each removed tile to its owner’s opponent as a capture.
 
 Score one point for each of your tiles left on the board and each tile you captured. The higher score wins; equal scores are a draw.
 

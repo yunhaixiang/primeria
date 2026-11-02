@@ -8,7 +8,7 @@ Each player has 162 owned tiles: 18 copies of each digit from 1 to 9. On a 15 ×
 
 Each digit has one arrow type: 2 bends left, 8 bends right, 4/5/6 are straight, and 1/3/7/9 are junctions. Tiles cannot be rotated after placement, and directed cycles are forbidden. A junction must connect to an existing own tile when placed. A successful Challenge captures only its selected segment; disconnected tiles remain until endgame cleanup.
 
-Segments may pass through intermediate junctions and must contain at least two tiles. Two consecutive passes end the game; a successful Challenge breaks the pass streak, and its turn does not count as a pass. First, regular tiles outside every segment become captures for their owners’ opponents. Then all tiles in groups below nine are captured. Groups use matching arrows in either direction. Each remaining own tile and each captured tile scores one point; empty squares do not score.
+Segments may pass through intermediate junctions and must contain at least two tiles. Two consecutive passes end the game; a successful Challenge breaks the pass streak, and its turn does not count as a pass. First, regular tiles outside every segment become captures for their owners’ opponents. Then all tiles in groups below six are captured. Groups use matching arrows in either direction. Each remaining own tile and each captured tile scores one point; empty squares do not score.
 
 The classic green board uses ivory tiles with blue and orange ownership colours, aligned digits in all four corners, and large arrows. The factor keypad shares the tile finish and digit style. Rotate a tile before placing it, or rotate the board for either seat. The virtual board previews the exact number of a selected segment.
 

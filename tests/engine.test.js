@@ -69,7 +69,7 @@ test("factor validation is exact for large integers and failed attempts do not r
   assert.equal(e.success, BigInt(e.number) % 3n === 0n);
   assert.ok(isSupportedState(s));
 });
-test("two passes capture unfinished tiles and completed groups below nine", () => {
+test("two passes capture unfinished tiles and completed groups below six", () => {
   const s = active();
   line(s); // Nine completed blue tiles survive.
   line(s, cell("A5"), 1, ["j3", "j7"]); // Two completed orange tiles do not.

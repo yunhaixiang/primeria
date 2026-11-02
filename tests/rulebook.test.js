@@ -10,7 +10,7 @@ test("current rulebook contains the exact supply, path requirements, pass ending
   for (const text of [
     "162 tiles", "18 copies of each digit", "at least two of your tiles",
     "first and last tiles are junction tiles", "A junction must connect",
-    "regular tiles that do not lie on a segment", "groups of fewer than nine",
+    "regular tiles that do not lie on a segment", "groups of fewer than six",
     "each of your tiles left on the board", "each tile you captured",
     "last tile to the first", "two consecutive passes", "Casual",
     "you may attempt one Challenge", "Then Drop or Pass",

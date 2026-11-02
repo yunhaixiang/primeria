@@ -34,11 +34,22 @@ test("branched networks count shared junctions once and exclude dangling tails",
   assert.deepEqual(claimedGroups(s.board).map(g=>g.size),[6]);
   assert.equal(scoreBreakdown(s)[0].unfinished,2);
 });
-test("unfinished tails cannot bring an eight-tile completed group over the nine-tile threshold", () => {
-  const s=active(); line(s,cell("A3"),0,["j1",...Array(6).fill("r4"),"j3"]);
-  put(s,cell("I3"),"r6",0,"arrow",1);
-  assert.deepEqual(scores(s),[0,0]); assert.equal(scoreBreakdown(s)[0].growing,8);
+test("unfinished tails cannot bring a five-tile completed group over the six-tile threshold", () => {
+  const s=active(); line(s,cell("A3"),0,["j1",...Array(3).fill("r4"),"j3"]);
+  put(s,cell("F3"),"r6",0,"arrow",1);
+  assert.deepEqual(scores(s),[0,0]); assert.equal(scoreBreakdown(s)[0].growing,5);
   assert.equal(scoreBreakdown(s)[0].unfinished,1);
+});
+test("six completed tiles score and survive cleanup while a five-tile group is captured", () => {
+  const s=active();
+  line(s,cell("A3"),0,["j1",...Array(4).fill("r4"),"j3"]);
+  line(s,cell("A5"),1,["j1",...Array(3).fill("r4"),"j3"]);
+  assert.deepEqual(scores(s),[6,0]);
+  assert.equal(scoreBreakdown(s)[1].growing,5);
+  applyMove(s,{type:"pass"},0); const end=applyMove(s,{type:"pass"},0);
+  assert.equal(end.smallGroups.length,5);
+  assert.deepEqual(scores(s),[11,0]);
+  assert.equal(s.board.filter(Boolean).length,6);
 });
 test("nine completed tiles score while unfinished extensions do not", () => {
   const s=active(); line(s); put(s,cell("J3"),"r6",0,"arrow",1);

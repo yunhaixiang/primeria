@@ -36,7 +36,7 @@ test("closing a geometric pocket captures no enemy tiles and gives no boundary o
  assert.ok(isSupportedState(s));
  const replay=reviewPosition(s,s.history.length); assert.deepEqual(replay.board,s.board);
 });
-test("endgame captures unfinished construction and sub-nine completed groups only once",()=>{
+test("endgame captures unfinished construction and sub-six completed groups only once",()=>{
  const s=active(); line(s); put(s,cell("J3"),"r4",0,"arrow",1);
  line(s,cell("A5"),1,["j1","j7"]); put(s,cell("L12"),"j9",1);
  applyMove(s,{type:"pass"},0); const e=applyMove(s,{type:"pass"},0);
@@ -49,9 +49,9 @@ test("obsolete surrounding-capture history metadata is rejected",()=>{
 });
 
 test("endgame removes unsupported regulars before measuring groups, keeping stranded junctions until stage two",()=>{
- const s=active(); line(s,cell("A3"),0,["j1",...Array(6).fill("r4"),"j3"]);
- put(s,cell("I3"),"r6",0,"arrow",1);
+ const s=active(); line(s,cell("A3"),0,["j1",...Array(3).fill("r4"),"j3"]);
+ put(s,cell("F3"),"r6",0,"arrow",1);
  applyMove(s,{type:"pass"},0); const e=applyMove(s,{type:"pass"},0);
- assert.deepEqual(e.unclaimed,[cell("I3")]); assert.equal(e.smallGroups.length,8);
- assert.deepEqual(scores(s),[0,9]); assert.equal(s.board.filter(Boolean).length,0);
+ assert.deepEqual(e.unclaimed,[cell("F3")]); assert.equal(e.smallGroups.length,5);
+ assert.deepEqual(scores(s),[0,6]); assert.equal(s.board.filter(Boolean).length,0);
 });
