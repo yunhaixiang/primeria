@@ -5,12 +5,12 @@ import {
   total,
   scores,
   scoreBreakdown,
-} from "./engine.js?v=510a47bc24";
+} from "./engine.js?v=d4cefab90c";
 import {
   tileHTML,
   factorKeyHTML,
   escapeHTML as escape,
-} from "./tiles.js?v=510a47bc24";
+} from "./tiles.js?v=d4cefab90c";
 
 export function splitPermissions(
   state,
@@ -123,5 +123,5 @@ export function splitPanelHTML(state, options) {
     )
     .join("");
   return `<header class="split-seat-heading owner-${seat}"><div><p class="eyebrow">PLAYER ${seat + 1}</p><h2>${escape(state.names[seat])}</h2><p class="split-status">${status}</p></div><span class="clock" data-clock="${seat}">${formatTime(display.clocks[seat])}</span>${button("panel", phoneOpen ? "Close" : "Moves", false, `class="split-panel-toggle" aria-expanded="${phoneOpen}" aria-controls="split-body-${seat}" aria-label="${phoneOpen ? "Close" : "Open"} controls for ${escape(state.names[seat])}"`)}</header>
- <div id="split-body-${seat}" class="split-body" data-phone-open="${phoneOpen}"><div class="split-score"><span>${points[seat]} points · ${breakdown[seat].eligible} scoring tiles · ${breakdown[seat].captured} captured${breakdown[seat].growing ? ` · ${breakdown[seat].growing} below six` : ""}${breakdown[seat].unfinished ? ` · ${breakdown[seat].unfinished} unfinished` : ""}</span><span>${mode[0] === null ? "Casual" : state.mode + " · " + mode[0] / 60 + " + " + mode[1]}</span></div><div class="split-opponent-summary"><span>${escape(state.names[1 - seat])} · ${points[1 - seat]} points</span><b data-clock="${1 - seat}">${formatTime(display.clocks[1 - seat])}</b></div><div class="split-session-tools">${button("new", "New game")}${button("pause", !state.started ? "Start" : state.paused ? "Resume" : "Pause", !(canPause || canStart))}${button("rules", "Rules")}${button("sound", muted ? "Sound off" : "Sound on")}${button("resign", "Resign", !canResign)}</div><div class="split-controls">${controls}</div><section class="split-reserve"><div class="section-title"><h3>Your reserve</h3><span>${total(reserve)} tiles</span></div><div class="reserve">${reserveHTML}</div></section><details class="split-history" ${historyOpen ? "open" : ""}><summary>Turn journal · ${state.turnNumber - 1} completed</summary><ol class="journal">${rows || '<li class="subtle">No moves yet.</li>'}</ol>${button("download", "Save game record ↓", !state.history.length, 'class="text-button small"')}</details></div>`;
+ <div id="split-body-${seat}" class="split-body" data-phone-open="${phoneOpen}"><div class="split-score"><span>${points[seat]} points · ${breakdown[seat].territory} territory · ${breakdown[seat].captured} captured${breakdown[seat].growing ? ` · ${breakdown[seat].growing} below six` : ""}${breakdown[seat].unfinished ? ` · ${breakdown[seat].unfinished} unfinished` : ""}</span><span>${mode[0] === null ? "Casual" : state.mode + " · " + mode[0] / 60 + " + " + mode[1]}</span></div><div class="split-opponent-summary"><span>${escape(state.names[1 - seat])} · ${points[1 - seat]} points</span><b data-clock="${1 - seat}">${formatTime(display.clocks[1 - seat])}</b></div><div class="split-session-tools">${button("new", "New game")}${button("pause", !state.started ? "Start" : state.paused ? "Resume" : "Pause", !(canPause || canStart))}${button("rules", "Rules")}${button("sound", muted ? "Sound off" : "Sound on")}${button("resign", "Resign", !canResign)}</div><div class="split-controls">${controls}</div><section class="split-reserve"><div class="section-title"><h3>Your reserve</h3><span>${total(reserve)} tiles</span></div><div class="reserve">${reserveHTML}</div></section><details class="split-history" ${historyOpen ? "open" : ""}><summary>Turn journal · ${state.turnNumber - 1} completed</summary><ol class="journal">${rows || '<li class="subtle">No moves yet.</li>'}</ol>${button("download", "Save game record ↓", !state.history.length, 'class="text-button small"')}</details></div>`;
 }

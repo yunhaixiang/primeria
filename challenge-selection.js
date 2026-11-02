@@ -1,4 +1,4 @@
-import { graph, isEndpoint, validateSegment } from "./engine.js?v=510a47bc24";
+import { graph, isEndpoint, validateSegment } from "./engine.js?v=d4cefab90c";
 export function extendChallenge(board, path, at, owner) {
   const t = board[at];
   if (!t || t.owner !== owner || t.face !== "arrow") return path;

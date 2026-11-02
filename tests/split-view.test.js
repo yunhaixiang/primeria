@@ -162,11 +162,11 @@ test("a used challenge disables only the optional challenge, including after a f
   assert.doesNotMatch(normal, /challenge/);
 });
 
-test("split scores show claimed tiles and captured points, without territory", () => {
+test("split scores show territory and captured points, without awarding board tiles", () => {
   const s = active();
   topPocket(s);
   put(s, 5, "r2", 1);
   put(s, cell("F2"), "r4", 1);
-  assert.match(panel(s, 0), /9 points · 9 scoring tiles · 0 captured/);
-  assert.match(panel(s, 1), /0 points · 0 scoring tiles · 0 captured/);
+  assert.match(panel(s, 0), /0 points · 0 territory · 0 captured/);
+  assert.match(panel(s, 1), /0 points · 0 territory · 0 captured/);
 });

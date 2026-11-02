@@ -1,6 +1,6 @@
 import {
-  TYPES, BOARD_CELLS, TYPE_MAP, MIN_SCORING_GROUP, neighbor, graph, hasCycle, scoringTiles,
-  claimedGroups, segments, total, validateMove, scores,
+  TYPES, BOARD_SIZE, BOARD_CELLS, TYPE_MAP, MIN_SCORING_GROUP, neighbor, graph, hasCycle, scoringTiles,
+  claimedGroups, segments, total, validateMove, scores, territory, endgameProjection,
 } from "./engine.js";
 export const BOT_LEVELS = { beginner: "Gentle", intermediate: "Thoughtful", advanced: "Deep" };
 /** Elementary tests are compulsory, independent of the trial-division budget. */
@@ -22,12 +22,34 @@ function evaluate(s, p) {
   const points = scores(s);
   let value = points[p] - points[1 - p];
   if (s.ended) return value;
-  const g = graph(s.board), complete = scoringTiles(s.board, g);
-  for (const group of claimedGroups(s.board, g))
-    if (group.size < MIN_SCORING_GROUP) value += (group.owner === p ? 1 : -1) * group.size * (0.25 + 0.06 * group.size);
+  const cleanup = endgameProjection(s.board);
+  for (const at of [...cleanup.unclaimed, ...cleanup.smallGroups])
+    value += s.board[at].owner === p ? -1 : 1;
+  // Unfinished construction has promise early on, but becomes an actual
+  // prisoner liability as the available building space runs out.
+  const room = Math.min(1, s.board.filter(t => !t).length / 90);
+  const g = graph(s.board), complete = scoringTiles(s.board, g), groups = claimedGroups(s.board, g);
+  const developed = new Set();
+  for (const group of groups) {
+    value += (group.owner === p ? 1 : -1) * group.size *
+      (group.size < MIN_SCORING_GROUP ? room * (1.1 + 0.04 * group.size) : 0.4);
+    if (group.size >= 3) for (const at of group.tiles) developed.add(at);
+  }
+  // Developing a wall matters before all its tiles survive cleanup. This is
+  // only a search estimate; the actual score always comes from the engine.
+  const prospective = territory(s.board.map((t, at) => developed.has(at) ? t : null)).counts;
+  value += 0.35 * (prospective[p] - prospective[1 - p]);
+  for (let at = 0; at < BOARD_CELLS; at++) {
+    if (s.board[at] || around(at).length < 4) continue;
+    const walls = [0, 0];
+    for (const j of around(at)) if (s.board[j] && developed.has(j)) walls[s.board[j].owner]++;
+    for (const owner of [0, 1])
+      if (walls[owner] >= 2 && !walls[1 - owner])
+        value += (owner === p ? 1 : -1) * 0.08 * walls[owner] ** 2;
+  }
   for (let i = 0; i < BOARD_CELLS; i++) if (s.board[i]) {
     const sign = s.board[i].owner === p ? 1 : -1;
-    if (!complete.has(i)) value += sign * (0.06 + 0.18 * g.degree(i));
+    if (!complete.has(i)) value += sign * room * (0.85 + 0.25 * g.degree(i));
   }
   return value;
 }
@@ -50,7 +72,8 @@ export function createBot({ seed = 1, strength = "intermediate" } = {}) {
   }
   function drops(s, p, count = width) {
     const positions = s.board.flatMap((t, at) => t ? [] : [{ at, priority:
-      around(at).reduce((n, j) => n + (s.board[j]?.owner === p ? 3 : s.board[j] ? 0.25 : 0), 0) + rng() * 0.2
+      around(at).reduce((n, j) => n + (s.board[j]?.owner === p ? 3 : s.board[j] ? 0.8 : 0), 0) +
+      0.02 * (BOARD_SIZE - 1 - Math.abs(at % BOARD_SIZE - (BOARD_SIZE - 1) / 2) - Math.abs(Math.floor(at / BOARD_SIZE) - (BOARD_SIZE - 1) / 2)) + rng() * 0.2
     }]).sort((a, b) => b.priority - a.priority).slice(0, count);
     const baseline = evaluate(s, p), result = [];
     for (const { at } of positions)
@@ -59,7 +82,6 @@ export function createBot({ seed = 1, strength = "intermediate" } = {}) {
           const board = s.board.slice();
           board[at] = { id: s.nextId, type: type.id, owner: p, face: "arrow", rotation };
           const connections = graph(board);
-          if (type.kind === "fork" && connections.degree(at) === 0) continue;
           if (hasCycle(connections)) continue;
           const future = { ...s, board };
           result.push({ command: { type: "drop", at, tile: type.id, rotation }, value: evaluate(future, p) - baseline, future });

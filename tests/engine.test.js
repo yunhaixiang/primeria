@@ -76,7 +76,7 @@ test("two passes capture unfinished tiles and completed groups below six", () =>
   put(s, cell("L12"), "r4"); // An unfinished blue tile.
   assert.deepEqual(scoreBreakdown(s).map(x => [x.eligible, x.growing, x.unfinished]), [[9,0,1],[0,2,0]]);
   move(s, { type: "pass" }); move(s, { type: "pass" });
-  assert.deepEqual(scores(s), [11,1]);
+  assert.deepEqual(scores(s), [2,1]);
   assert.equal(s.ended.winner, 0); assert.equal(s.board.filter(Boolean).length, 9);
   assert.ok(isSupportedState(s));
 });
@@ -153,16 +153,10 @@ test("15-square board edges and coordinates do not wrap", () => {
   assert.equal(neighbor(224,0),209);
 });
 
-test("junction Drops require a matching arrow connection to an own tile", () => {
+test("junctions may start isolated networks without an existing connection", () => {
   const s = active();
-  assert.throws(() => move(s, {type:"drop",at:cell("C3"),tile:"j1",rotation:1}), /junction must connect/i);
-  assert.equal(s.board.filter(Boolean).length, 0);
-  put(s, cell("B3"), "r4", 1, "arrow", 1);
-  assert.throws(() => move(s, {type:"drop",at:cell("C3"),tile:"j1",rotation:1}), /junction must connect/i);
-  put(s, cell("C4"), "r4", 0, "arrow", 0);
-  assert.throws(() => move(s, {type:"drop",at:cell("C3"),tile:"j1",rotation:1}), /junction must connect/i);
-  move(s, {type:"drop",at:cell("C3"),tile:"j1",rotation:0});
-  assert.equal(graph(s.board).degree(cell("C3")), 1);
+  move(s, {type:"drop",at:cell("C3"),tile:"j1",rotation:1});
+  assert.equal(graph(s.board).degree(cell("C3")), 0);
   assert.ok(isSupportedState(s));
 });
 test("a single 9 junction is not a segment, while composite paths through junctions are challengeable", () => {

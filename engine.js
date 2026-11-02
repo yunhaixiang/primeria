@@ -1,5 +1,5 @@
 /** Primeria's owned-tile rules. Directions: north, east, south, west. */
-export const RULES_VERSION = 41;
+export const RULES_VERSION = 42;
 export const MIN_SCORING_GROUP = 6;
 export const BOARD_SIZE = 15;
 export const BOARD_CELLS = BOARD_SIZE * BOARD_SIZE;
@@ -263,8 +263,56 @@ export function segments(board, owner, limit = 2000) {
   }
   return result;
 }
+/** Project the mandatory endgame cleanup without changing the live board. */
+export function endgameProjection(board) {
+  const cleaned = board.slice(), unclaimed = [], smallGroups = [];
+  const completed = completedTiles(board);
+  for (let at = 0; at < BOARD_CELLS; at++)
+    if (board[at] && TYPE_MAP[board[at].type].kind !== "fork" && !completed.has(at)) {
+      unclaimed.push(at);
+      cleaned[at] = null;
+    }
+  for (const group of claimedGroups(cleaned))
+    if (group.size < MIN_SCORING_GROUP)
+      for (const at of group.tiles) {
+        smallGroups.push(at);
+        cleaned[at] = null;
+      }
+  return { board: cleaned, unclaimed, smallGroups };
+}
+/** Empty regions use orthogonal contact. Board edges and mixed boundaries are neutral. */
+export function territory(board) {
+  const owners = Array(BOARD_CELLS).fill(null), counts = [0, 0], seen = new Set(), regions = [];
+  for (let at = 0; at < BOARD_CELLS; at++) {
+    if (board[at] || seen.has(at)) continue;
+    const cells = [at], boundary = new Set();
+    let edge = false;
+    seen.add(at);
+    for (let k = 0; k < cells.length; k++)
+      for (let d = 0; d < 4; d++) {
+        const next = neighbor(cells[k], d);
+        if (next === null) edge = true;
+        else if (board[next]) boundary.add(board[next].owner);
+        else if (!seen.has(next)) {
+          seen.add(next);
+          cells.push(next);
+        }
+      }
+    const owner = !edge && boundary.size === 1 ? [...boundary][0] : null;
+    if (owner !== null) {
+      counts[owner] += cells.length;
+      for (const cell of cells) owners[cell] = owner;
+    }
+    regions.push({ cells, owner });
+  }
+  return { owners, counts, regions };
+}
+export function territoryPreview(board) {
+  return territory(endgameProjection(board).board);
+}
 export function scoreBreakdown(s) {
   const groups = claimedGroups(s.board), supported = scoringTiles(s.board);
+  const land = territoryPreview(s.board);
   return [0, 1].map((p) => {
     const own = groups.filter((x) => x.owner === p);
     const eligible = own
@@ -278,8 +326,9 @@ export function scoreBreakdown(s) {
       growing,
       unfinished: s.board.filter((t, at) => t?.owner === p && !supported.has(at)).length,
       captured: s.captured[p].length,
+      territory: land.counts[p],
       groups: own.map((x) => x.size),
-      total: eligible + s.captured[p].length,
+      total: land.counts[p] + s.captured[p].length,
     };
   });
 }
@@ -412,8 +461,6 @@ export function applyMove(s, move, now = Date.now()) {
       throw Error("Choose a tile orientation.");
     n.board[move.at] = { ...take(move.tile), rotation };
     const connections = graph(n.board);
-    if (TYPE_MAP[move.tile].kind === "fork" && connections.degree(move.at) === 0)
-      throw Error("A junction must connect to one of your tiles when placed.");
     if (hasCycle(connections)) throw Error("This drop would create an arrow cycle.");
     detail = { at: move.at, tile: move.tile, rotation };
   } else if (move.type === "challenge") {
@@ -453,14 +500,8 @@ export function applyMove(s, move, now = Date.now()) {
   if (completesTurn)
     n.passCount = move.type === "pass" && !n.challengeSucceeded ? n.passCount + 1 : 0;
   if (n.passCount === 2) {
-    const unclaimed = [], smallGroups = [], completed = completedTiles(n.board);
-    for (let at = 0; at < BOARD_CELLS; at++)
-      if (n.board[at] && TYPE_MAP[n.board[at].type].kind !== "fork" && !completed.has(at)) {
-        unclaimed.push(at);
-        capture(n, at);
-      }
-    for (const group of claimedGroups(n.board))
-      if (group.size < MIN_SCORING_GROUP) smallGroups.push(...group.tiles);
+    const { unclaimed, smallGroups } = endgameProjection(n.board);
+    for (const at of unclaimed) capture(n, at);
     for (const at of smallGroups) capture(n, at);
     const points = scores(n);
     n.ended = {

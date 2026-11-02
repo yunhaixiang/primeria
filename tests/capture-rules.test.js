@@ -32,7 +32,7 @@ test("closing a geometric pocket captures no enemy tiles and gives no boundary o
   applyMove(s,{type:"drop",at,tile:fixture.board[at].type,rotation:fixture.board[at].rotation},0);
   applyMove(s,{type:"pass"},0);
  }
- assert.ok(s.board[cell("F2")]); assert.deepEqual(scores(s),[9,0]); assert.equal(s.captured[0].length,0);
+ assert.ok(s.board[cell("F2")]); assert.deepEqual(scores(s),[0,0]); assert.equal(s.captured[0].length,0);
  assert.ok(isSupportedState(s));
  const replay=reviewPosition(s,s.history.length); assert.deepEqual(replay.board,s.board);
 });
@@ -41,7 +41,7 @@ test("endgame captures unfinished construction and sub-six completed groups only
  line(s,cell("A5"),1,["j1","j7"]); put(s,cell("L12"),"j9",1);
  applyMove(s,{type:"pass"},0); const e=applyMove(s,{type:"pass"},0);
  assert.equal(e.unclaimed.length,1); assert.equal(e.smallGroups.length,3);
- assert.deepEqual(scores(s),[12,1]); assert.ok(isSupportedState(s));
+ assert.deepEqual(scores(s),[3,1]); assert.ok(isSupportedState(s));
 });
 test("obsolete surrounding-capture history metadata is rejected",()=>{
  const s=active(); applyMove(s,{type:"drop",tile:"r4",at:0},0);

@@ -3938,6 +3938,14 @@ main {
 .square .ghost {
   opacity: 0;
 }
+.square .territory-point {
+  position: absolute;
+  inset: 40%;
+  border-radius: 50%;
+  background: var(--owner);
+  opacity: 0.55;
+  pointer-events: none;
+}
 .square.empty:hover .ghost {
   opacity: 0.5;
 }
